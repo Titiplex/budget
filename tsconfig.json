@@ -28,6 +28,7 @@
     "src/**/*.jsx",
     "electron/**/*.ts",
     "electron/**/*.js",
-    "vite.config.*"
+    "vite.config.*",
+    "prisma.config.ts"
   ]
 }
