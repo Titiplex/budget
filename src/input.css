@@ -1,2 +1,189 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
 @import "tailwindcss";
+
 @plugin "daisyui";
+
+/*@custom-variant dark (&:where(.dark, .dark *));*/
+
+@theme {
+    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+    html,
+    body,
+    #app {
+        min-height: 100%;
+    }
+
+    body {
+        @apply bg-slate-100 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+        font-family: var(--font-sans), sans-serif;
+    }
+
+    * {
+        @apply border-slate-200 dark:border-slate-800;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+        @apply outline-none;
+    }
+}
+
+@layer components {
+    .panel {
+        @apply rounded-3xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/85;
+    }
+
+    .panel-header {
+        @apply flex items-start justify-between gap-4 px-6 py-5;
+    }
+
+    .panel-eyebrow {
+        @apply text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500;
+    }
+
+    .panel-title {
+        @apply mt-1 text-lg font-bold text-slate-900 dark:text-white;
+    }
+
+    .soft-kicker {
+        @apply text-xs font-semibold uppercase tracking-[0.2em] text-violet-500;
+    }
+
+    .soft-badge {
+        @apply inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-300;
+    }
+
+    .nav-item {
+        @apply flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/70 dark:hover:text-white;
+    }
+
+    .nav-item-active {
+        @apply bg-slate-100 text-slate-900 ring-1 ring-inset ring-slate-200 dark:bg-slate-800/70 dark:text-white dark:ring-slate-700;
+    }
+
+    .nav-marker {
+        @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-xs font-bold tracking-[0.12em] text-violet-600 dark:border-slate-700 dark:bg-slate-900 dark:text-violet-300;
+    }
+
+    .ghost-btn {
+        @apply inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-700 dark:hover:text-white;
+    }
+
+    .primary-btn {
+        @apply inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100;
+    }
+
+    .quick-create-btn {
+        @apply inline-flex w-full items-center justify-center rounded-2xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500;
+    }
+
+    .quick-create-btn-secondary {
+        @apply inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-700 dark:hover:text-white;
+    }
+
+    .quick-panel-action {
+        @apply inline-flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-950 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-200 dark:hover:border-slate-700 dark:hover:bg-slate-800/70 dark:hover:text-white;
+    }
+
+    .stat-card {
+        @apply rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900;
+    }
+
+    .stat-label {
+        @apply text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500;
+    }
+
+    .stat-value {
+        @apply mt-3 text-3xl font-bold tracking-tight text-slate-900 dark:text-white;
+    }
+
+    .stat-hint {
+        @apply mt-2 text-sm text-slate-500 dark:text-slate-400;
+    }
+
+    .mini-card {
+        @apply rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40;
+    }
+
+    .mini-label {
+        @apply text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500;
+    }
+
+    .mini-value {
+        @apply mt-2 text-lg font-bold text-slate-900 dark:text-white;
+    }
+
+    .table-head {
+        @apply border-b border-slate-200 dark:border-slate-800;
+    }
+
+    .table-cell-head {
+        @apply px-6 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500;
+    }
+
+    .table-row {
+        @apply border-b border-slate-200/80 transition hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-950/40;
+    }
+
+    .table-cell {
+        @apply px-6 py-4 text-sm text-slate-600 dark:text-slate-300;
+    }
+
+    .empty-state {
+        @apply px-6 py-10 text-center text-sm text-slate-500 dark:text-slate-400;
+    }
+
+    .field-block {
+        @apply flex flex-col gap-2;
+    }
+
+    .field-label {
+        @apply text-sm font-semibold text-slate-700 dark:text-slate-200;
+    }
+
+    .field-control {
+        @apply w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-violet-500 dark:focus:ring-violet-500/10;
+    }
+
+    .field-textarea {
+        @apply resize-y;
+    }
+
+    .field-color {
+        @apply h-13 w-full cursor-pointer rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-950;
+    }
+
+    .form-actions {
+        @apply flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-800;
+    }
+
+    .tab-btn {
+        @apply inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:text-white;
+    }
+
+    .tab-btn-active {
+        @apply border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/50 dark:text-violet-300;
+    }
+
+    .notice {
+        @apply rounded-2xl border px-4 py-3 text-sm font-medium;
+    }
+
+    .notice-success {
+        @apply border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/50 dark:text-emerald-300;
+    }
+
+    .notice-error {
+        @apply border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/50 dark:text-rose-300;
+    }
+
+    .inline-warning {
+        @apply rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300;
+    }
+}
