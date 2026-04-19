@@ -1,0 +1,59 @@
+{
+  "name": "electron-vue-prisma-template",
+  "productName": "Electron Vue Prisma Template",
+  "version": "0.1.0",
+  "description": "Starter template for Electron desktop apps using Vue, Vite, Tailwind CSS, DaisyUI and Prisma with SQLite.",
+  "main": "electron/main.js",
+  "type": "commonjs",
+  "author": "Titiplex",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Titiplex/template_app"
+  },
+  "scripts": {
+    "build:css": "tailwindcss -i src/input.css -o src/styles/output.css",
+    "build:vite": "npm run build:css && vite build",
+    "typecheck": "vue-tsc --noEmit",
+    "prisma:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:seed": "node prisma/seed.js",
+    "postinstall": "prisma generate",
+    "start": "npm run prisma:generate && npm run typecheck && npm run build:vite && electron-forge start",
+    "package": "npm run prisma:generate && npm run typecheck && npm run build:vite && electron-forge package",
+    "make": "npm run prisma:generate && npm run typecheck && npm run build:vite && electron-forge make",
+    "publish": "npm run prisma:generate && npm run typecheck && npm run build:vite && electron-forge publish",
+    "test": "echo \"No tests configured yet\""
+  },
+  "dependencies": {
+    "@prisma/client": "^6.7.0",
+    "@tailwindcss/cli": "^4.2.2",
+    "daisyui": "^5.5.19",
+    "electron-squirrel-startup": "^1.0.1",
+    "tailwindcss": "^4.2.2",
+    "update-electron-app": "^3.1.2",
+    "vite": "^8.0.8",
+    "vue": "^3.5.32"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.6.1",
+    "@electron-forge/maker-deb": "^7.11.1",
+    "@electron-forge/maker-rpm": "^7.11.1",
+    "@electron-forge/maker-squirrel": "^7.11.1",
+    "@electron-forge/maker-zip": "^7.11.1",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.11.1",
+    "@electron-forge/plugin-fuses": "^7.11.1",
+    "@electron-forge/publisher-github": "^7.11.1",
+    "@electron/fuses": "^1.8.0",
+    "@electron/rebuild": "^4.0.3",
+    "@types/electron": "^1.4.38",
+    "@types/node": "^25.6.0",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "electron": "^41.2.1",
+    "prisma": "^6.7.0",
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.2.6"
+  }
+}

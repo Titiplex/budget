@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id           Int           @id @default(autoincrement())
+  name         String
+  type         AccountType
+  currency     String        @default("CAD")
+  description  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+}
+
+model Category {
+  id           Int             @id @default(autoincrement())
+  name         String          @unique
+  kind         TransactionKind
+  color        String?
+  description  String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  transactions Transaction[]
+}
+
+model Transaction {
+  id        Int             @id @default(autoincrement())
+  label     String
+  amount    Float
+  kind      TransactionKind
+  date      DateTime
+  note      String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  accountId Int
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  categoryId Int?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+}
+
+enum AccountType {
+  CASH
+  BANK
+  SAVINGS
+  CREDIT
+  INVESTMENT
+  OTHER
+}
+
+enum TransactionKind {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
