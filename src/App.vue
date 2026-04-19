@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import {computed, onMounted, reactive, ref} from 'vue'
+import {computed, onMounted, reactive, ref, watch} from 'vue'
 
 type SectionKey = 'overview' | 'transactions' | 'accounts' | 'categories'
 type CreateTabKey = 'transaction' | 'account' | 'category'
+type EntityType = 'transaction' | 'account' | 'category'
+type PanelMode = 'create' | 'edit'
 type TransactionKind = 'INCOME' | 'EXPENSE' | 'TRANSFER'
 type AccountType = 'CASH' | 'BANK' | 'SAVINGS' | 'CREDIT' | 'INVESTMENT' | 'OTHER'
 
@@ -35,6 +37,32 @@ interface Transaction {
   category?: Category | null
 }
 
+interface AccountSummary extends Account {
+  transactionCount: number
+  income: number
+  expense: number
+  net: number
+}
+
+interface CategorySummary extends Category {
+  transactionCount: number
+  total: number
+}
+
+interface EditTarget {
+  type: EntityType
+  id: number
+}
+
+interface DeleteState {
+  open: boolean
+  busy: boolean
+  type: EntityType
+  id: number
+  label: string
+  message: string
+}
+
 const navigation = [
   {key: 'overview' as SectionKey, label: 'Vue d’ensemble', marker: 'OV', hint: 'KPI et activité'},
   {key: 'transactions' as SectionKey, label: 'Transactions', marker: 'TX', hint: 'Filtres et historique'},
@@ -49,15 +77,15 @@ const sectionMeta: Record<SectionKey, { title: string; description: string }> = 
   },
   transactions: {
     title: 'Transactions',
-    description: 'Recherche, filtres et historique des mouvements.',
+    description: 'Recherche, filtres, édition et suppression des mouvements.',
   },
   accounts: {
     title: 'Comptes',
-    description: 'Vue consolidée des comptes et de leur activité.',
+    description: 'Vue consolidée des comptes avec actions d’édition et de suppression.',
   },
   categories: {
     title: 'Catégories',
-    description: 'Regroupement des flux par nature de dépense ou revenu.',
+    description: 'Regroupement des flux par nature de dépense ou revenu avec gestion complète.',
   },
 }
 
@@ -87,8 +115,19 @@ const createPanelOpen = ref(false)
 const darkMode = ref(true)
 const activeSection = ref<SectionKey>('overview')
 const createTab = ref<CreateTabKey>('transaction')
+const panelMode = ref<PanelMode>('create')
+const editingTarget = ref<EditTarget | null>(null)
 
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null)
+
+const deleteDialog = reactive<DeleteState>({
+  open: false,
+  busy: false,
+  type: 'transaction',
+  id: 0,
+  label: '',
+  message: '',
+})
 
 const transactionSearch = ref('')
 const transactionKindFilter = ref<'ALL' | TransactionKind>('ALL')
@@ -184,6 +223,12 @@ function accountTypeLabel(type: AccountType) {
   return 'Autre'
 }
 
+function entityLabel(type: EntityType) {
+  if (type === 'transaction') return 'transaction'
+  if (type === 'account') return 'compte'
+  return 'catégorie'
+}
+
 function kindPillClass(kind: TransactionKind) {
   if (kind === 'INCOME') {
     return 'border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/50 dark:text-emerald-300'
@@ -228,18 +273,138 @@ function resetTransactionForm() {
   transactionForm.categoryId = ''
 }
 
+function resetAllForms() {
+  resetAccountForm()
+  resetCategoryForm()
+  resetTransactionForm()
+}
+
 function selectSection(section: SectionKey) {
   activeSection.value = section
   sidebarOpen.value = false
 }
 
 function openCreatePanel(tab: CreateTabKey) {
+  panelMode.value = 'create'
+  editingTarget.value = null
   createTab.value = tab
+  resetAllForms()
+
+  if (tab === 'transaction' && accounts.value.length === 1) {
+    transactionForm.accountId = String(accounts.value[0].id)
+  }
+
+  createPanelOpen.value = true
+}
+
+function openEditAccount(account: AccountSummary | Account) {
+  panelMode.value = 'edit'
+  editingTarget.value = {type: 'account', id: account.id}
+  createTab.value = 'account'
+  accountForm.name = account.name
+  accountForm.type = account.type
+  accountForm.currency = account.currency
+  accountForm.description = account.description || ''
+  createPanelOpen.value = true
+}
+
+function openEditCategory(category: CategorySummary | Category) {
+  panelMode.value = 'edit'
+  editingTarget.value = {type: 'category', id: category.id}
+  createTab.value = 'category'
+  categoryForm.name = category.name
+  categoryForm.kind = category.kind
+  categoryForm.color = category.color || '#8b5cf6'
+  categoryForm.description = category.description || ''
+  createPanelOpen.value = true
+}
+
+function openEditTransaction(transaction: Transaction) {
+  panelMode.value = 'edit'
+  editingTarget.value = {type: 'transaction', id: transaction.id}
+  createTab.value = 'transaction'
+  transactionForm.label = transaction.label
+  transactionForm.amount = String(Math.abs(transaction.amount))
+  transactionForm.kind = transaction.kind
+  transactionForm.date = new Date(transaction.date).toISOString().slice(0, 10)
+  transactionForm.note = transaction.note || ''
+  transactionForm.accountId = String(transaction.accountId)
+  transactionForm.categoryId = transaction.categoryId == null ? '' : String(transaction.categoryId)
   createPanelOpen.value = true
 }
 
 function closeCreatePanel() {
   createPanelOpen.value = false
+  panelMode.value = 'create'
+  editingTarget.value = null
+  resetAllForms()
+}
+
+function openDeleteDialog(type: EntityType, entity: Transaction | AccountSummary | CategorySummary | Account | Category) {
+  deleteDialog.type = type
+  deleteDialog.id = entity.id
+  deleteDialog.label = 'label' in entity ? entity.label : entity.name
+  deleteDialog.open = true
+  deleteDialog.busy = false
+
+  if (type === 'account') {
+    const count = 'transactionCount' in entity ? entity.transactionCount : transactions.value.filter((tx) => tx.accountId === entity.id).length
+    deleteDialog.message = count > 0
+        ? `Supprimer ce compte supprimera aussi ses ${count} transaction(s) liées.`
+        : 'Supprimer ce compte le retirera définitivement de la base.'
+    return
+  }
+
+  if (type === 'category') {
+    const count = 'transactionCount' in entity ? entity.transactionCount : transactions.value.filter((tx) => tx.categoryId === entity.id).length
+    deleteDialog.message = count > 0
+        ? `Supprimer cette catégorie laissera ${count} transaction(s) en place, mais sans catégorie associée.`
+        : 'Supprimer cette catégorie la retirera définitivement de la base.'
+    return
+  }
+
+  deleteDialog.message = 'Cette transaction sera supprimée définitivement.'
+}
+
+function closeDeleteDialog() {
+  deleteDialog.open = false
+  deleteDialog.busy = false
+  deleteDialog.id = 0
+  deleteDialog.label = ''
+  deleteDialog.message = ''
+  deleteDialog.type = 'transaction'
+}
+
+async function confirmDelete() {
+  deleteDialog.busy = true
+
+  try {
+    if (deleteDialog.type === 'account') {
+      await db().account.delete(deleteDialog.id)
+      showNotice('success', 'Compte supprimé.')
+    } else if (deleteDialog.type === 'category') {
+      await db().category.delete(deleteDialog.id)
+      showNotice('success', 'Catégorie supprimée.')
+    } else {
+      await db().transaction.delete(deleteDialog.id)
+      showNotice('success', 'Transaction supprimée.')
+    }
+
+    if (
+        createPanelOpen.value &&
+        editingTarget.value &&
+        editingTarget.value.type === deleteDialog.type &&
+        editingTarget.value.id === deleteDialog.id
+    ) {
+      closeCreatePanel()
+    }
+
+    closeDeleteDialog()
+    await refreshData()
+  } catch (error) {
+    showNotice('error', normalizeError(error))
+    deleteDialog.busy = false
+  }
 }
 
 async function refreshData() {
@@ -278,17 +443,23 @@ async function submitAccount() {
 
   saving.value = true
   try {
-    await db().account.create({
+    const payload = {
       name,
       type: accountForm.type,
       currency,
       description: accountForm.description.trim() || null,
-    })
+    }
+
+    if (panelMode.value === 'edit' && editingTarget.value?.type === 'account') {
+      await db().account.update(editingTarget.value.id, payload)
+      showNotice('success', 'Compte mis à jour.')
+    } else {
+      await db().account.create(payload)
+      showNotice('success', 'Compte créé.')
+    }
 
     await refreshData()
-    resetAccountForm()
     activeSection.value = 'accounts'
-    showNotice('success', 'Compte créé.')
     closeCreatePanel()
   } catch (error) {
     showNotice('error', normalizeError(error))
@@ -307,17 +478,23 @@ async function submitCategory() {
 
   saving.value = true
   try {
-    await db().category.create({
+    const payload = {
       name,
       kind: categoryForm.kind,
       color: categoryForm.color.trim() || null,
       description: categoryForm.description.trim() || null,
-    })
+    }
+
+    if (panelMode.value === 'edit' && editingTarget.value?.type === 'category') {
+      await db().category.update(editingTarget.value.id, payload)
+      showNotice('success', 'Catégorie mise à jour.')
+    } else {
+      await db().category.create(payload)
+      showNotice('success', 'Catégorie créée.')
+    }
 
     await refreshData()
-    resetCategoryForm()
     activeSection.value = 'categories'
-    showNotice('success', 'Catégorie créée.')
     closeCreatePanel()
   } catch (error) {
     showNotice('error', normalizeError(error))
@@ -357,7 +534,7 @@ async function submitTransaction() {
 
   saving.value = true
   try {
-    await db().transaction.create({
+    const payload = {
       label,
       amount,
       kind: transactionForm.kind,
@@ -365,12 +542,18 @@ async function submitTransaction() {
       note: transactionForm.note.trim() || null,
       accountId: Number(transactionForm.accountId),
       categoryId: transactionForm.categoryId ? Number(transactionForm.categoryId) : null,
-    })
+    }
+
+    if (panelMode.value === 'edit' && editingTarget.value?.type === 'transaction') {
+      await db().transaction.update(editingTarget.value.id, payload)
+      showNotice('success', 'Transaction mise à jour.')
+    } else {
+      await db().transaction.create(payload)
+      showNotice('success', 'Transaction créée.')
+    }
 
     await refreshData()
-    resetTransactionForm()
     activeSection.value = 'transactions'
-    showNotice('success', 'Transaction créée.')
     closeCreatePanel()
   } catch (error) {
     showNotice('error', normalizeError(error))
@@ -379,9 +562,20 @@ async function submitTransaction() {
   }
 }
 
+watch(() => transactionForm.kind, () => {
+  if (!transactionForm.categoryId) return
+
+  const stillAllowed = transactionFormCategories.value.some(
+      (category) => String(category.id) === transactionForm.categoryId,
+  )
+
+  if (!stillAllowed) {
+    transactionForm.categoryId = ''
+  }
+})
+
 const viewTitle = computed(() => sectionMeta[activeSection.value].title)
 const viewDescription = computed(() => sectionMeta[activeSection.value].description)
-
 const summaryCurrency = computed(() => accounts.value[0]?.currency || 'CAD')
 
 const incomeTransactions = computed(() =>
@@ -412,7 +606,7 @@ const largestExpense = computed(() => {
   return [...expenseTransactions.value].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))[0] || null
 })
 
-const accountSummaries = computed(() => {
+const accountSummaries = computed<AccountSummary[]>(() => {
   return accounts.value
       .map((account) => {
         const related = transactions.value.filter((tx) => tx.accountId === account.id)
@@ -434,7 +628,7 @@ const accountSummaries = computed(() => {
       .sort((a, b) => b.transactionCount - a.transactionCount || b.net - a.net)
 })
 
-const categorySummaries = computed(() => {
+const categorySummaries = computed<CategorySummary[]>(() => {
   return categories.value
       .map((category) => {
         const related = transactions.value.filter((tx) => tx.categoryId === category.id)
@@ -518,6 +712,38 @@ const transactionFormCategories = computed(() => {
     return categories.value
   }
   return categories.value.filter((category) => category.kind === transactionForm.kind)
+})
+
+const panelTitle = computed(() => {
+  if (panelMode.value === 'create') {
+    if (createTab.value === 'transaction') return 'Ajouter une transaction'
+    if (createTab.value === 'account') return 'Ajouter un compte'
+    return 'Ajouter une catégorie'
+  }
+
+  if (editingTarget.value?.type === 'transaction') return 'Modifier la transaction'
+  if (editingTarget.value?.type === 'account') return 'Modifier le compte'
+  return 'Modifier la catégorie'
+})
+
+const panelDescription = computed(() => {
+  if (panelMode.value === 'create') {
+    return 'Crée rapidement des transactions, comptes ou catégories.'
+  }
+
+  return 'Édite les données existantes, puis enregistre ou supprime si nécessaire.'
+})
+
+const panelSubmitLabel = computed(() => {
+  if (panelMode.value === 'create') {
+    if (createTab.value === 'transaction') return 'Créer la transaction'
+    if (createTab.value === 'account') return 'Créer le compte'
+    return 'Créer la catégorie'
+  }
+
+  if (editingTarget.value?.type === 'transaction') return 'Mettre à jour la transaction'
+  if (editingTarget.value?.type === 'account') return 'Mettre à jour le compte'
+  return 'Mettre à jour la catégorie'
 })
 
 const lastSyncLabel = computed(() => {
@@ -614,18 +840,17 @@ onMounted(async () => {
         <div class="mt-auto pt-6">
           <div class="panel px-4 py-4">
             <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">
-              Direction
+              Lot 3
             </p>
             <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Le style est désormais crédible, et l’app permet enfin de créer ses données sans bricolage.
+              Édition, suppression et confirmations. Là, on commence à avoir une vraie app, pas juste une vitrine.
             </p>
           </div>
         </div>
       </aside>
 
       <div class="flex min-w-0 flex-1 flex-col">
-        <header
-            class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/85 backdrop-blur dark:border-slate-800 dark:bg-slate-950/85">
+        <header class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/85 backdrop-blur dark:border-slate-800 dark:bg-slate-950/85">
           <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
             <div class="flex min-w-0 items-center gap-3">
               <button
@@ -664,10 +889,7 @@ onMounted(async () => {
 
         <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <div v-if="notice" class="mb-6">
-            <div
-                class="notice"
-                :class="notice.type === 'success' ? 'notice-success' : 'notice-error'"
-            >
+            <div class="notice" :class="notice.type === 'success' ? 'notice-success' : 'notice-error'">
               {{ notice.text }}
             </div>
           </div>
@@ -676,14 +898,13 @@ onMounted(async () => {
             <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div class="max-w-2xl">
                 <p class="soft-kicker">
-                  Lot 2
+                  Lot 3
                 </p>
                 <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-                  UI crédible + formulaires utiles.
+                  Gestion complète des entités.
                 </h2>
                 <p class="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                  Tu as maintenant un dashboard propre, une navigation interne claire, et surtout des formulaires stylés
-                  pour créer comptes, catégories et transactions sans revenir au code.
+                  Tu peux maintenant créer, modifier et supprimer les transactions, comptes et catégories depuis l’interface, avec de vraies confirmations destructives.
                 </p>
               </div>
 
@@ -692,7 +913,7 @@ onMounted(async () => {
                 <span class="soft-badge">Vue 3</span>
                 <span class="soft-badge">Prisma</span>
                 <span class="soft-badge">SQLite</span>
-                <span class="soft-badge">Tailwind</span>
+                <span class="soft-badge">CRUD complet</span>
               </div>
             </div>
           </section>
@@ -758,7 +979,7 @@ onMounted(async () => {
                 </div>
 
                 <div v-if="recentTransactions.length" class="overflow-x-auto">
-                  <table class="w-full min-w-[760px]">
+                  <table class="w-full min-w-[920px]">
                     <thead>
                     <tr class="table-head">
                       <th class="table-cell-head text-left">Libellé</th>
@@ -766,6 +987,7 @@ onMounted(async () => {
                       <th class="table-cell-head text-left">Catégorie</th>
                       <th class="table-cell-head text-left">Date</th>
                       <th class="table-cell-head text-right">Montant</th>
+                      <th class="table-cell-head text-right">Actions</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -776,8 +998,7 @@ onMounted(async () => {
                     >
                       <td class="table-cell">
                         <div class="flex items-center gap-3">
-                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
-                                  :class="kindPillClass(transaction.kind)">
+                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold" :class="kindPillClass(transaction.kind)">
                               {{ kindLabel(transaction.kind) }}
                             </span>
                           <div>
@@ -797,8 +1018,7 @@ onMounted(async () => {
 
                       <td class="table-cell">
                         <div class="flex items-center gap-2">
-                          <span class="h-2.5 w-2.5 rounded-full"
-                                :style="categoryDotStyle(transaction.category?.color)"/>
+                          <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(transaction.category?.color)" />
                           <span>{{ transaction.category?.name || 'Sans catégorie' }}</span>
                         </div>
                       </td>
@@ -809,6 +1029,17 @@ onMounted(async () => {
 
                       <td class="table-cell text-right font-semibold" :class="amountClass(transaction.kind)">
                         {{ formatMoney(Math.abs(transaction.amount), transaction.account?.currency || 'CAD') }}
+                      </td>
+
+                      <td class="table-cell">
+                        <div class="row-actions">
+                          <button class="mini-action-btn" @click="openEditTransaction(transaction)">
+                            Modifier
+                          </button>
+                          <button class="mini-danger-btn" @click="openDeleteDialog('transaction', transaction)">
+                            Supprimer
+                          </button>
+                        </div>
                       </td>
                     </tr>
                     </tbody>
@@ -836,7 +1067,7 @@ onMounted(async () => {
                     >
                       <div class="mb-2 flex items-center justify-between gap-3">
                         <div class="flex min-w-0 items-center gap-2">
-                          <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(category.color)"/>
+                          <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(category.color)" />
                           <span class="truncate text-sm font-medium text-slate-700 dark:text-slate-200">
                             {{ category.name }}
                           </span>
@@ -946,13 +1177,18 @@ onMounted(async () => {
                   <h3 class="panel-title">Transactions filtrées</h3>
                 </div>
 
-                <span class="soft-badge">
-                  {{ filteredTransactions.length }} ligne(s)
-                </span>
+                <div class="flex items-center gap-2">
+                  <span class="soft-badge">
+                    {{ filteredTransactions.length }} ligne(s)
+                  </span>
+                  <button class="primary-btn" @click="openCreatePanel('transaction')">
+                    Ajouter
+                  </button>
+                </div>
               </div>
 
               <div v-if="filteredTransactions.length" class="overflow-x-auto">
-                <table class="w-full min-w-[940px]">
+                <table class="w-full min-w-[1020px]">
                   <thead>
                   <tr class="table-head">
                     <th class="table-cell-head text-left">Type</th>
@@ -961,6 +1197,7 @@ onMounted(async () => {
                     <th class="table-cell-head text-left">Catégorie</th>
                     <th class="table-cell-head text-left">Date</th>
                     <th class="table-cell-head text-right">Montant</th>
+                    <th class="table-cell-head text-right">Actions</th>
                   </tr>
                   </thead>
                   <tbody>
@@ -970,8 +1207,7 @@ onMounted(async () => {
                       class="table-row"
                   >
                     <td class="table-cell">
-                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
-                              :class="kindPillClass(transaction.kind)">
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold" :class="kindPillClass(transaction.kind)">
                           {{ kindLabel(transaction.kind) }}
                         </span>
                     </td>
@@ -993,7 +1229,7 @@ onMounted(async () => {
 
                     <td class="table-cell">
                       <div class="flex items-center gap-2">
-                        <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(transaction.category?.color)"/>
+                        <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(transaction.category?.color)" />
                         <span>{{ transaction.category?.name || 'Sans catégorie' }}</span>
                       </div>
                     </td>
@@ -1004,6 +1240,17 @@ onMounted(async () => {
 
                     <td class="table-cell text-right font-semibold" :class="amountClass(transaction.kind)">
                       {{ formatMoney(Math.abs(transaction.amount), transaction.account?.currency || 'CAD') }}
+                    </td>
+
+                    <td class="table-cell">
+                      <div class="row-actions">
+                        <button class="mini-action-btn" @click="openEditTransaction(transaction)">
+                          Modifier
+                        </button>
+                        <button class="mini-danger-btn" @click="openDeleteDialog('transaction', transaction)">
+                          Supprimer
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   </tbody>
@@ -1039,14 +1286,25 @@ onMounted(async () => {
                     </h3>
                   </div>
 
+                  <div class="card-toolbar">
+                    <button class="mini-action-btn" @click="openEditAccount(account)">
+                      Modifier
+                    </button>
+                    <button class="mini-danger-btn" @click="openDeleteDialog('account', account)">
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+
+                <div class="mt-3 flex items-center justify-between gap-3">
+                  <p class="text-sm text-slate-500 dark:text-slate-400">
+                    {{ account.description || 'Pas encore de description.' }}
+                  </p>
+
                   <span class="soft-badge">
                     {{ account.currency }}
                   </span>
                 </div>
-
-                <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">
-                  {{ account.description || 'Pas encore de description.' }}
-                </p>
 
                 <div class="mt-6 grid grid-cols-2 gap-3">
                   <div class="mini-card">
@@ -1067,8 +1325,10 @@ onMounted(async () => {
                     <div class="flex items-center justify-between gap-3">
                       <div>
                         <p class="mini-label">Net</p>
-                        <p class="mini-value"
-                           :class="account.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
+                        <p
+                            class="mini-value"
+                            :class="account.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
+                        >
                           {{ formatMoney(account.net, account.currency) }}
                         </p>
                       </div>
@@ -1102,7 +1362,7 @@ onMounted(async () => {
               >
                 <div class="flex items-start justify-between gap-3">
                   <div class="flex items-center gap-3">
-                    <span class="h-3 w-3 rounded-full" :style="categoryDotStyle(category.color)"/>
+                    <span class="h-3 w-3 rounded-full" :style="categoryDotStyle(category.color)" />
                     <div>
                       <p class="text-sm font-semibold text-slate-900 dark:text-white">
                         {{ category.name }}
@@ -1113,21 +1373,33 @@ onMounted(async () => {
                     </div>
                   </div>
 
-                  <span class="soft-badge">
-                    {{ category.transactionCount }} tx
-                  </span>
+                  <div class="card-toolbar">
+                    <button class="mini-action-btn" @click="openEditCategory(category)">
+                      Modifier
+                    </button>
+                    <button class="mini-danger-btn" @click="openDeleteDialog('category', category)">
+                      Supprimer
+                    </button>
+                  </div>
                 </div>
 
                 <p class="mt-4 text-sm text-slate-500 dark:text-slate-400">
                   {{ category.description || 'Aucune description renseignée.' }}
                 </p>
 
-                <div
-                    class="mt-6 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-                  <p class="mini-label">Volume cumulé</p>
-                  <p class="mini-value mt-1">
-                    {{ formatMoney(category.total, summaryCurrency) }}
-                  </p>
+                <div class="mt-6 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+                  <div class="flex items-center justify-between gap-3">
+                    <div>
+                      <p class="mini-label">Volume cumulé</p>
+                      <p class="mini-value mt-1">
+                        {{ formatMoney(category.total, summaryCurrency) }}
+                      </p>
+                    </div>
+
+                    <span class="soft-badge">
+                      {{ category.transactionCount }} tx
+                    </span>
+                  </div>
                 </div>
               </article>
             </div>
@@ -1145,19 +1417,23 @@ onMounted(async () => {
         class="fixed inset-0 z-50 flex justify-end bg-slate-950/50 backdrop-blur-sm"
         @click.self="closeCreatePanel"
     >
-      <div
-          class="h-full w-full max-w-2xl overflow-y-auto border-l border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div
-            class="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
+      <div class="h-full w-full max-w-2xl overflow-y-auto border-l border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div class="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
           <div class="flex items-start justify-between gap-4">
             <div>
-              <p class="soft-kicker">Création</p>
+              <p class="soft-kicker">
+                {{ panelMode === 'create' ? 'Création' : 'Édition' }}
+              </p>
               <h2 class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-                Ajouter des données
+                {{ panelTitle }}
               </h2>
               <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                Transactions, comptes et catégories dans un panneau unique.
+                {{ panelDescription }}
               </p>
+
+              <span v-if="panelMode === 'edit' && editingTarget" class="drawer-badge">
+                Mode édition · {{ entityLabel(editingTarget.type) }}
+              </span>
             </div>
 
             <button class="ghost-btn" @click="closeCreatePanel">
@@ -1165,7 +1441,7 @@ onMounted(async () => {
             </button>
           </div>
 
-          <div class="mt-5 flex flex-wrap gap-2">
+          <div v-if="panelMode === 'create'" class="mt-5 flex flex-wrap gap-2">
             <button
                 class="tab-btn"
                 :class="{ 'tab-btn-active': createTab === 'transaction' }"
@@ -1191,7 +1467,11 @@ onMounted(async () => {
         </div>
 
         <div class="p-6">
-          <form v-if="createTab === 'transaction'" class="space-y-5" @submit.prevent="submitTransaction">
+          <form
+              v-if="createTab === 'transaction'"
+              class="space-y-5"
+              @submit.prevent="submitTransaction"
+          >
             <div class="grid gap-5 md:grid-cols-2">
               <div class="field-block md:col-span-2">
                 <label class="field-label">Libellé</label>
@@ -1272,7 +1552,7 @@ onMounted(async () => {
                     rows="4"
                     class="field-control field-textarea"
                     placeholder="Détail optionnel"
-                />
+                ></textarea>
               </div>
             </div>
 
@@ -1284,13 +1564,36 @@ onMounted(async () => {
               <button type="button" class="ghost-btn" @click="resetTransactionForm">
                 Réinitialiser
               </button>
+
+              <button
+                  v-if="panelMode === 'edit' && editingTarget?.type === 'transaction'"
+                  type="button"
+                  class="danger-btn"
+                  @click="openDeleteDialog('transaction', {
+                  id: editingTarget.id,
+                  label: transactionForm.label,
+                  amount: Number(transactionForm.amount) || 0,
+                  kind: transactionForm.kind,
+                  date: transactionForm.date,
+                  note: transactionForm.note || null,
+                  accountId: Number(transactionForm.accountId || 0),
+                  categoryId: transactionForm.categoryId ? Number(transactionForm.categoryId) : null
+                })"
+              >
+                Supprimer
+              </button>
+
               <button type="submit" class="primary-btn" :disabled="saving">
-                {{ saving ? 'Enregistrement…' : 'Créer la transaction' }}
+                {{ saving ? 'Enregistrement…' : panelSubmitLabel }}
               </button>
             </div>
           </form>
 
-          <form v-else-if="createTab === 'account'" class="space-y-5" @submit.prevent="submitAccount">
+          <form
+              v-else-if="createTab === 'account'"
+              class="space-y-5"
+              @submit.prevent="submitAccount"
+          >
             <div class="grid gap-5 md:grid-cols-2">
               <div class="field-block md:col-span-2">
                 <label class="field-label">Nom</label>
@@ -1333,7 +1636,7 @@ onMounted(async () => {
                     rows="4"
                     class="field-control field-textarea"
                     placeholder="Optionnel"
-                />
+                ></textarea>
               </div>
             </div>
 
@@ -1341,13 +1644,33 @@ onMounted(async () => {
               <button type="button" class="ghost-btn" @click="resetAccountForm">
                 Réinitialiser
               </button>
+
+              <button
+                  v-if="panelMode === 'edit' && editingTarget?.type === 'account'"
+                  type="button"
+                  class="danger-btn"
+                  @click="openDeleteDialog('account', {
+                  id: editingTarget.id,
+                  name: accountForm.name,
+                  type: accountForm.type,
+                  currency: accountForm.currency,
+                  description: accountForm.description || null
+                })"
+              >
+                Supprimer
+              </button>
+
               <button type="submit" class="primary-btn" :disabled="saving">
-                {{ saving ? 'Enregistrement…' : 'Créer le compte' }}
+                {{ saving ? 'Enregistrement…' : panelSubmitLabel }}
               </button>
             </div>
           </form>
 
-          <form v-else class="space-y-5" @submit.prevent="submitCategory">
+          <form
+              v-else
+              class="space-y-5"
+              @submit.prevent="submitCategory"
+          >
             <div class="grid gap-5 md:grid-cols-2">
               <div class="field-block md:col-span-2">
                 <label class="field-label">Nom</label>
@@ -1388,7 +1711,7 @@ onMounted(async () => {
                     rows="4"
                     class="field-control field-textarea"
                     placeholder="Optionnel"
-                />
+                ></textarea>
               </div>
             </div>
 
@@ -1396,11 +1719,55 @@ onMounted(async () => {
               <button type="button" class="ghost-btn" @click="resetCategoryForm">
                 Réinitialiser
               </button>
+
+              <button
+                  v-if="panelMode === 'edit' && editingTarget?.type === 'category'"
+                  type="button"
+                  class="danger-btn"
+                  @click="openDeleteDialog('category', {
+                  id: editingTarget.id,
+                  name: categoryForm.name,
+                  kind: categoryForm.kind,
+                  color: categoryForm.color,
+                  description: categoryForm.description || null
+                })"
+              >
+                Supprimer
+              </button>
+
               <button type="submit" class="primary-btn" :disabled="saving">
-                {{ saving ? 'Enregistrement…' : 'Créer la catégorie' }}
+                {{ saving ? 'Enregistrement…' : panelSubmitLabel }}
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    </div>
+
+    <div
+        v-if="deleteDialog.open"
+        class="dialog-backdrop"
+        @click.self="closeDeleteDialog"
+    >
+      <div class="dialog-card">
+        <p class="soft-kicker">
+          Suppression
+        </p>
+        <h3 class="dialog-title">
+          Supprimer {{ entityLabel(deleteDialog.type) }}
+        </h3>
+        <p class="dialog-text">
+          <span class="font-semibold text-slate-800 dark:text-slate-100">{{ deleteDialog.label }}</span><br>
+          {{ deleteDialog.message }}
+        </p>
+
+        <div class="form-actions mt-6">
+          <button class="ghost-btn" :disabled="deleteDialog.busy" @click="closeDeleteDialog">
+            Annuler
+          </button>
+          <button class="danger-btn" :disabled="deleteDialog.busy" @click="confirmDelete">
+            {{ deleteDialog.busy ? 'Suppression…' : 'Confirmer la suppression' }}
+          </button>
         </div>
       </div>
     </div>
