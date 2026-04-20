@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {useI18n} from 'vue-i18n'
 import type {EntityType} from '../types/budget'
 import {entityLabel} from '../utils/budgetFormat'
 
@@ -14,6 +15,8 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'confirm'): void
 }>()
+
+const {t} = useI18n()
 </script>
 
 <template>
@@ -24,10 +27,10 @@ const emit = defineEmits<{
   >
     <div class="dialog-card">
       <p class="soft-kicker">
-        Suppression
+        {{ t('deleteDialog.title') }}
       </p>
       <h3 class="dialog-title">
-        Supprimer {{ entityLabel(type) }}
+        {{ t('common.delete') }} {{ entityLabel(type) }}
       </h3>
       <p class="dialog-text">
         <span class="font-semibold text-slate-800 dark:text-slate-100">{{ label }}</span><br>
@@ -36,10 +39,10 @@ const emit = defineEmits<{
 
       <div class="form-actions mt-6">
         <button class="ghost-btn" :disabled="busy" @click="emit('close')">
-          Annuler
+          {{ t('common.cancel') }}
         </button>
         <button class="danger-btn" :disabled="busy" @click="emit('confirm')">
-          {{ busy ? 'Suppression…' : 'Confirmer la suppression' }}
+          {{ busy ? t('common.loading') : t('deleteDialog.confirm') }}
         </button>
       </div>
     </div>

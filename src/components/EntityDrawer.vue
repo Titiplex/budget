@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed} from 'vue'
+import {useI18n} from 'vue-i18n'
 import type {
   Account,
   AccountType,
@@ -70,6 +71,8 @@ const canDeleteCurrent = computed(() => {
   if (props.mode !== 'edit' || !props.editingTarget) return false
   return props.editingTarget.type === props.currentTab
 })
+
+const {t} = useI18n()
 </script>
 
 <template>
@@ -85,7 +88,7 @@ const canDeleteCurrent = computed(() => {
         <div class="flex items-start justify-between gap-4">
           <div>
             <p class="soft-kicker">
-              {{ mode === 'create' ? 'Création' : 'Édition' }}
+              {{ mode === 'create' ? t('forms.modeCreate') : t('forms.modeEdit') }}
             </p>
             <h2 class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
               {{ panelTitle }}
@@ -95,12 +98,12 @@ const canDeleteCurrent = computed(() => {
             </p>
 
             <span v-if="mode === 'edit' && editingTarget" class="drawer-badge">
-              Mode édition
+              {{ t('forms.editBadge') }}
             </span>
           </div>
 
           <button class="ghost-btn" @click="emit('close')">
-            Fermer
+            {{ t('common.close') }}
           </button>
         </div>
 
@@ -110,21 +113,21 @@ const canDeleteCurrent = computed(() => {
               :class="{ 'tab-btn-active': currentTab === 'transaction' }"
               @click="emit('set-tab', 'transaction')"
           >
-            Transaction
+            {{ t('entities.singular.transaction') }}
           </button>
           <button
               class="tab-btn"
               :class="{ 'tab-btn-active': currentTab === 'account' }"
               @click="emit('set-tab', 'account')"
           >
-            Compte
+            {{ t('entities.singular.account') }}
           </button>
           <button
               class="tab-btn"
               :class="{ 'tab-btn-active': currentTab === 'category' }"
               @click="emit('set-tab', 'category')"
           >
-            Catégorie
+            {{ t('entities.singular.category') }}
           </button>
         </div>
       </div>
@@ -137,17 +140,17 @@ const canDeleteCurrent = computed(() => {
         >
           <div class="grid gap-5 md:grid-cols-2">
             <div class="field-block md:col-span-2">
-              <label class="field-label">Libellé</label>
+              <label class="field-label">{{ t('forms.fields.label') }}</label>
               <input
                   v-model="transactionForm.label"
                   type="text"
                   class="field-control"
-                  placeholder="Courses, salaire, abonnement..."
+                  :placeholder="t('forms.placeholders.transactionLabel')"
               >
             </div>
 
             <div class="field-block">
-              <label class="field-label">Montant</label>
+              <label class="field-label">{{ t('forms.fields.amount') }}</label>
               <input
                   v-model="transactionForm.amount"
                   type="number"
@@ -159,7 +162,7 @@ const canDeleteCurrent = computed(() => {
             </div>
 
             <div class="field-block">
-              <label class="field-label">Date</label>
+              <label class="field-label">{{ t('forms.fields.date') }}</label>
               <input
                   v-model="transactionForm.date"
                   type="date"
@@ -168,7 +171,7 @@ const canDeleteCurrent = computed(() => {
             </div>
 
             <div class="field-block">
-              <label class="field-label">Type</label>
+              <label class="field-label">{{ t('forms.fields.type') }}</label>
               <select v-model="transactionForm.kind" class="field-control">
                 <option
                     v-for="kind in transactionKindOptions"
@@ -181,9 +184,9 @@ const canDeleteCurrent = computed(() => {
             </div>
 
             <div class="field-block">
-              <label class="field-label">Compte</label>
+              <label class="field-label">{{ t('forms.fields.account') }}</label>
               <select v-model="transactionForm.accountId" class="field-control">
-                <option value="">Sélectionner un compte</option>
+                <option value="">{{ t('forms.placeholders.selectAccount') }}</option>
                 <option
                     v-for="account in accounts"
                     :key="account.id"
@@ -195,9 +198,9 @@ const canDeleteCurrent = computed(() => {
             </div>
 
             <div class="field-block">
-              <label class="field-label">Catégorie</label>
+              <label class="field-label">{{ t('forms.fields.category') }}</label>
               <select v-model="transactionForm.categoryId" class="field-control">
-                <option value="">Aucune</option>
+                <option value="">{{ t('common.none') }}</option>
                 <option
                     v-for="category in transactionFormCategories"
                     :key="category.id"
@@ -209,23 +212,23 @@ const canDeleteCurrent = computed(() => {
             </div>
 
             <div class="field-block md:col-span-2">
-              <label class="field-label">Note</label>
+              <label class="field-label">{{ t('forms.fields.note') }}</label>
               <textarea
                   v-model="transactionForm.note"
                   rows="4"
                   class="field-control field-textarea"
-                  placeholder="Détail optionnel"
+                  :placeholder="t('common.optional')"
               ></textarea>
             </div>
           </div>
 
           <div v-if="!accounts.length" class="inline-warning">
-            Tu n’as encore aucun compte. Crée d’abord un compte.
+            {{ t('forms.noAccountWarning') }}
           </div>
 
           <div class="form-actions">
             <button type="button" class="ghost-btn" @click="emit('reset-transaction')">
-              Réinitialiser
+              {{ t('common.reset') }}
             </button>
 
             <button
@@ -234,11 +237,11 @@ const canDeleteCurrent = computed(() => {
                 class="danger-btn"
                 @click="emit('request-delete')"
             >
-              Supprimer
+              {{ t('common.delete') }}
             </button>
 
             <button type="submit" class="primary-btn" :disabled="saving">
-              {{ saving ? 'Enregistrement…' : panelSubmitLabel }}
+              {{ saving ? t('common.loading') : panelSubmitLabel }}
             </button>
           </div>
         </form>
@@ -250,17 +253,17 @@ const canDeleteCurrent = computed(() => {
         >
           <div class="grid gap-5 md:grid-cols-2">
             <div class="field-block md:col-span-2">
-              <label class="field-label">Nom</label>
+              <label class="field-label">{{ t('forms.fields.name') }}</label>
               <input
                   v-model="accountForm.name"
                   type="text"
                   class="field-control"
-                  placeholder="Compte chèque, carte, cash..."
+                  :placeholder="t('forms.placeholders.accountName')"
               >
             </div>
 
             <div class="field-block">
-              <label class="field-label">Type</label>
+              <label class="field-label">{{ t('forms.fields.type') }}</label>
               <select v-model="accountForm.type" class="field-control">
                 <option
                     v-for="type in accountTypeOptions"
@@ -273,7 +276,7 @@ const canDeleteCurrent = computed(() => {
             </div>
 
             <div class="field-block">
-              <label class="field-label">Devise</label>
+              <label class="field-label">{{ t('forms.fields.currency') }}</label>
               <input
                   v-model="accountForm.currency"
                   type="text"
@@ -284,19 +287,19 @@ const canDeleteCurrent = computed(() => {
             </div>
 
             <div class="field-block md:col-span-2">
-              <label class="field-label">Description</label>
+              <label class="field-label">{{ t('forms.fields.description') }}</label>
               <textarea
                   v-model="accountForm.description"
                   rows="4"
                   class="field-control field-textarea"
-                  placeholder="Optionnel"
+                  :placeholder="t('common.optional')"
               ></textarea>
             </div>
           </div>
 
           <div class="form-actions">
             <button type="button" class="ghost-btn" @click="emit('reset-account')">
-              Réinitialiser
+              {{ t('common.reset') }}
             </button>
 
             <button
@@ -305,11 +308,11 @@ const canDeleteCurrent = computed(() => {
                 class="danger-btn"
                 @click="emit('request-delete')"
             >
-              Supprimer
+              {{ t('common.delete') }}
             </button>
 
             <button type="submit" class="primary-btn" :disabled="saving">
-              {{ saving ? 'Enregistrement…' : panelSubmitLabel }}
+              {{ saving ? t('common.loading') : panelSubmitLabel }}
             </button>
           </div>
         </form>
@@ -321,17 +324,17 @@ const canDeleteCurrent = computed(() => {
         >
           <div class="grid gap-5 md:grid-cols-2">
             <div class="field-block md:col-span-2">
-              <label class="field-label">Nom</label>
+              <label class="field-label">{{ t('forms.fields.name') }}</label>
               <input
                   v-model="categoryForm.name"
                   type="text"
                   class="field-control"
-                  placeholder="Loyer, alimentation, salaire..."
+                  :placeholder="t('forms.placeholders.categoryName')"
               >
             </div>
 
             <div class="field-block">
-              <label class="field-label">Type</label>
+              <label class="field-label">{{ t('forms.fields.type') }}</label>
               <select v-model="categoryForm.kind" class="field-control">
                 <option
                     v-for="kind in transactionKindOptions"
@@ -344,7 +347,7 @@ const canDeleteCurrent = computed(() => {
             </div>
 
             <div class="field-block">
-              <label class="field-label">Couleur</label>
+              <label class="field-label">{{ t('forms.fields.color') }}</label>
               <input
                   v-model="categoryForm.color"
                   type="color"
@@ -353,19 +356,19 @@ const canDeleteCurrent = computed(() => {
             </div>
 
             <div class="field-block md:col-span-2">
-              <label class="field-label">Description</label>
+              <label class="field-label">{{ t('forms.fields.description') }}</label>
               <textarea
                   v-model="categoryForm.description"
                   rows="4"
                   class="field-control field-textarea"
-                  placeholder="Optionnel"
+                  :placeholder="t('common.optional')"
               ></textarea>
             </div>
           </div>
 
           <div class="form-actions">
             <button type="button" class="ghost-btn" @click="emit('reset-category')">
-              Réinitialiser
+              {{ t('common.reset') }}
             </button>
 
             <button
@@ -374,11 +377,11 @@ const canDeleteCurrent = computed(() => {
                 class="danger-btn"
                 @click="emit('request-delete')"
             >
-              Supprimer
+              {{ t('common.delete') }}
             </button>
 
             <button type="submit" class="primary-btn" :disabled="saving">
-              {{ saving ? 'Enregistrement…' : panelSubmitLabel }}
+              {{ saving ? t('common.loading') : panelSubmitLabel }}
             </button>
           </div>
         </form>

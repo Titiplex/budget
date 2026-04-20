@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed} from 'vue'
+import {useI18n} from 'vue-i18n'
 import type {
   ExpenseBreakdownItem,
   MonthlyPoint,
@@ -38,6 +39,8 @@ const maxIncome = computed(() =>
 const maxExpense = computed(() =>
     Math.max(...props.monthlyTrend.map((point) => point.expense), 1),
 )
+
+const {t} = useI18n()
 </script>
 
 <template>
@@ -46,12 +49,12 @@ const maxExpense = computed(() =>
       <section class="panel xl:col-span-8">
         <div class="panel-header">
           <div>
-            <p class="panel-eyebrow">Activité récente</p>
-            <h3 class="panel-title">Dernières transactions</h3>
+            <p class="panel-eyebrow">{{ t('overview.recentActivity') }}</p>
+            <h3 class="panel-title">{{ t('overview.latestTransactions') }}</h3>
           </div>
 
           <button class="ghost-btn" @click="emit('open-transactions')">
-            Tout voir
+            {{ t('overview.seeAll') }}
           </button>
         </div>
 
@@ -59,12 +62,12 @@ const maxExpense = computed(() =>
           <table class="w-full min-w-[920px]">
             <thead>
             <tr class="table-head">
-              <th class="table-cell-head text-left">Libellé</th>
-              <th class="table-cell-head text-left">Compte</th>
-              <th class="table-cell-head text-left">Catégorie</th>
-              <th class="table-cell-head text-left">Date</th>
-              <th class="table-cell-head text-right">Montant</th>
-              <th class="table-cell-head text-right">Actions</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.label') }}</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.account') }}</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.category') }}</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.date') }}</th>
+              <th class="table-cell-head text-right">{{ t('forms.fields.amount') }}</th>
+              <th class="table-cell-head text-right">{{ t('overview.quickActions') }}</th>
             </tr>
             </thead>
             <tbody>
@@ -97,7 +100,7 @@ const maxExpense = computed(() =>
               <td class="table-cell">
                 <div class="flex items-center gap-2">
                   <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(transaction.category?.color)"/>
-                  <span>{{ transaction.category?.name || 'Sans catégorie' }}</span>
+                  <span>{{ transaction.category?.name || t('common.none') }}</span>
                 </div>
               </td>
 
@@ -112,10 +115,10 @@ const maxExpense = computed(() =>
               <td class="table-cell">
                 <div class="row-actions">
                   <button class="mini-action-btn" @click="emit('edit-transaction', transaction)">
-                    Modifier
+                    {{ t('common.update') }}
                   </button>
                   <button class="mini-danger-btn" @click="emit('delete-transaction', transaction)">
-                    Supprimer
+                    {{ t('common.delete') }}
                   </button>
                 </div>
               </td>
@@ -125,7 +128,7 @@ const maxExpense = computed(() =>
         </div>
 
         <div v-else class="empty-state">
-          Aucune transaction pour le moment.
+          {{ t('overview.noTransactions') }}
         </div>
       </section>
 
@@ -133,8 +136,8 @@ const maxExpense = computed(() =>
         <section class="panel">
           <div class="panel-header">
             <div>
-              <p class="panel-eyebrow">Vue analytique</p>
-              <h3 class="panel-title">Tendance mensuelle</h3>
+              <p class="panel-eyebrow">{{ t('analytics.netFlow') }}</p>
+              <h3 class="panel-title">{{ t('overview.monthlyTrend') }}</h3>
             </div>
           </div>
 
@@ -158,11 +161,11 @@ const maxExpense = computed(() =>
             <div class="mt-4 flex flex-wrap gap-3 text-xs font-semibold">
               <span class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400">
                 <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"/>
-                Revenus
+                {{ t('analytics.income') }}
               </span>
               <span class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400">
                 <span class="h-2.5 w-2.5 rounded-full bg-rose-500"/>
-                Dépenses
+                {{ t('analytics.expense') }}
               </span>
             </div>
           </div>
@@ -171,8 +174,8 @@ const maxExpense = computed(() =>
         <section class="panel">
           <div class="panel-header">
             <div>
-              <p class="panel-eyebrow">Poids des dépenses</p>
-              <h3 class="panel-title">Répartition</h3>
+              <p class="panel-eyebrow">{{ t('overview.expenseWeight') }}</p>
+              <h3 class="panel-title">{{ t('overview.breakdown') }}</h3>
             </div>
           </div>
 
@@ -208,27 +211,27 @@ const maxExpense = computed(() =>
           </div>
 
           <div v-else class="empty-state">
-            Pas assez de données pour une répartition.
+            {{ t('overview.notEnoughBreakdown') }}
           </div>
         </section>
 
         <section class="panel">
           <div class="panel-header">
             <div>
-              <p class="panel-eyebrow">Actions rapides</p>
-              <h3 class="panel-title">Créer</h3>
+              <p class="panel-eyebrow">{{ t('overview.quickActions') }}</p>
+              <h3 class="panel-title">{{ t('overview.create') }}</h3>
             </div>
           </div>
 
           <div class="space-y-3 px-6 pb-6">
             <button class="quick-panel-action" @click="emit('create-transaction')">
-              Nouvelle transaction
+              {{ t('forms.titles.createTransaction') }}
             </button>
             <button class="quick-panel-action" @click="emit('create-account')">
-              Nouveau compte
+              {{ t('forms.titles.createAccount') }}
             </button>
             <button class="quick-panel-action" @click="emit('create-category')">
-              Nouvelle catégorie
+              {{ t('forms.titles.createCategory') }}
             </button>
           </div>
         </section>

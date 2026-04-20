@@ -16,6 +16,7 @@ import type {
     Transaction,
     TransactionKind,
 } from '../types/budget'
+import {currentLocaleCode, tr} from '../i18n'
 import {kindLabel} from '../utils/budgetFormat'
 
 export function useBudgetData(
@@ -91,7 +92,7 @@ export function useBudgetData(
         if (error instanceof Error && error.message) {
             return error.message
         }
-        return 'Une erreur inconnue est survenue.'
+        return tr('notices.unknownError')
     }
 
     function resetAccountForm() {
@@ -198,8 +199,8 @@ export function useBudgetData(
                 : transactions.value.filter((tx) => tx.accountId === entity.id).length
 
             deleteDialog.message = count > 0
-                ? `Supprimer ce compte supprimera aussi ses ${count} transaction(s) liées.`
-                : 'Supprimer ce compte le retirera définitivement de la base.'
+                ? tr('deleteDialog.accountCascade', {count})
+                : tr('deleteDialog.accountSimple')
             return
         }
 
@@ -209,12 +210,12 @@ export function useBudgetData(
                 : transactions.value.filter((tx) => tx.categoryId === entity.id).length
 
             deleteDialog.message = count > 0
-                ? `Supprimer cette catégorie laissera ${count} transaction(s) en place, mais sans catégorie associée.`
-                : 'Supprimer cette catégorie la retirera définitivement de la base.'
+                ? tr('deleteDialog.categoryCascade', {count})
+                : tr('deleteDialog.categorySimple')
             return
         }
 
-        deleteDialog.message = 'Cette transaction sera supprimée définitivement.'
+        deleteDialog.message = tr('deleteDialog.transactionSimple')
     }
 
     function requestDeleteCurrentForm() {
@@ -289,13 +290,13 @@ export function useBudgetData(
         try {
             if (deleteDialog.type === 'account') {
                 await window.db.account.delete(deleteDialog.id)
-                showNotice('success', 'Compte supprimé.')
+                showNotice('success', tr('notices.accountDeleted'))
             } else if (deleteDialog.type === 'category') {
                 await window.db.category.delete(deleteDialog.id)
-                showNotice('success', 'Catégorie supprimée.')
+                showNotice('success', tr('notices.categoryDeleted'))
             } else {
                 await window.db.transaction.delete(deleteDialog.id)
-                showNotice('success', 'Transaction supprimée.')
+                showNotice('success', tr('notices.transactionDeleted'))
             }
 
             if (
@@ -320,12 +321,12 @@ export function useBudgetData(
         const currency = accountForm.currency.trim().toUpperCase()
 
         if (!name) {
-            showNotice('error', 'Le nom du compte est obligatoire.')
+            showNotice('error', tr('notices.accountNameRequired'))
             return
         }
 
         if (!currency || currency.length < 3) {
-            showNotice('error', 'La devise doit contenir au moins 3 caractères.')
+            showNotice('error', tr('notices.currencyTooShort'))
             return
         }
 
@@ -340,10 +341,10 @@ export function useBudgetData(
 
             if (panelMode.value === 'edit' && editingTarget.value?.type === 'account') {
                 await window.db.account.update(editingTarget.value.id, payload)
-                showNotice('success', 'Compte mis à jour.')
+                showNotice('success', tr('notices.accountUpdated'))
             } else {
                 await window.db.account.create(payload)
-                showNotice('success', 'Compte créé.')
+                showNotice('success', tr('notices.accountCreated'))
             }
 
             await refreshData()
@@ -360,7 +361,7 @@ export function useBudgetData(
         const name = categoryForm.name.trim()
 
         if (!name) {
-            showNotice('error', 'Le nom de la catégorie est obligatoire.')
+            showNotice('error', tr('notices.categoryNameRequired'))
             return
         }
 
@@ -375,10 +376,10 @@ export function useBudgetData(
 
             if (panelMode.value === 'edit' && editingTarget.value?.type === 'category') {
                 await window.db.category.update(editingTarget.value.id, payload)
-                showNotice('success', 'Catégorie mise à jour.')
+                showNotice('success', tr('notices.categoryUpdated'))
             } else {
                 await window.db.category.create(payload)
-                showNotice('success', 'Catégorie créée.')
+                showNotice('success', tr('notices.categoryCreated'))
             }
 
             await refreshData()
@@ -393,7 +394,7 @@ export function useBudgetData(
 
     async function submitTransaction() {
         if (!accounts.value.length) {
-            showNotice('error', 'Il faut créer au moins un compte avant une transaction.')
+            showNotice('error', tr('notices.accountNeededBeforeTransaction'))
             return
         }
 
@@ -401,22 +402,22 @@ export function useBudgetData(
         const amount = Number(transactionForm.amount)
 
         if (!label) {
-            showNotice('error', 'Le libellé de la transaction est obligatoire.')
+            showNotice('error', tr('notices.transactionLabelRequired'))
             return
         }
 
         if (!Number.isFinite(amount) || amount <= 0) {
-            showNotice('error', 'Le montant doit être un nombre strictement positif.')
+            showNotice('error', tr('notices.positiveAmountRequired'))
             return
         }
 
         if (!transactionForm.date) {
-            showNotice('error', 'La date est obligatoire.')
+            showNotice('error', tr('notices.dateRequired'))
             return
         }
 
         if (!transactionForm.accountId) {
-            showNotice('error', 'Il faut sélectionner un compte.')
+            showNotice('error', tr('notices.accountRequired'))
             return
         }
 
@@ -434,10 +435,10 @@ export function useBudgetData(
 
             if (panelMode.value === 'edit' && editingTarget.value?.type === 'transaction') {
                 await window.db.transaction.update(editingTarget.value.id, payload)
-                showNotice('success', 'Transaction mise à jour.')
+                showNotice('success', tr('notices.transactionUpdated'))
             } else {
                 await window.db.transaction.create(payload)
-                showNotice('success', 'Transaction créée.')
+                showNotice('success', tr('notices.transactionCreated'))
             }
 
             await refreshData()
@@ -535,7 +536,7 @@ export function useBudgetData(
         for (const tx of transactions.value) {
             if (tx.kind !== 'EXPENSE') continue
 
-            const name = tx.category?.name || 'Sans catégorie'
+            const name = tx.category?.name || tr('common.none')
             const current = totals.get(name) || {
                 name,
                 total: 0,
@@ -568,7 +569,7 @@ export function useBudgetData(
         for (let offset = 5; offset >= 0; offset -= 1) {
             const current = new Date(now.getFullYear(), now.getMonth() - offset, 1)
             const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`
-            const label = new Intl.DateTimeFormat('fr-CA', {month: 'short'}).format(current)
+            const label = new Intl.DateTimeFormat(currentLocaleCode(), {month: 'short'}).format(current)
 
             buckets.push({
                 key,
@@ -648,39 +649,41 @@ export function useBudgetData(
 
     const panelTitle = computed(() => {
         if (panelMode.value === 'create') {
-            if (createTab.value === 'transaction') return 'Ajouter une transaction'
-            if (createTab.value === 'account') return 'Ajouter un compte'
-            return 'Ajouter une catégorie'
+            if (createTab.value === 'transaction') return tr('forms.titles.createTransaction')
+            if (createTab.value === 'account') return tr('forms.titles.createAccount')
+            return tr('forms.titles.createCategory')
         }
 
-        if (editingTarget.value?.type === 'transaction') return 'Modifier la transaction'
-        if (editingTarget.value?.type === 'account') return 'Modifier le compte'
-        return 'Modifier la catégorie'
+        if (editingTarget.value?.type === 'transaction') return tr('forms.titles.editTransaction')
+        if (editingTarget.value?.type === 'account') return tr('forms.titles.editAccount')
+        return tr('forms.titles.editCategory')
     })
 
     const panelDescription = computed(() => {
         if (panelMode.value === 'create') {
-            return 'Crée rapidement des transactions, comptes ou catégories.'
+            return tr('forms.descriptions.create')
         }
 
-        return 'Édite les données existantes, puis enregistre, importe, exporte ou supprime si nécessaire.'
+        return tr('forms.descriptions.edit')
     })
 
     const panelSubmitLabel = computed(() => {
         if (panelMode.value === 'create') {
-            if (createTab.value === 'transaction') return 'Créer la transaction'
-            if (createTab.value === 'account') return 'Créer le compte'
-            return 'Créer la catégorie'
+            if (createTab.value === 'transaction') return tr('forms.submit.createTransaction')
+            if (createTab.value === 'account') return tr('forms.submit.createAccount')
+            return tr('forms.submit.createCategory')
         }
 
-        if (editingTarget.value?.type === 'transaction') return 'Mettre à jour la transaction'
-        if (editingTarget.value?.type === 'account') return 'Mettre à jour le compte'
-        return 'Mettre à jour la catégorie'
+        if (editingTarget.value?.type === 'transaction') return tr('forms.submit.updateTransaction')
+        if (editingTarget.value?.type === 'account') return tr('forms.submit.updateAccount')
+        return tr('forms.submit.updateCategory')
     })
 
     const lastSyncLabel = computed(() => {
         const latest = recentTransactions.value[0]
-        return latest ? `Dernier mouvement le ${new Intl.DateTimeFormat('fr-CA', {dateStyle: 'medium'}).format(new Date(latest.date))}` : 'Aucune transaction enregistrée'
+        return latest
+            ? tr('app.lastMovementOn', {date: new Intl.DateTimeFormat(currentLocaleCode(), {dateStyle: 'medium'}).format(new Date(latest.date))})
+            : tr('app.noTransactionYet')
     })
 
     return {

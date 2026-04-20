@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {useI18n} from 'vue-i18n'
 import type {Account, Category, Transaction, TransactionKind} from '../types/budget'
 import {
   amountClass,
@@ -28,6 +29,8 @@ const emit = defineEmits<{
   (e: 'edit-transaction', transaction: Transaction): void
   (e: 'delete-transaction', transaction: Transaction): void
 }>()
+
+const {t} = useI18n()
 </script>
 
 <template>
@@ -35,38 +38,38 @@ const emit = defineEmits<{
     <section class="panel p-6">
       <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <div class="field-block xl:col-span-2">
-          <label class="field-label">Recherche</label>
+          <label class="field-label">{{ t('common.search') }}</label>
           <input
               :value="search"
               type="text"
               class="field-control"
-              placeholder="Libellé, compte, catégorie, note..."
+              :placeholder="t('transactions.searchPlaceholder')"
               @input="emit('update:search', ($event.target as HTMLInputElement).value)"
           >
         </div>
 
         <div class="field-block">
-          <label class="field-label">Type</label>
+          <label class="field-label">{{ t('forms.fields.type') }}</label>
           <select
               :value="kindFilter"
               class="field-control"
               @change="emit('update:kind-filter', ($event.target as HTMLSelectElement).value as 'ALL' | TransactionKind)"
           >
-            <option value="ALL">Tous</option>
-            <option value="EXPENSE">Dépense</option>
-            <option value="INCOME">Revenu</option>
-            <option value="TRANSFER">Transfert</option>
+            <option value="ALL">{{ t('common.all') }}</option>
+            <option value="EXPENSE">{{ kindLabel('EXPENSE') }}</option>
+            <option value="INCOME">{{ kindLabel('INCOME') }}</option>
+            <option value="TRANSFER">{{ kindLabel('TRANSFER') }}</option>
           </select>
         </div>
 
         <div class="field-block">
-          <label class="field-label">Compte</label>
+          <label class="field-label">{{ t('forms.fields.account') }}</label>
           <select
               :value="accountFilter"
               class="field-control"
               @change="emit('update:account-filter', ($event.target as HTMLSelectElement).value)"
           >
-            <option value="ALL">Tous</option>
+            <option value="ALL">{{ t('common.all') }}</option>
             <option
                 v-for="account in accounts"
                 :key="account.id"
@@ -78,14 +81,14 @@ const emit = defineEmits<{
         </div>
 
         <div class="field-block">
-          <label class="field-label">Catégorie</label>
+          <label class="field-label">{{ t('forms.fields.category') }}</label>
           <select
               :value="categoryFilter"
               class="field-control"
               @change="emit('update:category-filter', ($event.target as HTMLSelectElement).value)"
           >
-            <option value="ALL">Toutes</option>
-            <option value="NONE">Sans catégorie</option>
+            <option value="ALL">{{ t('common.allFeminine') }}</option>
+            <option value="NONE">{{ t('common.none') }}</option>
             <option
                 v-for="category in categories"
                 :key="category.id"
@@ -101,8 +104,8 @@ const emit = defineEmits<{
     <section class="panel">
       <div class="panel-header">
         <div>
-          <p class="panel-eyebrow">Historique complet</p>
-          <h3 class="panel-title">Transactions filtrées</h3>
+          <p class="panel-eyebrow">{{ t('transactions.fullHistory') }}</p>
+          <h3 class="panel-title">{{ t('transactions.filteredTransactions') }}</h3>
         </div>
 
         <div class="flex items-center gap-2">
@@ -110,7 +113,7 @@ const emit = defineEmits<{
             {{ filteredTransactions.length }} ligne(s)
           </span>
           <button class="primary-btn" @click="emit('create-transaction')">
-            Ajouter
+            {{ t('common.add') }}
           </button>
         </div>
       </div>
@@ -119,13 +122,13 @@ const emit = defineEmits<{
         <table class="w-full min-w-[1020px]">
           <thead>
           <tr class="table-head">
-            <th class="table-cell-head text-left">Type</th>
-            <th class="table-cell-head text-left">Libellé</th>
-            <th class="table-cell-head text-left">Compte</th>
-            <th class="table-cell-head text-left">Catégorie</th>
-            <th class="table-cell-head text-left">Date</th>
-            <th class="table-cell-head text-right">Montant</th>
-            <th class="table-cell-head text-right">Actions</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.type') }}</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.label') }}</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.account') }}</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.category') }}</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.date') }}</th>
+            <th class="table-cell-head text-right">{{ t('forms.fields.amount') }}</th>
+            <th class="table-cell-head text-right">{{ t('overview.quickActions') }}</th>
           </tr>
           </thead>
           <tbody>
@@ -159,7 +162,7 @@ const emit = defineEmits<{
             <td class="table-cell">
               <div class="flex items-center gap-2">
                 <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(transaction.category?.color)"/>
-                <span>{{ transaction.category?.name || 'Sans catégorie' }}</span>
+                <span>{{ transaction.category?.name || t('common.none') }}</span>
               </div>
             </td>
 
@@ -174,10 +177,10 @@ const emit = defineEmits<{
             <td class="table-cell">
               <div class="row-actions">
                 <button class="mini-action-btn" @click="emit('edit-transaction', transaction)">
-                  Modifier
+                  {{ t('common.update') }}
                 </button>
                 <button class="mini-danger-btn" @click="emit('delete-transaction', transaction)">
-                  Supprimer
+                  {{ t('common.delete') }}
                 </button>
               </div>
             </td>
@@ -187,7 +190,7 @@ const emit = defineEmits<{
       </div>
 
       <div v-else class="empty-state">
-        Aucun résultat avec les filtres actuels.
+        {{ t('transactions.noResults') }}
       </div>
     </section>
   </section>

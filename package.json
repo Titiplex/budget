@@ -28,6 +28,7 @@
     "test": "echo \"No tests configured yet\""
   },
   "dependencies": {
+    "@intlify/devtools-types": "^11.3.2",
     "@prisma/client": "^6.7.0",
     "@tailwindcss/cli": "^4.2.2",
     "daisyui": "^5.5.19",
@@ -35,7 +36,8 @@
     "tailwindcss": "^4.2.2",
     "update-electron-app": "^3.1.2",
     "vite": "^8.0.8",
-    "vue": "^3.5.32"
+    "vue": "^3.5.32",
+    "vue-i18n": "^11.1.10"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.6.1",

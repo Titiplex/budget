@@ -8,6 +8,7 @@ import type {
     Transaction,
     TransactionKind,
 } from '../types/budget'
+import {tr} from '../i18n'
 import {entityCollectionLabel, sectionToEntityType} from '../utils/budgetFormat'
 import {parseCsv, readCsvValue, toCsv, type CsvRecord} from '../utils/csv'
 
@@ -124,14 +125,14 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
         const content = toCsv(rows, headers)
 
         const result = await window.file.saveText({
-            title: `Exporter ${entityCollectionLabel(entity)} en CSV`,
+            title: `${tr('common.export')} ${entityCollectionLabel(entity)} CSV`,
             defaultPath: currentEntityFileName(entity),
             content,
             filters: [{name: 'CSV', extensions: ['csv']}],
         })
 
         if (!result?.canceled) {
-            options.showNotice('success', `Export ${entityCollectionLabel(entity)} terminé.`)
+            options.showNotice('success', tr('notices.csvExportDone', {entity: entityCollectionLabel(entity)}))
         }
     }
 
@@ -220,7 +221,7 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
 
         const name = readCsvValue(row, ['accountName', 'account', 'compte', 'nomCompte'])
         if (!name) {
-            throw new Error('Compte manquant pour la transaction.')
+            throw new Error(tr('notices.missingCsvTransactionAccount'))
         }
 
         const existing = findAccountByName(accountCache, name)
@@ -332,7 +333,7 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
     async function importCurrentCsv() {
         const entity = currentCsvEntity.value
         const result = await window.file.openText({
-            title: `Importer ${entityCollectionLabel(entity)} depuis un CSV`,
+            title: `${tr('common.import')} ${entityCollectionLabel(entity)} CSV`,
             filters: [{name: 'CSV', extensions: ['csv']}],
         })
 
@@ -342,7 +343,7 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
 
         const rows = parseCsv(result.content)
         if (!rows.length) {
-            options.showNotice('error', 'Le fichier CSV est vide ou invalide.')
+            options.showNotice('error', tr('notices.csvEmptyInvalid'))
             return
         }
 
@@ -350,31 +351,22 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
             if (entity === 'account') {
                 const summary = await importAccountsCsv(rows)
                 await options.refreshData()
-                options.showNotice(
-                    'success',
-                    `Import comptes terminé : ${summary.created} créé(s), ${summary.updated} mis à jour, ${summary.skipped} ignoré(s).`,
-                )
+                options.showNotice('success', tr('notices.csvImportAccountsSummary', summary))
                 return
             }
 
             if (entity === 'category') {
                 const summary = await importCategoriesCsv(rows)
                 await options.refreshData()
-                options.showNotice(
-                    'success',
-                    `Import catégories terminé : ${summary.created} créée(s), ${summary.updated} mise(s) à jour, ${summary.skipped} ignorée(s).`,
-                )
+                options.showNotice('success', tr('notices.csvImportCategoriesSummary', summary))
                 return
             }
 
             const summary = await importTransactionsCsv(rows)
             await options.refreshData()
-            options.showNotice(
-                'success',
-                `Import transactions terminé : ${summary.created} créée(s), ${summary.createdAccounts} compte(s) créé(s), ${summary.createdCategories} catégorie(s) créée(s), ${summary.skipped} ligne(s) ignorée(s).`,
-            )
+            options.showNotice('success', tr('notices.csvImportTransactionsSummary', summary))
         } catch (error) {
-            options.showNotice('error', error instanceof Error ? error.message : 'Échec de l’import CSV.')
+            options.showNotice('error', error instanceof Error ? error.message : tr('notices.csvImportFailed'))
         }
     }
 

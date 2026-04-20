@@ -22,22 +22,26 @@ function buildAppMenu() {
 
     const template = [
         ...(isMac
-            ? [
-                {
-                    label: app.name,
-                    submenu: [
-                        {role: 'about'},
-                        {type: 'separator'},
-                        {role: 'services'},
-                        {type: 'separator'},
-                        {role: 'hide'},
-                        {role: 'hideOthers'},
-                        {role: 'unhide'},
-                        {type: 'separator'},
-                        {role: 'quit'},
-                    ],
-                },
-            ]
+            ? [{
+                label: app.name,
+                submenu: [
+                    {role: 'about'},
+                    {type: 'separator'},
+                    {
+                        label: 'Preferences…',
+                        accelerator: 'CmdOrCtrl+,',
+                        click: () => sendMenuCommand('open-settings'),
+                    },
+                    {type: 'separator'},
+                    {role: 'services'},
+                    {type: 'separator'},
+                    {role: 'hide'},
+                    {role: 'hideOthers'},
+                    {role: 'unhide'},
+                    {type: 'separator'},
+                    {role: 'quit'},
+                ],
+            }]
             : []),
         {
             label: 'File',
@@ -126,6 +130,34 @@ function buildAppMenu() {
             ],
         },
         {
+            label: 'Settings',
+            submenu: [
+                {
+                    label: 'Preferences…',
+                    accelerator: isMac ? undefined : 'CmdOrCtrl+,',
+                    click: () => sendMenuCommand('open-settings'),
+                },
+                {type: 'separator'},
+                {
+                    label: 'Light Theme',
+                    click: () => sendMenuCommand('set-theme-light'),
+                },
+                {
+                    label: 'Dark Theme',
+                    click: () => sendMenuCommand('set-theme-dark'),
+                },
+                {type: 'separator'},
+                {
+                    label: 'Français',
+                    click: () => sendMenuCommand('set-locale-fr'),
+                },
+                {
+                    label: 'English',
+                    click: () => sendMenuCommand('set-locale-en'),
+                },
+            ],
+        },
+        {
             label: 'Window',
             submenu: isMac
                 ? [
@@ -157,7 +189,6 @@ const createWindow = () => {
     })
 
     win.loadFile(path.join(__dirname, '../dist/renderer/index.html'))
-    // win.webContents.openDevTools()
     return win
 }
 

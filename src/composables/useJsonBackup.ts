@@ -4,6 +4,7 @@ import type {
     Category,
     Transaction,
 } from '../types/budget'
+import {tr} from '../i18n'
 import {createBudgetBackupSnapshot, parseBudgetBackup, serializeBudgetBackup} from '../utils/jsonBackup'
 
 interface UseJsonBackupOptions {
@@ -23,14 +24,14 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         )
 
         const result = await window.file.saveText({
-            title: 'Exporter un backup JSON complet',
+            title: `${tr('common.export')} JSON`,
             defaultPath: 'budget-backup.json',
             content: serializeBudgetBackup(snapshot),
             filters: [{name: 'JSON', extensions: ['json']}],
         })
 
         if (!result?.canceled) {
-            options.showNotice('success', 'Backup JSON exporté.')
+            options.showNotice('success', tr('notices.jsonExported'))
         }
     }
 
@@ -50,7 +51,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
 
     async function restoreBackupJson() {
         const result = await window.file.openText({
-            title: 'Restaurer un backup JSON complet',
+            title: `${tr('common.open')} JSON`,
             filters: [{name: 'JSON', extensions: ['json']}],
         })
 
@@ -61,10 +62,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         try {
             const snapshot = parseBudgetBackup(result.content)
 
-            const confirmed = window.confirm(
-                'La restauration complète va remplacer toutes les données actuelles. Continuer ?',
-            )
-
+            const confirmed = window.confirm(tr('notices.jsonRestoreConfirm'))
             if (!confirmed) {
                 return
             }
@@ -97,7 +95,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
             for (const transaction of snapshot.data.transactions) {
                 const mappedAccountId = accountIdMap.get(transaction.accountId)
                 if (!mappedAccountId) {
-                    throw new Error(`Compte introuvable pour la transaction "${transaction.label}".`)
+                    throw new Error(tr('notices.missingTransactionAccount', {label: transaction.label}))
                 }
 
                 const mappedCategoryId = transaction.categoryId == null
@@ -116,11 +114,11 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
             }
 
             await options.refreshData()
-            options.showNotice('success', 'Restauration JSON terminée.')
+            options.showNotice('success', tr('notices.jsonRestored'))
         } catch (error) {
             options.showNotice(
                 'error',
-                error instanceof Error ? error.message : 'Échec de la restauration JSON.',
+                error instanceof Error ? error.message : tr('notices.jsonRestoreFailed'),
             )
         }
     }

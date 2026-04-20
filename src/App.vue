@@ -1,43 +1,19 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue'
+import {useI18n} from 'vue-i18n'
 import AccountsSection from './components/AccountsSection.vue'
 import AnalyticsToolbar from './components/AnalyticsToolbar.vue'
 import CategoriesSection from './components/CategoriesSection.vue'
 import DeleteDialog from './components/DeleteDialog.vue'
 import EntityDrawer from './components/EntityDrawer.vue'
 import OverviewSection from './components/OverviewSection.vue'
+import SettingsDialog from './components/SettingsDialog.vue'
 import TransactionsSection from './components/TransactionsSection.vue'
 import {useBudgetData} from './composables/useBudgetData'
 import {useCsvImportExport} from './composables/useCsvImportExport'
 import {useJsonBackup} from './composables/useJsonBackup'
-import {useTheme} from './composables/useTheme'
+import {useSettings} from './composables/useSettings'
 import type {CreateTabKey, SectionKey} from './types/budget'
-
-const navigation = [
-  {key: 'overview' as SectionKey, label: 'Vue d’ensemble', marker: 'OV'},
-  {key: 'transactions' as SectionKey, label: 'Transactions', marker: 'TX'},
-  {key: 'accounts' as SectionKey, label: 'Comptes', marker: 'AC'},
-  {key: 'categories' as SectionKey, label: 'Catégories', marker: 'CA'},
-]
-
-const sectionMeta: Record<SectionKey, { title: string; description: string }> = {
-  overview: {
-    title: 'Dashboard',
-    description: 'Vue synthétique du budget, des flux et des dernières opérations.',
-  },
-  transactions: {
-    title: 'Transactions',
-    description: 'Recherche, filtres, édition, suppression et import/export.',
-  },
-  accounts: {
-    title: 'Comptes',
-    description: 'Vue consolidée des comptes avec gestion complète.',
-  },
-  categories: {
-    title: 'Catégories',
-    description: 'Gestion complète des catégories avec import/export.',
-  },
-}
 
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -50,7 +26,8 @@ function showNotice(type: 'success' | 'error', text: string) {
   }, 3600)
 }
 
-const theme = useTheme()
+const {t} = useI18n()
+const settings = useSettings()
 const budget = useBudgetData(showNotice)
 
 const csv = useCsvImportExport({
@@ -72,8 +49,34 @@ const jsonBackup = useJsonBackup({
   showNotice,
 })
 
-const viewTitle = computed(() => sectionMeta[budget.activeSection.value].title)
-const viewDescription = computed(() => sectionMeta[budget.activeSection.value].description)
+const navigation = computed(() => [
+  {key: 'overview' as SectionKey, label: t('nav.overview'), marker: 'OV'},
+  {key: 'transactions' as SectionKey, label: t('nav.transactions'), marker: 'TX'},
+  {key: 'accounts' as SectionKey, label: t('nav.accounts'), marker: 'AC'},
+  {key: 'categories' as SectionKey, label: t('nav.categories'), marker: 'CA'},
+])
+
+const sectionMeta = computed<Record<SectionKey, { title: string; description: string }>>(() => ({
+  overview: {
+    title: t('sections.overview.title'),
+    description: t('sections.overview.description'),
+  },
+  transactions: {
+    title: t('sections.transactions.title'),
+    description: t('sections.transactions.description'),
+  },
+  accounts: {
+    title: t('sections.accounts.title'),
+    description: t('sections.accounts.description'),
+  },
+  categories: {
+    title: t('sections.categories.title'),
+    description: t('sections.categories.description'),
+  },
+}))
+
+const viewTitle = computed(() => sectionMeta.value[budget.activeSection.value].title)
+const viewDescription = computed(() => sectionMeta.value[budget.activeSection.value].description)
 
 function setCreateTab(tab: CreateTabKey) {
   budget.createTab.value = tab
@@ -108,7 +111,22 @@ function handleMenuCommand(rawCommand: unknown) {
       void budget.refreshData()
       break
     case 'toggle-theme':
-      theme.toggleTheme()
+      settings.toggleTheme()
+      break
+    case 'open-settings':
+      settings.openSettings()
+      break
+    case 'set-theme-light':
+      settings.setTheme('light')
+      break
+    case 'set-theme-dark':
+      settings.setTheme('dark')
+      break
+    case 'set-locale-fr':
+      settings.setLocale('fr')
+      break
+    case 'set-locale-en':
+      settings.setLocale('en')
       break
     default:
       break
@@ -116,7 +134,7 @@ function handleMenuCommand(rawCommand: unknown) {
 }
 
 onMounted(async () => {
-  theme.initTheme()
+  settings.initSettings()
   window.versions.on('app:menu-command', handleMenuCommand)
   await budget.refreshData()
 })
@@ -138,10 +156,10 @@ onMounted(async () => {
         <div class="mb-6 flex items-center justify-between">
           <div>
             <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-500">
-              Budget
+              {{ t('app.brand') }}
             </p>
             <h2 class="mt-1 text-lg font-bold text-slate-900 dark:text-white">
-              Cockpit
+              {{ t('app.cockpit') }}
             </h2>
           </div>
 
@@ -155,13 +173,14 @@ onMounted(async () => {
 
         <div class="panel px-3 py-3">
           <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
-            État
+            {{ t('app.status') }}
           </p>
           <p class="mt-2 text-sm font-medium text-slate-800 dark:text-slate-100">
             {{ budget.lastSyncLabel.value }}
           </p>
           <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
-            {{ budget.transactions.value.length }} tx · {{ budget.accounts.value.length }} cpt · {{ budget.categories.value.length }} cat
+            {{ budget.transactions.value.length }} tx · {{ budget.accounts.value.length }} cpt ·
+            {{ budget.categories.value.length }} cat
           </p>
         </div>
 
@@ -187,19 +206,20 @@ onMounted(async () => {
 
         <div class="mt-5 space-y-2">
           <button class="quick-create-btn !py-2.5 text-sm" @click="budget.openCreatePanel('transaction')">
-            + Transaction
+            + {{ t('entities.singular.transaction') }}
           </button>
           <button class="quick-create-btn-secondary !py-2.5 text-sm" @click="budget.openCreatePanel('account')">
-            + Compte
+            + {{ t('entities.singular.account') }}
           </button>
           <button class="quick-create-btn-secondary !py-2.5 text-sm" @click="budget.openCreatePanel('category')">
-            + Catégorie
+            + {{ t('entities.singular.category') }}
           </button>
         </div>
       </aside>
 
       <div class="flex min-w-0 flex-1 flex-col">
-        <header class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
+        <header
+            class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
           <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
             <div class="flex min-w-0 items-center gap-3">
               <button
@@ -212,7 +232,7 @@ onMounted(async () => {
               <div class="min-w-0">
                 <div class="flex min-w-0 items-center gap-3">
                   <p class="hidden text-xs font-semibold uppercase tracking-[0.22em] text-violet-500 sm:block">
-                    Finance locale
+                    {{ t('app.localFinance') }}
                   </p>
                   <h1 class="truncate text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
                     {{ viewTitle }}
@@ -225,11 +245,14 @@ onMounted(async () => {
             </div>
 
             <div class="flex shrink-0 items-center gap-2">
-              <button class="ghost-btn" @click="theme.toggleTheme">
-                {{ theme.darkMode.value ? 'Mode clair' : 'Mode sombre' }}
+              <button class="ghost-btn" @click="settings.openSettings">
+                {{ t('common.settings') }}
+              </button>
+              <button class="ghost-btn" @click="settings.toggleTheme">
+                {{ settings.darkMode.value ? t('common.lightMode') : t('common.darkMode') }}
               </button>
               <button class="primary-btn" @click="budget.openCreatePanel('transaction')">
-                Ajouter
+                {{ t('common.add') }}
               </button>
             </div>
           </div>
@@ -347,6 +370,15 @@ onMounted(async () => {
         :message="budget.deleteDialog.message"
         @close="budget.closeDeleteDialog"
         @confirm="budget.confirmDelete"
+    />
+
+    <SettingsDialog
+        :open="settings.settingsOpen.value"
+        :current-locale="settings.locale.value"
+        :current-theme="settings.themeMode.value"
+        @close="settings.closeSettings"
+        @update-locale="settings.setLocale"
+        @update-theme="settings.setTheme"
     />
   </div>
 </template>

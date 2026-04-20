@@ -1,14 +1,22 @@
-import type {AccountType, EntityType, SectionKey, TransactionKind,} from '../types/budget'
+import type {
+    AccountType,
+    EntityType,
+    SectionKey,
+    TransactionKind,
+} from '../types/budget'
+import {currentLocaleCode, i18n, tr} from '../i18n'
 
 export function formatMoney(amount: number, currency = 'CAD') {
+    i18n.global.locale.value
+
     try {
-        return new Intl.NumberFormat('fr-CA', {
+        return new Intl.NumberFormat(currentLocaleCode(), {
             style: 'currency',
             currency,
             maximumFractionDigits: 2,
         }).format(amount)
     } catch {
-        return new Intl.NumberFormat('fr-CA', {
+        return new Intl.NumberFormat(currentLocaleCode(), {
             style: 'currency',
             currency: 'CAD',
             maximumFractionDigits: 2,
@@ -17,34 +25,28 @@ export function formatMoney(amount: number, currency = 'CAD') {
 }
 
 export function formatDate(value: string) {
-    return new Intl.DateTimeFormat('fr-CA', {dateStyle: 'medium'}).format(new Date(value))
+    i18n.global.locale.value
+    return new Intl.DateTimeFormat(currentLocaleCode(), {dateStyle: 'medium'}).format(new Date(value))
 }
 
 export function kindLabel(kind: TransactionKind) {
-    if (kind === 'INCOME') return 'Revenu'
-    if (kind === 'EXPENSE') return 'Dépense'
-    return 'Transfert'
+    i18n.global.locale.value
+    return tr(`budget.kind.${kind}`)
 }
 
 export function accountTypeLabel(type: AccountType) {
-    if (type === 'BANK') return 'Banque'
-    if (type === 'CASH') return 'Espèces'
-    if (type === 'SAVINGS') return 'Épargne'
-    if (type === 'CREDIT') return 'Crédit'
-    if (type === 'INVESTMENT') return 'Investissement'
-    return 'Autre'
+    i18n.global.locale.value
+    return tr(`budget.accountType.${type}`)
 }
 
 export function entityLabel(type: EntityType) {
-    if (type === 'transaction') return 'transaction'
-    if (type === 'account') return 'compte'
-    return 'catégorie'
+    i18n.global.locale.value
+    return tr(`entities.singular.${type}`)
 }
 
 export function entityCollectionLabel(type: EntityType) {
-    if (type === 'transaction') return 'transactions'
-    if (type === 'account') return 'comptes'
-    return 'catégories'
+    i18n.global.locale.value
+    return tr(`entities.plural.${type}`)
 }
 
 export function sectionToEntityType(section: SectionKey): EntityType {
