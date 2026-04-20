@@ -12,7 +12,6 @@ import {useCsvImportExport} from './composables/useCsvImportExport'
 import {useJsonBackup} from './composables/useJsonBackup'
 import {useTheme} from './composables/useTheme'
 import type {CreateTabKey, SectionKey} from './types/budget'
-import {entityCollectionLabel} from './utils/budgetFormat'
 
 const navigation = [
   {key: 'overview' as SectionKey, label: 'Vue d’ensemble', marker: 'OV', hint: 'KPI et activité'},
@@ -201,23 +200,12 @@ onMounted(async () => {
             + Nouvelle catégorie
           </button>
         </div>
-
-        <div class="mt-auto pt-6">
-          <div class="panel px-4 py-4">
-            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">
-              Scope transfert
-            </p>
-            <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              CSV actif sur : {{ entityCollectionLabel(csv.currentCsvEntity.value) }}
-            </p>
-          </div>
-        </div>
       </aside>
 
       <div class="flex min-w-0 flex-1 flex-col">
         <header
-            class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/85 backdrop-blur dark:border-slate-800 dark:bg-slate-950/85">
-          <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+            class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
+          <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
             <div class="flex min-w-0 items-center gap-3">
               <button
                   class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white lg:hidden"
@@ -227,13 +215,15 @@ onMounted(async () => {
               </button>
 
               <div class="min-w-0">
-                <p class="text-xs font-semibold uppercase tracking-[0.22em] text-violet-500">
-                  Finance locale
-                </p>
-                <h1 class="truncate text-2xl font-bold text-slate-900 dark:text-white">
-                  {{ viewTitle }}
-                </h1>
-                <p class="truncate text-sm text-slate-500 dark:text-slate-400">
+                <div class="flex min-w-0 items-center gap-3">
+                  <p class="hidden text-xs font-semibold uppercase tracking-[0.22em] text-violet-500 sm:block">
+                    Finance locale
+                  </p>
+                  <h1 class="truncate text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
+                    {{ viewTitle }}
+                  </h1>
+                </div>
+                <p class="mt-1 hidden truncate text-sm text-slate-500 dark:text-slate-400 lg:block">
                   {{ viewDescription }}
                 </p>
               </div>
@@ -250,7 +240,7 @@ onMounted(async () => {
           </div>
         </header>
 
-        <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6 lg:px-8">
           <div v-if="notice" class="mb-6">
             <div class="notice" :class="notice.type === 'success' ? 'notice-success' : 'notice-error'">
               {{ notice.text }}
