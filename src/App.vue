@@ -1,67 +1,36 @@
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref, watch} from 'vue'
-
-type SectionKey = 'overview' | 'transactions' | 'accounts' | 'categories'
-type CreateTabKey = 'transaction' | 'account' | 'category'
-type EntityType = 'transaction' | 'account' | 'category'
-type PanelMode = 'create' | 'edit'
-type TransactionKind = 'INCOME' | 'EXPENSE' | 'TRANSFER'
-type AccountType = 'CASH' | 'BANK' | 'SAVINGS' | 'CREDIT' | 'INVESTMENT' | 'OTHER'
-
-interface Account {
-  id: number
-  name: string
-  type: AccountType
-  currency: string
-  description: string | null
-}
-
-interface Category {
-  id: number
-  name: string
-  kind: TransactionKind
-  color: string | null
-  description: string | null
-}
-
-interface Transaction {
-  id: number
-  label: string
-  amount: number
-  kind: TransactionKind
-  date: string
-  note: string | null
-  accountId: number
-  categoryId: number | null
-  account?: Account | null
-  category?: Category | null
-}
-
-interface AccountSummary extends Account {
-  transactionCount: number
-  income: number
-  expense: number
-  net: number
-}
-
-interface CategorySummary extends Category {
-  transactionCount: number
-  total: number
-}
-
-interface EditTarget {
-  type: EntityType
-  id: number
-}
-
-interface DeleteState {
-  open: boolean
-  busy: boolean
-  type: EntityType
-  id: number
-  label: string
-  message: string
-}
+import AnalyticsToolbar from './components/AnalyticsToolbar.vue'
+import DeleteDialog from './components/DeleteDialog.vue'
+import EntityDrawer from './components/EntityDrawer.vue'
+import type {
+  Account,
+  AccountSummary,
+  AccountType,
+  Category,
+  CategorySummary,
+  CreateTabKey,
+  DeleteState,
+  EditTarget,
+  EntityType,
+  PanelMode,
+  SectionKey,
+  Transaction,
+  TransactionKind,
+} from './types/budget'
+import {
+  accountTypeLabel,
+  amountClass,
+  categoryDotStyle,
+  entityCollectionLabel,
+  entityLabel,
+  formatDate,
+  formatMoney,
+  kindLabel,
+  kindPillClass,
+  sectionToEntityType,
+} from './utils/budgetFormat'
+import {parseCsv, readCsvValue, toCsv, type CsvRecord} from './utils/csv'
 
 const navigation = [
   {key: 'overview' as SectionKey, label: 'Vue d’ensemble', marker: 'OV', hint: 'KPI et activité'},
@@ -77,15 +46,15 @@ const sectionMeta: Record<SectionKey, { title: string; description: string }> = 
   },
   transactions: {
     title: 'Transactions',
-    description: 'Recherche, filtres, édition et suppression des mouvements.',
+    description: 'Recherche, filtres, édition, suppression et import/export CSV.',
   },
   accounts: {
     title: 'Comptes',
-    description: 'Vue consolidée des comptes avec actions d’édition et de suppression.',
+    description: 'Vue consolidée des comptes avec actions et import/export CSV.',
   },
   categories: {
     title: 'Catégories',
-    description: 'Regroupement des flux par nature de dépense ou revenu avec gestion complète.',
+    description: 'Gestion complète des catégories avec import/export CSV.',
   },
 }
 
@@ -162,13 +131,17 @@ function db() {
   return (window as Window & { db: any }).db
 }
 
+function fileBridge() {
+  return (window as unknown as Window & { file: any }).file
+}
+
 function showNotice(type: 'success' | 'error', text: string) {
   notice.value = {type, text}
   window.setTimeout(() => {
     if (notice.value?.text === text) {
       notice.value = null
     }
-  }, 3200)
+  }, 3600)
 }
 
 function normalizeError(error: unknown) {
@@ -186,67 +159,6 @@ function applyTheme() {
 function toggleTheme() {
   darkMode.value = !darkMode.value
   applyTheme()
-}
-
-function formatMoney(amount: number, currency = 'CAD') {
-  try {
-    return new Intl.NumberFormat('fr-CA', {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 2,
-    }).format(amount)
-  } catch {
-    return new Intl.NumberFormat('fr-CA', {
-      style: 'currency',
-      currency: 'CAD',
-      maximumFractionDigits: 2,
-    }).format(amount)
-  }
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('fr-CA', {dateStyle: 'medium'}).format(new Date(value))
-}
-
-function kindLabel(kind: TransactionKind) {
-  if (kind === 'INCOME') return 'Revenu'
-  if (kind === 'EXPENSE') return 'Dépense'
-  return 'Transfert'
-}
-
-function accountTypeLabel(type: AccountType) {
-  if (type === 'BANK') return 'Banque'
-  if (type === 'CASH') return 'Espèces'
-  if (type === 'SAVINGS') return 'Épargne'
-  if (type === 'CREDIT') return 'Crédit'
-  if (type === 'INVESTMENT') return 'Investissement'
-  return 'Autre'
-}
-
-function entityLabel(type: EntityType) {
-  if (type === 'transaction') return 'transaction'
-  if (type === 'account') return 'compte'
-  return 'catégorie'
-}
-
-function kindPillClass(kind: TransactionKind) {
-  if (kind === 'INCOME') {
-    return 'border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/50 dark:text-emerald-300'
-  }
-  if (kind === 'EXPENSE') {
-    return 'border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/50 dark:text-rose-300'
-  }
-  return 'border border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-300'
-}
-
-function amountClass(kind: TransactionKind) {
-  if (kind === 'INCOME') return 'text-emerald-600 dark:text-emerald-400'
-  if (kind === 'EXPENSE') return 'text-rose-600 dark:text-rose-400'
-  return 'text-sky-600 dark:text-sky-400'
-}
-
-function categoryDotStyle(color: string | null | undefined) {
-  return {backgroundColor: color || '#94a3b8'}
 }
 
 function resetAccountForm() {
@@ -348,7 +260,10 @@ function openDeleteDialog(type: EntityType, entity: Transaction | AccountSummary
   deleteDialog.busy = false
 
   if (type === 'account') {
-    const count = 'transactionCount' in entity ? entity.transactionCount : transactions.value.filter((tx) => tx.accountId === entity.id).length
+    const count = 'transactionCount' in entity
+        ? entity.transactionCount
+        : transactions.value.filter((tx) => tx.accountId === entity.id).length
+
     deleteDialog.message = count > 0
         ? `Supprimer ce compte supprimera aussi ses ${count} transaction(s) liées.`
         : 'Supprimer ce compte le retirera définitivement de la base.'
@@ -356,7 +271,10 @@ function openDeleteDialog(type: EntityType, entity: Transaction | AccountSummary
   }
 
   if (type === 'category') {
-    const count = 'transactionCount' in entity ? entity.transactionCount : transactions.value.filter((tx) => tx.categoryId === entity.id).length
+    const count = 'transactionCount' in entity
+        ? entity.transactionCount
+        : transactions.value.filter((tx) => tx.categoryId === entity.id).length
+
     deleteDialog.message = count > 0
         ? `Supprimer cette catégorie laissera ${count} transaction(s) en place, mais sans catégorie associée.`
         : 'Supprimer cette catégorie la retirera définitivement de la base.'
@@ -364,6 +282,43 @@ function openDeleteDialog(type: EntityType, entity: Transaction | AccountSummary
   }
 
   deleteDialog.message = 'Cette transaction sera supprimée définitivement.'
+}
+
+function requestDeleteCurrentForm() {
+  if (!editingTarget.value) return
+
+  if (editingTarget.value.type === 'transaction') {
+    openDeleteDialog('transaction', {
+      id: editingTarget.value.id,
+      label: transactionForm.label,
+      amount: Number(transactionForm.amount) || 0,
+      kind: transactionForm.kind,
+      date: transactionForm.date,
+      note: transactionForm.note || null,
+      accountId: Number(transactionForm.accountId || 0),
+      categoryId: transactionForm.categoryId ? Number(transactionForm.categoryId) : null,
+    })
+    return
+  }
+
+  if (editingTarget.value.type === 'account') {
+    openDeleteDialog('account', {
+      id: editingTarget.value.id,
+      name: accountForm.name,
+      type: accountForm.type,
+      currency: accountForm.currency,
+      description: accountForm.description || null,
+    })
+    return
+  }
+
+  openDeleteDialog('category', {
+    id: editingTarget.value.id,
+    name: categoryForm.name,
+    kind: categoryForm.kind,
+    color: categoryForm.color,
+    description: categoryForm.description || null,
+  })
 }
 
 function closeDeleteDialog() {
@@ -562,6 +517,372 @@ async function submitTransaction() {
   }
 }
 
+function parseAccountTypeValue(value: string, fallback: AccountType = 'BANK'): AccountType {
+  const normalized = value.trim().toUpperCase()
+  return accountTypeOptions.includes(normalized as AccountType) ? normalized as AccountType : fallback
+}
+
+function parseTransactionKindValue(value: string, fallback: TransactionKind = 'EXPENSE'): TransactionKind {
+  const normalized = value.trim().toUpperCase()
+  return transactionKindOptions.includes(normalized as TransactionKind) ? normalized as TransactionKind : fallback
+}
+
+function parsePositiveCsvNumber(value: string) {
+  const normalized = value.replace(/\s/g, '').replace(',', '.')
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+function normalizeCurrencyCode(value: string, fallback = 'CAD') {
+  const normalized = value.trim().toUpperCase()
+  return normalized || fallback
+}
+
+function toDateKey(value: string) {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return parsed.toISOString().slice(0, 10)
+}
+
+function findAccountByName(list: Account[], name: string) {
+  const target = name.trim().toLowerCase()
+  return list.find((account) => account.name.trim().toLowerCase() === target)
+}
+
+function findCategoryByName(list: Category[], name: string) {
+  const target = name.trim().toLowerCase()
+  return list.find((category) => category.name.trim().toLowerCase() === target)
+}
+
+function currentEntityFileName(entity: EntityType) {
+  if (entity === 'account') return 'budget-accounts.csv'
+  if (entity === 'category') return 'budget-categories.csv'
+  return 'budget-transactions.csv'
+}
+
+function buildAccountExportRows() {
+  return accounts.value.map((account) => ({
+    id: account.id,
+    name: account.name,
+    type: account.type,
+    currency: account.currency,
+    description: account.description || '',
+  }))
+}
+
+function buildCategoryExportRows() {
+  return categories.value.map((category) => ({
+    id: category.id,
+    name: category.name,
+    kind: category.kind,
+    color: category.color || '',
+    description: category.description || '',
+  }))
+}
+
+function buildTransactionExportRows() {
+  return transactions.value.map((transaction) => ({
+    id: transaction.id,
+    label: transaction.label,
+    amount: Math.abs(transaction.amount),
+    kind: transaction.kind,
+    date: toDateKey(transaction.date),
+    note: transaction.note || '',
+    accountId: transaction.accountId,
+    accountName: transaction.account?.name || '',
+    categoryId: transaction.categoryId || '',
+    categoryName: transaction.category?.name || '',
+    categoryKind: transaction.category?.kind || '',
+    categoryColor: transaction.category?.color || '',
+  }))
+}
+
+async function exportCurrentCsv() {
+  const file = fileBridge()
+  if (!file?.saveText) {
+    showNotice('error', 'Le bridge fichier Electron est indisponible.')
+    return
+  }
+
+  const entity = currentCsvEntity.value
+  const headers = entity === 'account'
+      ? ['id', 'name', 'type', 'currency', 'description']
+      : entity === 'category'
+          ? ['id', 'name', 'kind', 'color', 'description']
+          : ['id', 'label', 'amount', 'kind', 'date', 'note', 'accountId', 'accountName', 'categoryId', 'categoryName', 'categoryKind', 'categoryColor']
+
+  const rows = entity === 'account'
+      ? buildAccountExportRows()
+      : entity === 'category'
+          ? buildCategoryExportRows()
+          : buildTransactionExportRows()
+
+  const content = toCsv(rows, headers)
+  const result = await file.saveText({
+    title: `Exporter ${entityCollectionLabel(entity)} en CSV`,
+    defaultPath: currentEntityFileName(entity),
+    content,
+    filters: [{name: 'CSV', extensions: ['csv']}],
+  })
+
+  if (!result?.canceled) {
+    showNotice('success', `Export ${entityCollectionLabel(entity)} terminé.`)
+  }
+}
+
+async function importAccountsCsv(rows: CsvRecord[]) {
+  const accountCache = [...accounts.value]
+  let created = 0
+  let updated = 0
+  let skipped = 0
+
+  for (const row of rows) {
+    const name = readCsvValue(row, ['name', 'nom'])
+    if (!name) {
+      skipped += 1
+      continue
+    }
+
+    const payload = {
+      name,
+      type: parseAccountTypeValue(readCsvValue(row, ['type']), 'BANK'),
+      currency: normalizeCurrencyCode(readCsvValue(row, ['currency', 'devise']), 'CAD'),
+      description: readCsvValue(row, ['description']),
+    }
+
+    const existing = findAccountByName(accountCache, name)
+
+    if (existing) {
+      await db().account.update(existing.id, payload)
+      existing.type = payload.type
+      existing.currency = payload.currency
+      existing.description = payload.description || null
+      updated += 1
+    } else {
+      const createdAccount = await db().account.create(payload)
+      accountCache.push(createdAccount)
+      created += 1
+    }
+  }
+
+  return {created, updated, skipped}
+}
+
+async function importCategoriesCsv(rows: CsvRecord[]) {
+  const categoryCache = [...categories.value]
+  let created = 0
+  let updated = 0
+  let skipped = 0
+
+  for (const row of rows) {
+    const name = readCsvValue(row, ['name', 'nom'])
+    if (!name) {
+      skipped += 1
+      continue
+    }
+
+    const payload = {
+      name,
+      kind: parseTransactionKindValue(readCsvValue(row, ['kind', 'type']), 'EXPENSE'),
+      color: readCsvValue(row, ['color', 'couleur']) || null,
+      description: readCsvValue(row, ['description']) || null,
+    }
+
+    const existing = findCategoryByName(categoryCache, name)
+
+    if (existing) {
+      await db().category.update(existing.id, payload)
+      existing.kind = payload.kind
+      existing.color = payload.color
+      existing.description = payload.description
+      updated += 1
+    } else {
+      const createdCategory = await db().category.create(payload)
+      categoryCache.push(createdCategory)
+      created += 1
+    }
+  }
+
+  return {created, updated, skipped}
+}
+
+async function resolveAccountFromCsvRow(row: CsvRecord, accountCache: Account[]) {
+  const explicitId = readCsvValue(row, ['accountId', 'compteId'])
+  if (explicitId) {
+    const byId = accountCache.find((account) => account.id === Number(explicitId))
+    if (byId) return {account: byId, created: false}
+  }
+
+  const name = readCsvValue(row, ['accountName', 'account', 'compte', 'nomCompte'])
+  if (!name) {
+    throw new Error('Compte manquant pour la transaction.')
+  }
+
+  const existing = findAccountByName(accountCache, name)
+  if (existing) return {account: existing, created: false}
+
+  const createdAccount = await db().account.create({
+    name,
+    type: parseAccountTypeValue(readCsvValue(row, ['accountType', 'typeCompte']), 'BANK'),
+    currency: normalizeCurrencyCode(readCsvValue(row, ['accountCurrency', 'currency', 'devise']), 'CAD'),
+    description: readCsvValue(row, ['accountDescription', 'descriptionCompte']) || null,
+  })
+
+  accountCache.push(createdAccount)
+  return {account: createdAccount, created: true}
+}
+
+async function resolveCategoryFromCsvRow(
+    row: CsvRecord,
+    categoryCache: Category[],
+    fallbackKind: TransactionKind,
+) {
+  const explicitId = readCsvValue(row, ['categoryId', 'categorieId'])
+  if (explicitId) {
+    const byId = categoryCache.find((category) => category.id === Number(explicitId))
+    if (byId) return {category: byId, created: false}
+  }
+
+  const name = readCsvValue(row, ['categoryName', 'category', 'categorie', 'nomCategorie'])
+  if (!name) {
+    return {category: null, created: false}
+  }
+
+  const existing = findCategoryByName(categoryCache, name)
+  if (existing) return {category: existing, created: false}
+
+  const createdCategory = await db().category.create({
+    name,
+    kind: parseTransactionKindValue(readCsvValue(row, ['categoryKind', 'kind', 'typeCategorie']), fallbackKind),
+    color: readCsvValue(row, ['categoryColor', 'color', 'couleurCategorie']) || null,
+    description: readCsvValue(row, ['categoryDescription', 'descriptionCategorie']) || null,
+  })
+
+  categoryCache.push(createdCategory)
+  return {category: createdCategory, created: true}
+}
+
+async function importTransactionsCsv(rows: CsvRecord[]) {
+  const accountCache = [...accounts.value]
+  const categoryCache = [...categories.value]
+  const transactionCache = [...transactions.value]
+
+  let created = 0
+  let skipped = 0
+  let createdAccounts = 0
+  let createdCategories = 0
+
+  for (const row of rows) {
+    try {
+      const label = readCsvValue(row, ['label', 'libelle'])
+      const amount = parsePositiveCsvNumber(readCsvValue(row, ['amount', 'montant']))
+      const date = readCsvValue(row, ['date'])
+      const kind = parseTransactionKindValue(readCsvValue(row, ['kind', 'type']), 'EXPENSE')
+
+      if (!label || !amount || !date || !toDateKey(date)) {
+        skipped += 1
+        continue
+      }
+
+      const accountResult = await resolveAccountFromCsvRow(row, accountCache)
+      if (accountResult.created) {
+        createdAccounts += 1
+      }
+
+      const categoryResult = await resolveCategoryFromCsvRow(row, categoryCache, kind)
+      if (categoryResult.created) {
+        createdCategories += 1
+      }
+
+      const duplicate = transactionCache.some((transaction) =>
+          transaction.label.trim().toLowerCase() === label.trim().toLowerCase()
+          && Math.abs(transaction.amount) === amount
+          && transaction.kind === kind
+          && toDateKey(transaction.date) === toDateKey(date)
+          && transaction.accountId === accountResult.account.id
+          && (transaction.categoryId ?? null) === (categoryResult.category?.id ?? null),
+      )
+
+      if (duplicate) {
+        skipped += 1
+        continue
+      }
+
+      const createdTransaction = await db().transaction.create({
+        label,
+        amount,
+        kind,
+        date,
+        note: readCsvValue(row, ['note', 'notes']) || null,
+        accountId: accountResult.account.id,
+        categoryId: categoryResult.category?.id ?? null,
+      })
+
+      transactionCache.push(createdTransaction)
+      created += 1
+    } catch {
+      skipped += 1
+    }
+  }
+
+  return {created, skipped, createdAccounts, createdCategories}
+}
+
+async function importCurrentCsv() {
+  const file = fileBridge()
+  if (!file?.openText) {
+    showNotice('error', 'Le bridge fichier Electron est indisponible.')
+    return
+  }
+
+  const entity = currentCsvEntity.value
+  const result = await file.openText({
+    title: `Importer ${entityCollectionLabel(entity)} depuis un CSV`,
+    filters: [{name: 'CSV', extensions: ['csv']}],
+  })
+
+  if (!result || result.canceled || !result.content) {
+    return
+  }
+
+  const rows = parseCsv(result.content)
+  if (!rows.length) {
+    showNotice('error', 'Le fichier CSV est vide ou invalide.')
+    return
+  }
+
+  try {
+    if (entity === 'account') {
+      const summary = await importAccountsCsv(rows)
+      await refreshData()
+      showNotice(
+          'success',
+          `Import comptes terminé : ${summary.created} créé(s), ${summary.updated} mis à jour, ${summary.skipped} ignoré(s).`,
+      )
+      return
+    }
+
+    if (entity === 'category') {
+      const summary = await importCategoriesCsv(rows)
+      await refreshData()
+      showNotice(
+          'success',
+          `Import catégories terminé : ${summary.created} créée(s), ${summary.updated} mise(s) à jour, ${summary.skipped} ignorée(s).`,
+      )
+      return
+    }
+
+    const summary = await importTransactionsCsv(rows)
+    await refreshData()
+    showNotice(
+        'success',
+        `Import transactions terminé : ${summary.created} créée(s), ${summary.createdAccounts} compte(s) créé(s), ${summary.createdCategories} catégorie(s) créée(s), ${summary.skipped} ligne(s) ignorée(s).`,
+    )
+  } catch (error) {
+    showNotice('error', normalizeError(error))
+  }
+}
+
 watch(() => transactionForm.kind, () => {
   if (!transactionForm.categoryId) return
 
@@ -577,6 +898,7 @@ watch(() => transactionForm.kind, () => {
 const viewTitle = computed(() => sectionMeta[activeSection.value].title)
 const viewDescription = computed(() => sectionMeta[activeSection.value].description)
 const summaryCurrency = computed(() => accounts.value[0]?.currency || 'CAD')
+const currentCsvEntity = computed<EntityType>(() => sectionToEntityType(activeSection.value))
 
 const incomeTransactions = computed(() =>
     transactions.value.filter((tx) => tx.kind === 'INCOME'),
@@ -731,7 +1053,7 @@ const panelDescription = computed(() => {
     return 'Crée rapidement des transactions, comptes ou catégories.'
   }
 
-  return 'Édite les données existantes, puis enregistre ou supprime si nécessaire.'
+  return 'Édite les données existantes, puis enregistre, importe, exporte ou supprime si nécessaire.'
 })
 
 const panelSubmitLabel = computed(() => {
@@ -840,17 +1162,18 @@ onMounted(async () => {
         <div class="mt-auto pt-6">
           <div class="panel px-4 py-4">
             <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">
-              Lot 3
+              Scope CSV
             </p>
             <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Édition, suppression et confirmations. Là, on commence à avoir une vraie app, pas juste une vitrine.
+              Import/export actif sur : {{ entityCollectionLabel(currentCsvEntity) }}.
             </p>
           </div>
         </div>
       </aside>
 
       <div class="flex min-w-0 flex-1 flex-col">
-        <header class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/85 backdrop-blur dark:border-slate-800 dark:bg-slate-950/85">
+        <header
+            class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/85 backdrop-blur dark:border-slate-800 dark:bg-slate-950/85">
           <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
             <div class="flex min-w-0 items-center gap-3">
               <button
@@ -874,9 +1197,6 @@ onMounted(async () => {
             </div>
 
             <div class="flex shrink-0 items-center gap-2">
-              <button class="ghost-btn" @click="refreshData">
-                {{ loading ? 'Chargement…' : 'Rafraîchir' }}
-              </button>
               <button class="ghost-btn" @click="toggleTheme">
                 {{ darkMode ? 'Mode clair' : 'Mode sombre' }}
               </button>
@@ -894,77 +1214,25 @@ onMounted(async () => {
             </div>
           </div>
 
-          <section class="panel mb-6 overflow-hidden p-6">
-            <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div class="max-w-2xl">
-                <p class="soft-kicker">
-                  Lot 3
-                </p>
-                <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-                  Gestion complète des entités.
-                </h2>
-                <p class="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                  Tu peux maintenant créer, modifier et supprimer les transactions, comptes et catégories depuis l’interface, avec de vraies confirmations destructives.
-                </p>
-              </div>
-
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="soft-badge">Electron</span>
-                <span class="soft-badge">Vue 3</span>
-                <span class="soft-badge">Prisma</span>
-                <span class="soft-badge">SQLite</span>
-                <span class="soft-badge">CRUD complet</span>
-              </div>
-            </div>
-          </section>
+          <AnalyticsToolbar
+              :active-section="activeSection"
+              :loading="loading"
+              :summary-currency="summaryCurrency"
+              :net-flow="netFlow"
+              :total-income="totalIncome"
+              :total-expense="totalExpense"
+              :transaction-count="transactions.length"
+              :account-count="accounts.length"
+              :category-count="categories.length"
+              @refresh="refreshData"
+              @import-csv="importCurrentCsv"
+              @export-csv="exportCurrentCsv"
+              @create-transaction="openCreatePanel('transaction')"
+              @create-account="openCreatePanel('account')"
+              @create-category="openCreatePanel('category')"
+          />
 
           <section v-if="activeSection === 'overview'" class="space-y-6">
-            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div class="stat-card">
-                <p class="stat-label">Flux net</p>
-                <p class="stat-value">
-                  {{ formatMoney(netFlow, summaryCurrency) }}
-                </p>
-                <p class="stat-hint">
-                  Revenus moins dépenses.
-                </p>
-              </div>
-
-              <div class="stat-card">
-                <p class="stat-label">Revenus</p>
-                <p class="stat-value">
-                  {{ formatMoney(totalIncome, summaryCurrency) }}
-                </p>
-                <p class="stat-hint">
-                  {{ incomeTransactions.length }} entrée(s).
-                </p>
-              </div>
-
-              <div class="stat-card">
-                <p class="stat-label">Dépenses</p>
-                <p class="stat-value">
-                  {{ formatMoney(totalExpense, summaryCurrency) }}
-                </p>
-                <p class="stat-hint">
-                  {{ expenseTransactions.length }} sortie(s).
-                </p>
-              </div>
-
-              <div class="stat-card">
-                <p class="stat-label">Plus grosse dépense</p>
-                <p class="stat-value text-xl">
-                  {{
-                    largestExpense
-                        ? formatMoney(Math.abs(largestExpense.amount), largestExpense.account?.currency || summaryCurrency)
-                        : '—'
-                  }}
-                </p>
-                <p class="stat-hint">
-                  {{ largestExpense ? largestExpense.label : 'Aucune dépense.' }}
-                </p>
-              </div>
-            </div>
-
             <div class="grid gap-6 xl:grid-cols-12">
               <section class="panel xl:col-span-8">
                 <div class="panel-header">
@@ -998,7 +1266,8 @@ onMounted(async () => {
                     >
                       <td class="table-cell">
                         <div class="flex items-center gap-3">
-                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold" :class="kindPillClass(transaction.kind)">
+                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+                                  :class="kindPillClass(transaction.kind)">
                               {{ kindLabel(transaction.kind) }}
                             </span>
                           <div>
@@ -1018,7 +1287,8 @@ onMounted(async () => {
 
                       <td class="table-cell">
                         <div class="flex items-center gap-2">
-                          <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(transaction.category?.color)" />
+                          <span class="h-2.5 w-2.5 rounded-full"
+                                :style="categoryDotStyle(transaction.category?.color)"/>
                           <span>{{ transaction.category?.name || 'Sans catégorie' }}</span>
                         </div>
                       </td>
@@ -1067,7 +1337,7 @@ onMounted(async () => {
                     >
                       <div class="mb-2 flex items-center justify-between gap-3">
                         <div class="flex min-w-0 items-center gap-2">
-                          <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(category.color)" />
+                          <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(category.color)"/>
                           <span class="truncate text-sm font-medium text-slate-700 dark:text-slate-200">
                             {{ category.name }}
                           </span>
@@ -1095,20 +1365,19 @@ onMounted(async () => {
                 <section class="panel">
                   <div class="panel-header">
                     <div>
-                      <p class="panel-eyebrow">Actions rapides</p>
-                      <h3 class="panel-title">Créer</h3>
+                      <p class="panel-eyebrow">Scope CSV actif</p>
+                      <h3 class="panel-title">
+                        {{ entityCollectionLabel(currentCsvEntity) }}
+                      </h3>
                     </div>
                   </div>
 
                   <div class="space-y-3 px-6 pb-6">
-                    <button class="quick-panel-action" @click="openCreatePanel('transaction')">
-                      Nouvelle transaction
+                    <button class="quick-panel-action" @click="importCurrentCsv">
+                      Importer {{ entityCollectionLabel(currentCsvEntity) }}
                     </button>
-                    <button class="quick-panel-action" @click="openCreatePanel('account')">
-                      Nouveau compte
-                    </button>
-                    <button class="quick-panel-action" @click="openCreatePanel('category')">
-                      Nouvelle catégorie
+                    <button class="quick-panel-action" @click="exportCurrentCsv">
+                      Exporter {{ entityCollectionLabel(currentCsvEntity) }}
                     </button>
                   </div>
                 </section>
@@ -1207,7 +1476,8 @@ onMounted(async () => {
                       class="table-row"
                   >
                     <td class="table-cell">
-                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold" :class="kindPillClass(transaction.kind)">
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+                              :class="kindPillClass(transaction.kind)">
                           {{ kindLabel(transaction.kind) }}
                         </span>
                     </td>
@@ -1229,7 +1499,7 @@ onMounted(async () => {
 
                     <td class="table-cell">
                       <div class="flex items-center gap-2">
-                        <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(transaction.category?.color)" />
+                        <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(transaction.category?.color)"/>
                         <span>{{ transaction.category?.name || 'Sans catégorie' }}</span>
                       </div>
                     </td>
@@ -1362,7 +1632,7 @@ onMounted(async () => {
               >
                 <div class="flex items-start justify-between gap-3">
                   <div class="flex items-center gap-3">
-                    <span class="h-3 w-3 rounded-full" :style="categoryDotStyle(category.color)" />
+                    <span class="h-3 w-3 rounded-full" :style="categoryDotStyle(category.color)"/>
                     <div>
                       <p class="text-sm font-semibold text-slate-900 dark:text-white">
                         {{ category.name }}
@@ -1387,7 +1657,8 @@ onMounted(async () => {
                   {{ category.description || 'Aucune description renseignée.' }}
                 </p>
 
-                <div class="mt-6 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+                <div
+                    class="mt-6 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40">
                   <div class="flex items-center justify-between gap-3">
                     <div>
                       <p class="mini-label">Volume cumulé</p>
@@ -1412,364 +1683,42 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div
-        v-if="createPanelOpen"
-        class="fixed inset-0 z-50 flex justify-end bg-slate-950/50 backdrop-blur-sm"
-        @click.self="closeCreatePanel"
-    >
-      <div class="h-full w-full max-w-2xl overflow-y-auto border-l border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div class="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
-          <div class="flex items-start justify-between gap-4">
-            <div>
-              <p class="soft-kicker">
-                {{ panelMode === 'create' ? 'Création' : 'Édition' }}
-              </p>
-              <h2 class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-                {{ panelTitle }}
-              </h2>
-              <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                {{ panelDescription }}
-              </p>
+    <EntityDrawer
+        :open="createPanelOpen"
+        :mode="panelMode"
+        :current-tab="createTab"
+        :editing-target="editingTarget"
+        :saving="saving"
+        :panel-title="panelTitle"
+        :panel-description="panelDescription"
+        :panel-submit-label="panelSubmitLabel"
+        :account-type-options="accountTypeOptions"
+        :transaction-kind-options="transactionKindOptions"
+        :accounts="accounts"
+        :categories="categories"
+        :transaction-form-categories="transactionFormCategories"
+        :account-form="accountForm"
+        :category-form="categoryForm"
+        :transaction-form="transactionForm"
+        @close="closeCreatePanel"
+        @set-tab="createTab = $event"
+        @submit-transaction="submitTransaction"
+        @submit-account="submitAccount"
+        @submit-category="submitCategory"
+        @reset-transaction="resetTransactionForm"
+        @reset-account="resetAccountForm"
+        @reset-category="resetCategoryForm"
+        @request-delete="requestDeleteCurrentForm"
+    />
 
-              <span v-if="panelMode === 'edit' && editingTarget" class="drawer-badge">
-                Mode édition · {{ entityLabel(editingTarget.type) }}
-              </span>
-            </div>
-
-            <button class="ghost-btn" @click="closeCreatePanel">
-              Fermer
-            </button>
-          </div>
-
-          <div v-if="panelMode === 'create'" class="mt-5 flex flex-wrap gap-2">
-            <button
-                class="tab-btn"
-                :class="{ 'tab-btn-active': createTab === 'transaction' }"
-                @click="createTab = 'transaction'"
-            >
-              Transaction
-            </button>
-            <button
-                class="tab-btn"
-                :class="{ 'tab-btn-active': createTab === 'account' }"
-                @click="createTab = 'account'"
-            >
-              Compte
-            </button>
-            <button
-                class="tab-btn"
-                :class="{ 'tab-btn-active': createTab === 'category' }"
-                @click="createTab = 'category'"
-            >
-              Catégorie
-            </button>
-          </div>
-        </div>
-
-        <div class="p-6">
-          <form
-              v-if="createTab === 'transaction'"
-              class="space-y-5"
-              @submit.prevent="submitTransaction"
-          >
-            <div class="grid gap-5 md:grid-cols-2">
-              <div class="field-block md:col-span-2">
-                <label class="field-label">Libellé</label>
-                <input
-                    v-model="transactionForm.label"
-                    type="text"
-                    class="field-control"
-                    placeholder="Courses, salaire, abonnement..."
-                >
-              </div>
-
-              <div class="field-block">
-                <label class="field-label">Montant</label>
-                <input
-                    v-model="transactionForm.amount"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    class="field-control"
-                    placeholder="0.00"
-                >
-              </div>
-
-              <div class="field-block">
-                <label class="field-label">Date</label>
-                <input
-                    v-model="transactionForm.date"
-                    type="date"
-                    class="field-control"
-                >
-              </div>
-
-              <div class="field-block">
-                <label class="field-label">Type</label>
-                <select v-model="transactionForm.kind" class="field-control">
-                  <option
-                      v-for="kind in transactionKindOptions"
-                      :key="kind"
-                      :value="kind"
-                  >
-                    {{ kindLabel(kind) }}
-                  </option>
-                </select>
-              </div>
-
-              <div class="field-block">
-                <label class="field-label">Compte</label>
-                <select v-model="transactionForm.accountId" class="field-control">
-                  <option value="">Sélectionner un compte</option>
-                  <option
-                      v-for="account in accounts"
-                      :key="account.id"
-                      :value="String(account.id)"
-                  >
-                    {{ account.name }}
-                  </option>
-                </select>
-              </div>
-
-              <div class="field-block">
-                <label class="field-label">Catégorie</label>
-                <select v-model="transactionForm.categoryId" class="field-control">
-                  <option value="">Aucune</option>
-                  <option
-                      v-for="category in transactionFormCategories"
-                      :key="category.id"
-                      :value="String(category.id)"
-                  >
-                    {{ category.name }}
-                  </option>
-                </select>
-              </div>
-
-              <div class="field-block md:col-span-2">
-                <label class="field-label">Note</label>
-                <textarea
-                    v-model="transactionForm.note"
-                    rows="4"
-                    class="field-control field-textarea"
-                    placeholder="Détail optionnel"
-                ></textarea>
-              </div>
-            </div>
-
-            <div v-if="!accounts.length" class="inline-warning">
-              Tu n’as encore aucun compte. Crée d’abord un compte.
-            </div>
-
-            <div class="form-actions">
-              <button type="button" class="ghost-btn" @click="resetTransactionForm">
-                Réinitialiser
-              </button>
-
-              <button
-                  v-if="panelMode === 'edit' && editingTarget?.type === 'transaction'"
-                  type="button"
-                  class="danger-btn"
-                  @click="openDeleteDialog('transaction', {
-                  id: editingTarget.id,
-                  label: transactionForm.label,
-                  amount: Number(transactionForm.amount) || 0,
-                  kind: transactionForm.kind,
-                  date: transactionForm.date,
-                  note: transactionForm.note || null,
-                  accountId: Number(transactionForm.accountId || 0),
-                  categoryId: transactionForm.categoryId ? Number(transactionForm.categoryId) : null
-                })"
-              >
-                Supprimer
-              </button>
-
-              <button type="submit" class="primary-btn" :disabled="saving">
-                {{ saving ? 'Enregistrement…' : panelSubmitLabel }}
-              </button>
-            </div>
-          </form>
-
-          <form
-              v-else-if="createTab === 'account'"
-              class="space-y-5"
-              @submit.prevent="submitAccount"
-          >
-            <div class="grid gap-5 md:grid-cols-2">
-              <div class="field-block md:col-span-2">
-                <label class="field-label">Nom</label>
-                <input
-                    v-model="accountForm.name"
-                    type="text"
-                    class="field-control"
-                    placeholder="Compte chèque, carte, cash..."
-                >
-              </div>
-
-              <div class="field-block">
-                <label class="field-label">Type</label>
-                <select v-model="accountForm.type" class="field-control">
-                  <option
-                      v-for="type in accountTypeOptions"
-                      :key="type"
-                      :value="type"
-                  >
-                    {{ accountTypeLabel(type) }}
-                  </option>
-                </select>
-              </div>
-
-              <div class="field-block">
-                <label class="field-label">Devise</label>
-                <input
-                    v-model="accountForm.currency"
-                    type="text"
-                    maxlength="6"
-                    class="field-control"
-                    placeholder="CAD"
-                >
-              </div>
-
-              <div class="field-block md:col-span-2">
-                <label class="field-label">Description</label>
-                <textarea
-                    v-model="accountForm.description"
-                    rows="4"
-                    class="field-control field-textarea"
-                    placeholder="Optionnel"
-                ></textarea>
-              </div>
-            </div>
-
-            <div class="form-actions">
-              <button type="button" class="ghost-btn" @click="resetAccountForm">
-                Réinitialiser
-              </button>
-
-              <button
-                  v-if="panelMode === 'edit' && editingTarget?.type === 'account'"
-                  type="button"
-                  class="danger-btn"
-                  @click="openDeleteDialog('account', {
-                  id: editingTarget.id,
-                  name: accountForm.name,
-                  type: accountForm.type,
-                  currency: accountForm.currency,
-                  description: accountForm.description || null
-                })"
-              >
-                Supprimer
-              </button>
-
-              <button type="submit" class="primary-btn" :disabled="saving">
-                {{ saving ? 'Enregistrement…' : panelSubmitLabel }}
-              </button>
-            </div>
-          </form>
-
-          <form
-              v-else
-              class="space-y-5"
-              @submit.prevent="submitCategory"
-          >
-            <div class="grid gap-5 md:grid-cols-2">
-              <div class="field-block md:col-span-2">
-                <label class="field-label">Nom</label>
-                <input
-                    v-model="categoryForm.name"
-                    type="text"
-                    class="field-control"
-                    placeholder="Loyer, alimentation, salaire..."
-                >
-              </div>
-
-              <div class="field-block">
-                <label class="field-label">Type</label>
-                <select v-model="categoryForm.kind" class="field-control">
-                  <option
-                      v-for="kind in transactionKindOptions"
-                      :key="kind"
-                      :value="kind"
-                  >
-                    {{ kindLabel(kind) }}
-                  </option>
-                </select>
-              </div>
-
-              <div class="field-block">
-                <label class="field-label">Couleur</label>
-                <input
-                    v-model="categoryForm.color"
-                    type="color"
-                    class="field-color"
-                >
-              </div>
-
-              <div class="field-block md:col-span-2">
-                <label class="field-label">Description</label>
-                <textarea
-                    v-model="categoryForm.description"
-                    rows="4"
-                    class="field-control field-textarea"
-                    placeholder="Optionnel"
-                ></textarea>
-              </div>
-            </div>
-
-            <div class="form-actions">
-              <button type="button" class="ghost-btn" @click="resetCategoryForm">
-                Réinitialiser
-              </button>
-
-              <button
-                  v-if="panelMode === 'edit' && editingTarget?.type === 'category'"
-                  type="button"
-                  class="danger-btn"
-                  @click="openDeleteDialog('category', {
-                  id: editingTarget.id,
-                  name: categoryForm.name,
-                  kind: categoryForm.kind,
-                  color: categoryForm.color,
-                  description: categoryForm.description || null
-                })"
-              >
-                Supprimer
-              </button>
-
-              <button type="submit" class="primary-btn" :disabled="saving">
-                {{ saving ? 'Enregistrement…' : panelSubmitLabel }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div
-        v-if="deleteDialog.open"
-        class="dialog-backdrop"
-        @click.self="closeDeleteDialog"
-    >
-      <div class="dialog-card">
-        <p class="soft-kicker">
-          Suppression
-        </p>
-        <h3 class="dialog-title">
-          Supprimer {{ entityLabel(deleteDialog.type) }}
-        </h3>
-        <p class="dialog-text">
-          <span class="font-semibold text-slate-800 dark:text-slate-100">{{ deleteDialog.label }}</span><br>
-          {{ deleteDialog.message }}
-        </p>
-
-        <div class="form-actions mt-6">
-          <button class="ghost-btn" :disabled="deleteDialog.busy" @click="closeDeleteDialog">
-            Annuler
-          </button>
-          <button class="danger-btn" :disabled="deleteDialog.busy" @click="confirmDelete">
-            {{ deleteDialog.busy ? 'Suppression…' : 'Confirmer la suppression' }}
-          </button>
-        </div>
-      </div>
-    </div>
+    <DeleteDialog
+        :open="deleteDialog.open"
+        :busy="deleteDialog.busy"
+        :type="deleteDialog.type"
+        :label="deleteDialog.label"
+        :message="deleteDialog.message"
+        @close="closeDeleteDialog"
+        @confirm="confirmDelete"
+    />
   </div>
 </template>

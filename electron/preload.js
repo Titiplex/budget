@@ -29,3 +29,8 @@ contextBridge.exposeInMainWorld('db', {
         delete: (id) => ipcRenderer.invoke('db:transaction:delete', id),
     },
 })
+
+contextBridge.exposeInMainWorld('file', {
+    openText: (options) => ipcRenderer.invoke('file:open-text', options),
+    saveText: (options) => ipcRenderer.invoke('file:save-text', options),
+})
