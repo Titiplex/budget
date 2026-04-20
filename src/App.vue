@@ -6,6 +6,7 @@ import AnalyticsToolbar from './components/AnalyticsToolbar.vue'
 import CategoriesSection from './components/CategoriesSection.vue'
 import DeleteDialog from './components/DeleteDialog.vue'
 import EntityDrawer from './components/EntityDrawer.vue'
+import ImportReviewDialog from './components/ImportReviewDialog.vue'
 import OverviewSection from './components/OverviewSection.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
 import TransactionsSection from './components/TransactionsSection.vue'
@@ -78,6 +79,30 @@ const sectionMeta = computed<Record<SectionKey, { title: string; description: st
 const viewTitle = computed(() => sectionMeta.value[budget.activeSection.value].title)
 const viewDescription = computed(() => sectionMeta.value[budget.activeSection.value].description)
 
+const csvPreviewLines = computed(() => {
+  const summary = csv.importPreviewSummary.value
+  if (!summary) return []
+
+  return [
+    `Fichier: ${csv.pendingImportPath.value || '—'}`,
+    `Lignes totales: ${summary.totalRows}`,
+    `Lignes valides: ${summary.validRows}`,
+    `Lignes ignorées: ${summary.invalidRows}`,
+  ]
+})
+
+const restorePreviewLines = computed(() => {
+  const validation = jsonBackup.restorePreviewValidation.value
+  if (!validation) return []
+
+  return [
+    `Fichier: ${jsonBackup.restorePreviewPath.value || '—'}`,
+    `Comptes: ${validation.counts.accounts}`,
+    `Catégories: ${validation.counts.categories}`,
+    `Transactions: ${validation.counts.transactions}`,
+  ]
+})
+
 function setCreateTab(tab: CreateTabKey) {
   budget.createTab.value = tab
 }
@@ -96,7 +121,7 @@ function handleMenuCommand(rawCommand: unknown) {
       budget.openCreatePanel('category')
       break
     case 'import-csv':
-      void csv.importCurrentCsv()
+      void csv.beginImportCurrentCsv()
       break
     case 'export-csv':
       void csv.exportCurrentCsv()
@@ -105,7 +130,7 @@ function handleMenuCommand(rawCommand: unknown) {
       void jsonBackup.exportBackupJson()
       break
     case 'restore-json':
-      void jsonBackup.restoreBackupJson()
+      void jsonBackup.beginRestoreBackupJson()
       break
     case 'refresh-data':
       void budget.refreshData()
@@ -179,8 +204,7 @@ onMounted(async () => {
             {{ budget.lastSyncLabel.value }}
           </p>
           <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
-            {{ budget.transactions.value.length }} tx · {{ budget.accounts.value.length }} cpt ·
-            {{ budget.categories.value.length }} cat
+            {{ budget.transactions.value.length }} tx · {{ budget.accounts.value.length }} cpt · {{ budget.categories.value.length }} cat
           </p>
         </div>
 
@@ -218,8 +242,7 @@ onMounted(async () => {
       </aside>
 
       <div class="flex min-w-0 flex-1 flex-col">
-        <header
-            class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
+        <header class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
           <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
             <div class="flex min-w-0 items-center gap-3">
               <button
@@ -379,6 +402,28 @@ onMounted(async () => {
         @close="settings.closeSettings"
         @update-locale="settings.setLocale"
         @update-theme="settings.setTheme"
+    />
+
+    <ImportReviewDialog
+        :open="csv.importPreviewOpen.value"
+        title="CSV import review"
+        subtitle="Import preview"
+        :lines="csvPreviewLines"
+        :warnings="csv.importPreviewSummary.value?.warnings || []"
+        confirm-label="Import now"
+        @close="csv.closeImportPreview"
+        @confirm="csv.confirmImportCurrentCsv"
+    />
+
+    <ImportReviewDialog
+        :open="jsonBackup.restorePreviewOpen.value"
+        title="JSON restore review"
+        subtitle="Restore preview"
+        :lines="restorePreviewLines"
+        :warnings="jsonBackup.restorePreviewValidation.value?.warnings || []"
+        confirm-label="Restore now"
+        @close="jsonBackup.closeRestorePreview"
+        @confirm="jsonBackup.confirmRestoreBackupJson"
     />
   </div>
 </template>

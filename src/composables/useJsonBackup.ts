@@ -1,11 +1,13 @@
-import type {Ref} from 'vue'
+import {ref, type Ref} from 'vue'
 import type {
     Account,
+    BudgetBackupSnapshot,
     Category,
     Transaction,
 } from '../types/budget'
 import {tr} from '../i18n'
 import {createBudgetBackupSnapshot, parseBudgetBackup, serializeBudgetBackup} from '../utils/jsonBackup'
+import {validateBackupSnapshot, type BackupValidationResult} from '../utils/importValidation'
 
 interface UseJsonBackupOptions {
     accounts: Ref<Account[]>
@@ -16,6 +18,18 @@ interface UseJsonBackupOptions {
 }
 
 export function useJsonBackup(options: UseJsonBackupOptions) {
+    const restorePreviewOpen = ref(false)
+    const restorePreviewPath = ref<string | null>(null)
+    const restorePreviewSnapshot = ref<BudgetBackupSnapshot | null>(null)
+    const restorePreviewValidation = ref<BackupValidationResult | null>(null)
+
+    function closeRestorePreview() {
+        restorePreviewOpen.value = false
+        restorePreviewPath.value = null
+        restorePreviewSnapshot.value = null
+        restorePreviewValidation.value = null
+    }
+
     async function exportBackupJson() {
         const snapshot = createBudgetBackupSnapshot(
             options.accounts.value,
@@ -49,7 +63,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         }
     }
 
-    async function restoreBackupJson() {
+    async function beginRestoreBackupJson() {
         const result = await window.file.openText({
             title: `${tr('common.open')} JSON`,
             filters: [{name: 'JSON', extensions: ['json']}],
@@ -61,11 +75,25 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
 
         try {
             const snapshot = parseBudgetBackup(result.content)
+            const validation = validateBackupSnapshot(snapshot)
 
-            const confirmed = window.confirm(tr('notices.jsonRestoreConfirm'))
-            if (!confirmed) {
-                return
-            }
+            restorePreviewSnapshot.value = snapshot
+            restorePreviewValidation.value = validation
+            restorePreviewPath.value = result.filePath
+            restorePreviewOpen.value = true
+        } catch (error) {
+            options.showNotice(
+                'error',
+                error instanceof Error ? error.message : tr('notices.jsonRestoreFailed'),
+            )
+        }
+    }
+
+    async function confirmRestoreBackupJson() {
+        if (!restorePreviewSnapshot.value) return
+
+        try {
+            const snapshot = restorePreviewSnapshot.value
 
             await replaceAllData()
 
@@ -114,6 +142,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
             }
 
             await options.refreshData()
+            closeRestorePreview()
             options.showNotice('success', tr('notices.jsonRestored'))
         } catch (error) {
             options.showNotice(
@@ -125,6 +154,11 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
 
     return {
         exportBackupJson,
-        restoreBackupJson,
+        beginRestoreBackupJson,
+        confirmRestoreBackupJson,
+        closeRestorePreview,
+        restorePreviewOpen,
+        restorePreviewPath,
+        restorePreviewValidation,
     }
 }

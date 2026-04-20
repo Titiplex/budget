@@ -1,4 +1,4 @@
-import {computed, type Ref} from 'vue'
+import {computed, ref, type Ref} from 'vue'
 import type {
     Account,
     AccountType,
@@ -11,6 +11,7 @@ import type {
 import {tr} from '../i18n'
 import {entityCollectionLabel, sectionToEntityType} from '../utils/budgetFormat'
 import {parseCsv, readCsvValue, toCsv, type CsvRecord} from '../utils/csv'
+import {summarizeCsvRows, type ImportPreviewSummary} from '../utils/importValidation'
 
 interface UseCsvImportExportOptions {
     activeSection: Ref<SectionKey>
@@ -25,6 +26,19 @@ interface UseCsvImportExportOptions {
 
 export function useCsvImportExport(options: UseCsvImportExportOptions) {
     const currentCsvEntity = computed<EntityType>(() => sectionToEntityType(options.activeSection.value))
+
+    const importPreviewOpen = ref(false)
+    const pendingImportRows = ref<CsvRecord[] | null>(null)
+    const pendingImportEntity = ref<EntityType>('transaction')
+    const importPreviewSummary = ref<ImportPreviewSummary | null>(null)
+    const pendingImportPath = ref<string | null>(null)
+
+    function closeImportPreview() {
+        importPreviewOpen.value = false
+        pendingImportRows.value = null
+        pendingImportPath.value = null
+        importPreviewSummary.value = null
+    }
 
     function parseAccountTypeValue(value: string, fallback: AccountType = 'BANK'): AccountType {
         const normalized = value.trim().toUpperCase()
@@ -330,7 +344,7 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
         return {created, skipped, createdAccounts, createdCategories}
     }
 
-    async function importCurrentCsv() {
+    async function beginImportCurrentCsv() {
         const entity = currentCsvEntity.value
         const result = await window.file.openText({
             title: `${tr('common.import')} ${entityCollectionLabel(entity)} CSV`,
@@ -347,11 +361,25 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
             return
         }
 
+        pendingImportEntity.value = entity
+        pendingImportRows.value = rows
+        pendingImportPath.value = result.filePath
+        importPreviewSummary.value = summarizeCsvRows(entity, rows)
+        importPreviewOpen.value = true
+    }
+
+    async function confirmImportCurrentCsv() {
+        if (!pendingImportRows.value) return
+
+        const entity = pendingImportEntity.value
+        const rows = pendingImportRows.value
+
         try {
             if (entity === 'account') {
                 const summary = await importAccountsCsv(rows)
                 await options.refreshData()
                 options.showNotice('success', tr('notices.csvImportAccountsSummary', summary))
+                closeImportPreview()
                 return
             }
 
@@ -359,12 +387,14 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
                 const summary = await importCategoriesCsv(rows)
                 await options.refreshData()
                 options.showNotice('success', tr('notices.csvImportCategoriesSummary', summary))
+                closeImportPreview()
                 return
             }
 
             const summary = await importTransactionsCsv(rows)
             await options.refreshData()
             options.showNotice('success', tr('notices.csvImportTransactionsSummary', summary))
+            closeImportPreview()
         } catch (error) {
             options.showNotice('error', error instanceof Error ? error.message : tr('notices.csvImportFailed'))
         }
@@ -373,6 +403,12 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
     return {
         currentCsvEntity,
         exportCurrentCsv,
-        importCurrentCsv,
+        beginImportCurrentCsv,
+        confirmImportCurrentCsv,
+        closeImportPreview,
+        importPreviewOpen,
+        importPreviewSummary,
+        pendingImportEntity,
+        pendingImportPath,
     }
 }

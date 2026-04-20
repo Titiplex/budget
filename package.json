@@ -25,7 +25,9 @@
     "package": "npm run prisma:generate && npm run typecheck && npm run build:vite && electron-forge package",
     "make": "npm run prisma:generate && npm run typecheck && npm run build:vite && electron-forge make",
     "publish": "npm run prisma:generate && npm run typecheck && npm run build:vite && electron-forge publish",
-    "test": "echo \"No tests configured yet\""
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@intlify/devtools-types": "^11.3.2",
@@ -35,7 +37,7 @@
     "electron-squirrel-startup": "^1.0.1",
     "tailwindcss": "^4.2.2",
     "update-electron-app": "^3.1.2",
-    "vite": "^8.0.8",
+    "vite": "7.1.12",
     "vue": "^3.5.32",
     "vue-i18n": "^11.1.10"
   },
@@ -53,9 +55,16 @@
     "@types/electron": "^1.4.38",
     "@types/node": "^25.6.0",
     "@vitejs/plugin-vue": "^6.0.6",
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vue/test-utils": "^2.4.6",
     "electron": "^41.2.1",
+    "jsdom": "^26.1.0",
     "prisma": "^6.7.0",
     "typescript": "^6.0.3",
+    "vitest": "^3.2.4",
     "vue-tsc": "^3.2.6"
+  },
+  "overrides": {
+    "vite": "7.1.12"
   }
 }
