@@ -16,10 +16,6 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: 'refresh'): void
-  (e: 'import-csv'): void
-  (e: 'export-csv'): void
-  (e: 'export-json'): void
-  (e: 'restore-json'): void
   (e: 'create-transaction'): void
   (e: 'create-account'): void
   (e: 'create-category'): void
@@ -37,28 +33,17 @@ const emit = defineEmits<{
           Structure, analytics et sauvegarde complète.
         </h2>
         <p class="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
-          Scope CSV actif : <span class="font-semibold text-slate-800 dark:text-slate-100">{{
-            entityCollectionLabel(currentCsvEntity)
-          }}</span>.
-          En plus du CSV par scope, tu peux maintenant exporter un backup JSON complet et le restaurer.
+          Scope CSV actif :
+          <span class="font-semibold text-slate-800 dark:text-slate-100">
+            {{ entityCollectionLabel(currentCsvEntity) }}
+          </span>.
+          Les imports / exports sont maintenant pensés pour passer par le menu natif de l’application.
         </p>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
         <button class="ghost-btn" @click="emit('refresh')">
           {{ loading ? 'Chargement…' : 'Rafraîchir' }}
-        </button>
-        <button class="ghost-btn" @click="emit('import-csv')">
-          Importer CSV
-        </button>
-        <button class="ghost-btn" @click="emit('export-csv')">
-          Exporter CSV
-        </button>
-        <button class="ghost-btn" @click="emit('export-json')">
-          Exporter JSON
-        </button>
-        <button class="primary-btn" @click="emit('restore-json')">
-          Restaurer JSON
         </button>
       </div>
     </div>

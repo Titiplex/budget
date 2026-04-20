@@ -80,8 +80,45 @@ function setCreateTab(tab: CreateTabKey) {
   budget.createTab.value = tab
 }
 
+function handleMenuCommand(rawCommand: unknown) {
+  const command = typeof rawCommand === 'string' ? rawCommand : ''
+
+  switch (command) {
+    case 'create-transaction':
+      budget.openCreatePanel('transaction')
+      break
+    case 'create-account':
+      budget.openCreatePanel('account')
+      break
+    case 'create-category':
+      budget.openCreatePanel('category')
+      break
+    case 'import-csv':
+      void csv.importCurrentCsv()
+      break
+    case 'export-csv':
+      void csv.exportCurrentCsv()
+      break
+    case 'export-json':
+      void jsonBackup.exportBackupJson()
+      break
+    case 'restore-json':
+      void jsonBackup.restoreBackupJson()
+      break
+    case 'refresh-data':
+      void budget.refreshData()
+      break
+    case 'toggle-theme':
+      theme.toggleTheme()
+      break
+    default:
+      break
+  }
+}
+
 onMounted(async () => {
   theme.initTheme()
+  window.versions.on('app:menu-command', handleMenuCommand)
   await budget.refreshData()
 })
 </script>
@@ -231,10 +268,6 @@ onMounted(async () => {
               :category-count="budget.categories.value.length"
               :current-csv-entity="csv.currentCsvEntity.value"
               @refresh="budget.refreshData"
-              @import-csv="csv.importCurrentCsv"
-              @export-csv="csv.exportCurrentCsv"
-              @export-json="jsonBackup.exportBackupJson"
-              @restore-json="jsonBackup.restoreBackupJson"
               @create-transaction="budget.openCreatePanel('transaction')"
               @create-account="budget.openCreatePanel('account')"
               @create-category="budget.openCreatePanel('category')"
