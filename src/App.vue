@@ -14,10 +14,10 @@ import {useTheme} from './composables/useTheme'
 import type {CreateTabKey, SectionKey} from './types/budget'
 
 const navigation = [
-  {key: 'overview' as SectionKey, label: 'Vue d’ensemble', marker: 'OV', hint: 'KPI et activité'},
-  {key: 'transactions' as SectionKey, label: 'Transactions', marker: 'TX', hint: 'Filtres et historique'},
-  {key: 'accounts' as SectionKey, label: 'Comptes', marker: 'AC', hint: 'Sources de flux'},
-  {key: 'categories' as SectionKey, label: 'Catégories', marker: 'CA', hint: 'Classement et volume'},
+  {key: 'overview' as SectionKey, label: 'Vue d’ensemble', marker: 'OV'},
+  {key: 'transactions' as SectionKey, label: 'Transactions', marker: 'TX'},
+  {key: 'accounts' as SectionKey, label: 'Comptes', marker: 'AC'},
+  {key: 'categories' as SectionKey, label: 'Catégories', marker: 'CA'},
 ]
 
 const sectionMeta: Record<SectionKey, { title: string; description: string }> = {
@@ -132,49 +132,48 @@ onMounted(async () => {
       />
 
       <aside
-          class="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-200 bg-white px-4 py-5 shadow-xl transition-transform dark:border-slate-800 dark:bg-slate-900 lg:static lg:translate-x-0 lg:shadow-none"
+          class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-white px-3 py-4 shadow-xl transition-transform dark:border-slate-800 dark:bg-slate-900 lg:static lg:translate-x-0 lg:shadow-none"
           :class="budget.sidebarOpen.value ? 'translate-x-0' : '-translate-x-full'"
       >
-        <div class="mb-8 flex items-center justify-between">
+        <div class="mb-6 flex items-center justify-between">
           <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.22em] text-violet-500">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-500">
               Budget
             </p>
-            <h2 class="mt-1 text-xl font-bold text-slate-900 dark:text-white">
+            <h2 class="mt-1 text-lg font-bold text-slate-900 dark:text-white">
               Cockpit
             </h2>
           </div>
 
           <button
-              class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white lg:hidden"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white lg:hidden"
               @click="budget.sidebarOpen.value = false"
           >
             ✕
           </button>
         </div>
 
-        <div class="panel px-4 py-4">
-          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+        <div class="panel px-3 py-3">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
             État
           </p>
           <p class="mt-2 text-sm font-medium text-slate-800 dark:text-slate-100">
             {{ budget.lastSyncLabel.value }}
           </p>
-          <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            {{ budget.transactions.value.length }} transactions · {{ budget.accounts.value.length }} comptes ·
-            {{ budget.categories.value.length }} catégories
+          <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+            {{ budget.transactions.value.length }} tx · {{ budget.accounts.value.length }} cpt · {{ budget.categories.value.length }} cat
           </p>
         </div>
 
-        <nav class="mt-6 space-y-2">
+        <nav class="mt-5 space-y-1.5">
           <button
               v-for="item in navigation"
               :key="item.key"
-              class="nav-item"
+              class="nav-item !gap-2.5 !rounded-xl !px-2.5 !py-2.5"
               :class="{ 'nav-item-active': budget.activeSection.value === item.key }"
               @click="budget.selectSection(item.key)"
           >
-            <span class="nav-marker">
+            <span class="nav-marker !h-9 !w-9 !rounded-xl">
               {{ item.marker }}
             </span>
 
@@ -182,29 +181,25 @@ onMounted(async () => {
               <span class="block truncate text-sm font-semibold">
                 {{ item.label }}
               </span>
-              <span class="block truncate text-xs text-slate-400 dark:text-slate-500">
-                {{ item.hint }}
-              </span>
             </span>
           </button>
         </nav>
 
-        <div class="mt-6 space-y-2">
-          <button class="quick-create-btn" @click="budget.openCreatePanel('transaction')">
-            + Nouvelle transaction
+        <div class="mt-5 space-y-2">
+          <button class="quick-create-btn !py-2.5 text-sm" @click="budget.openCreatePanel('transaction')">
+            + Transaction
           </button>
-          <button class="quick-create-btn-secondary" @click="budget.openCreatePanel('account')">
-            + Nouveau compte
+          <button class="quick-create-btn-secondary !py-2.5 text-sm" @click="budget.openCreatePanel('account')">
+            + Compte
           </button>
-          <button class="quick-create-btn-secondary" @click="budget.openCreatePanel('category')">
-            + Nouvelle catégorie
+          <button class="quick-create-btn-secondary !py-2.5 text-sm" @click="budget.openCreatePanel('category')">
+            + Catégorie
           </button>
         </div>
       </aside>
 
       <div class="flex min-w-0 flex-1 flex-col">
-        <header
-            class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
+        <header class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
           <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
             <div class="flex min-w-0 items-center gap-3">
               <button
