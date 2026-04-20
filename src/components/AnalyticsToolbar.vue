@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import {computed} from 'vue'
-import type {EntityType, SectionKey} from '../types/budget'
-import {entityCollectionLabel, formatMoney, sectionToEntityType} from '../utils/budgetFormat'
+import type {EntityType} from '../types/budget'
+import {entityCollectionLabel, formatMoney} from '../utils/budgetFormat'
 
-const props = defineProps<{
-  activeSection: SectionKey
+defineProps<{
   loading: boolean
   summaryCurrency: string
   netFlow: number
@@ -13,19 +11,19 @@ const props = defineProps<{
   transactionCount: number
   accountCount: number
   categoryCount: number
+  currentCsvEntity: EntityType
 }>()
 
 const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'import-csv'): void
   (e: 'export-csv'): void
+  (e: 'export-json'): void
+  (e: 'restore-json'): void
   (e: 'create-transaction'): void
   (e: 'create-account'): void
   (e: 'create-category'): void
 }>()
-
-const currentScope = computed<EntityType>(() => sectionToEntityType(props.activeSection))
-const currentScopeLabel = computed(() => entityCollectionLabel(currentScope.value))
 </script>
 
 <template>
@@ -33,16 +31,16 @@ const currentScopeLabel = computed(() => entityCollectionLabel(currentScope.valu
     <div class="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
       <div class="max-w-3xl">
         <p class="soft-kicker">
-          Lot 4
+          Lots 5 · 6 · 7
         </p>
         <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-          Toolbar analytics + CSV + composants séparés.
+          Structure, analytics et sauvegarde complète.
         </h2>
         <p class="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
-          Le scope actif est <span class="font-semibold text-slate-800 dark:text-slate-100">{{
-            currentScopeLabel
+          Scope CSV actif : <span class="font-semibold text-slate-800 dark:text-slate-100">{{
+            entityCollectionLabel(currentCsvEntity)
           }}</span>.
-          Tu peux maintenant importer ou exporter en CSV proprement, sans bidouiller la base à la main.
+          En plus du CSV par scope, tu peux maintenant exporter un backup JSON complet et le restaurer.
         </p>
       </div>
 
@@ -53,8 +51,14 @@ const currentScopeLabel = computed(() => entityCollectionLabel(currentScope.valu
         <button class="ghost-btn" @click="emit('import-csv')">
           Importer CSV
         </button>
-        <button class="primary-btn" @click="emit('export-csv')">
+        <button class="ghost-btn" @click="emit('export-csv')">
           Exporter CSV
+        </button>
+        <button class="ghost-btn" @click="emit('export-json')">
+          Exporter JSON
+        </button>
+        <button class="primary-btn" @click="emit('restore-json')">
+          Restaurer JSON
         </button>
       </div>
     </div>

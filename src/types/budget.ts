@@ -59,3 +59,56 @@ export interface DeleteState {
     label: string
     message: string
 }
+
+export interface MonthlyPoint {
+    key: string
+    label: string
+    income: number
+    expense: number
+    net: number
+}
+
+export interface ExpenseBreakdownItem {
+    name: string
+    total: number
+    color: string | null
+    percent: number
+}
+
+export interface BudgetBackupAccount {
+    id: number
+    name: string
+    type: AccountType
+    currency: string
+    description: string | null
+}
+
+export interface BudgetBackupCategory {
+    id: number
+    name: string
+    kind: TransactionKind
+    color: string | null
+    description: string | null
+}
+
+export interface BudgetBackupTransaction {
+    id: number
+    label: string
+    amount: number
+    kind: TransactionKind
+    date: string
+    note: string | null
+    accountId: number
+    categoryId: number | null
+}
+
+export interface BudgetBackupSnapshot {
+    kind: 'budget-backup'
+    version: 1
+    exportedAt: string
+    data: {
+        accounts: BudgetBackupAccount[]
+        categories: BudgetBackupCategory[]
+        transactions: BudgetBackupTransaction[]
+    }
+}

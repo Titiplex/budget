@@ -62,13 +62,16 @@ export function parseCsv(content: string): CsvRecord[] {
     const headers = rows[0].map((header) => normalizeHeader(header))
     if (!headers.length) return []
 
-    return rows.slice(1).map((row) => {
-        const record: CsvRecord = {}
-        headers.forEach((header, index) => {
-            record[header] = (row[index] ?? '').trim()
+    return rows
+        .slice(1)
+        .map((row) => {
+            const record: CsvRecord = {}
+            headers.forEach((header, index) => {
+                record[header] = (row[index] ?? '').trim()
+            })
+            return record
         })
-        return record
-    }).filter((record) => Object.values(record).some((value) => value.length > 0))
+        .filter((record) => Object.values(record).some((value) => value.length > 0))
 }
 
 function escapeCsvValue(value: unknown) {

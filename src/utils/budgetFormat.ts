@@ -1,4 +1,4 @@
-import type {AccountType, EntityType, SectionKey, TransactionKind} from '../types/budget'
+import type {AccountType, EntityType, SectionKey, TransactionKind,} from '../types/budget'
 
 export function formatMoney(amount: number, currency = 'CAD') {
     try {
