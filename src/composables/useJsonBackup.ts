@@ -2,7 +2,9 @@ import {ref, type Ref} from 'vue'
 import type {
     Account,
     BudgetBackupSnapshot,
+    BudgetTarget,
     Category,
+    RecurringTransactionTemplate,
     Transaction,
 } from '../types/budget'
 import {tr} from '../i18n'
@@ -12,8 +14,10 @@ import {validateBackupSnapshot, type BackupValidationResult} from '../utils/impo
 interface UseJsonBackupOptions {
     accounts: Ref<Account[]>
     categories: Ref<Category[]>
+    budgetTargets: Ref<BudgetTarget[]>
+    recurringTemplates: Ref<RecurringTransactionTemplate[]>
     transactions: Ref<Transaction[]>
-    refreshData: () => Promise<void>
+    refreshAllData: () => Promise<unknown>
     showNotice: (type: 'success' | 'error', text: string) => void
 }
 
@@ -34,6 +38,8 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         const snapshot = createBudgetBackupSnapshot(
             options.accounts.value,
             options.categories.value,
+            options.budgetTargets.value,
+            options.recurringTemplates.value,
             options.transactions.value,
         )
 
@@ -52,6 +58,14 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
     async function replaceAllData() {
         for (const transaction of [...options.transactions.value]) {
             await window.db.transaction.delete(transaction.id)
+        }
+
+        for (const recurringTemplate of [...options.recurringTemplates.value]) {
+            await window.db.recurringTemplate.delete(recurringTemplate.id)
+        }
+
+        for (const budgetTarget of [...options.budgetTargets.value]) {
+            await window.db.budgetTarget.delete(budgetTarget.id)
         }
 
         for (const category of [...options.categories.value]) {
@@ -120,6 +134,56 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
                 categoryIdMap.set(category.id, created.id)
             }
 
+            for (const budgetTarget of snapshot.data.budgetTargets) {
+                const mappedCategoryId = categoryIdMap.get(budgetTarget.categoryId)
+                if (!mappedCategoryId) {
+                    throw new Error(`Budget "${budgetTarget.name}" référence une catégorie absente.`)
+                }
+
+                await window.db.budgetTarget.create({
+                    name: budgetTarget.name,
+                    amount: budgetTarget.amount,
+                    period: budgetTarget.period,
+                    startDate: budgetTarget.startDate,
+                    endDate: budgetTarget.endDate,
+                    currency: budgetTarget.currency,
+                    isActive: budgetTarget.isActive,
+                    note: budgetTarget.note,
+                    categoryId: mappedCategoryId,
+                })
+            }
+
+            for (const template of snapshot.data.recurringTemplates) {
+                const mappedAccountId = accountIdMap.get(template.accountId)
+                if (!mappedAccountId) {
+                    throw new Error(`Récurrence "${template.label}" référence un compte absent.`)
+                }
+
+                const mappedCategoryId = template.categoryId == null
+                    ? null
+                    : (categoryIdMap.get(template.categoryId) ?? null)
+
+                await window.db.recurringTemplate.create({
+                    label: template.label,
+                    sourceAmount: template.sourceAmount,
+                    sourceCurrency: template.sourceCurrency,
+                    accountAmount: template.accountAmount,
+                    conversionMode: template.conversionMode,
+                    exchangeRate: template.exchangeRate,
+                    exchangeProvider: template.exchangeProvider,
+                    kind: template.kind,
+                    note: template.note,
+                    frequency: template.frequency,
+                    intervalCount: template.intervalCount,
+                    startDate: template.startDate,
+                    nextOccurrenceDate: template.nextOccurrenceDate,
+                    endDate: template.endDate,
+                    isActive: template.isActive,
+                    accountId: mappedAccountId,
+                    categoryId: mappedCategoryId,
+                })
+            }
+
             for (const transaction of snapshot.data.transactions) {
                 const mappedAccountId = accountIdMap.get(transaction.accountId)
                 if (!mappedAccountId) {
@@ -133,6 +197,12 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
                 await window.db.transaction.create({
                     label: transaction.label,
                     amount: Math.abs(transaction.amount),
+                    sourceAmount: transaction.sourceAmount,
+                    sourceCurrency: transaction.sourceCurrency,
+                    conversionMode: transaction.conversionMode,
+                    exchangeRate: transaction.exchangeRate,
+                    exchangeProvider: transaction.exchangeProvider,
+                    exchangeDate: transaction.exchangeDate,
                     kind: transaction.kind,
                     date: transaction.date,
                     note: transaction.note,
@@ -141,7 +211,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
                 })
             }
 
-            await options.refreshData()
+            await options.refreshAllData()
             closeRestorePreview()
             options.showNotice('success', tr('notices.jsonRestored'))
         } catch (error) {

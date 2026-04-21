@@ -15,14 +15,46 @@ describe('import validation', () => {
         expect(summary.warnings.length).toBeGreaterThan(0)
     })
 
-    it('validates backup references', () => {
+    it('validates backup references across all entity types', () => {
         const result = validateBackupSnapshot({
             kind: 'budget-backup',
-            version: 1,
+            version: 2,
             exportedAt: '2026-04-20T00:00:00.000Z',
             data: {
                 accounts: [{id: 1, name: 'Main', type: 'BANK', currency: 'CAD', description: null}],
                 categories: [],
+                budgetTargets: [{
+                    id: 10,
+                    name: 'Food budget',
+                    amount: 100,
+                    period: 'MONTHLY',
+                    startDate: '2026-04-01T00:00:00.000Z',
+                    endDate: null,
+                    currency: 'CAD',
+                    isActive: true,
+                    note: null,
+                    categoryId: 999,
+                }],
+                recurringTemplates: [{
+                    id: 20,
+                    label: 'Spotify',
+                    sourceAmount: 12,
+                    sourceCurrency: 'USD',
+                    accountAmount: null,
+                    conversionMode: 'AUTOMATIC',
+                    exchangeRate: null,
+                    exchangeProvider: 'ECB via Frankfurter',
+                    kind: 'EXPENSE',
+                    note: null,
+                    frequency: 'MONTHLY',
+                    intervalCount: 1,
+                    startDate: '2026-04-01T00:00:00.000Z',
+                    nextOccurrenceDate: '2026-05-01T00:00:00.000Z',
+                    endDate: null,
+                    isActive: true,
+                    accountId: 999,
+                    categoryId: null,
+                }],
                 transactions: [{
                     id: 2,
                     label: 'Broken tx',
@@ -43,6 +75,8 @@ describe('import validation', () => {
         })
 
         expect(result.ok).toBe(false)
+        expect(result.counts.budgetTargets).toBe(1)
+        expect(result.counts.recurringTemplates).toBe(1)
         expect(result.warnings.length).toBeGreaterThan(0)
     })
 })

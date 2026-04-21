@@ -65,6 +65,8 @@ export interface BackupValidationResult {
     counts: {
         accounts: number
         categories: number
+        budgetTargets: number
+        recurringTemplates: number
         transactions: number
     }
 }
@@ -74,6 +76,38 @@ export function validateBackupSnapshot(snapshot: BudgetBackupSnapshot): BackupVa
 
     const accountIds = new Set(snapshot.data.accounts.map((account) => account.id))
     const categoryIds = new Set(snapshot.data.categories.map((category) => category.id))
+
+    for (const budgetTarget of snapshot.data.budgetTargets) {
+        if (!categoryIds.has(budgetTarget.categoryId)) {
+            warnings.push(`Budget "${budgetTarget.name}" référence une catégorie manquante (${budgetTarget.categoryId}).`)
+        }
+
+        if (!budgetTarget.name.trim()) {
+            warnings.push('Un budget a un nom vide.')
+        }
+
+        if (!(budgetTarget.amount > 0)) {
+            warnings.push(`Budget "${budgetTarget.name}" avec montant non positif.`)
+        }
+    }
+
+    for (const template of snapshot.data.recurringTemplates) {
+        if (!accountIds.has(template.accountId)) {
+            warnings.push(`Récurrence "${template.label}" référence un compte manquant (${template.accountId}).`)
+        }
+
+        if (template.categoryId != null && !categoryIds.has(template.categoryId)) {
+            warnings.push(`Récurrence "${template.label}" référence une catégorie manquante (${template.categoryId}).`)
+        }
+
+        if (!template.label.trim()) {
+            warnings.push('Une récurrence a un libellé vide.')
+        }
+
+        if (!(template.sourceAmount > 0)) {
+            warnings.push(`Récurrence "${template.label}" avec montant source non positif.`)
+        }
+    }
 
     for (const transaction of snapshot.data.transactions) {
         if (!accountIds.has(transaction.accountId)) {
@@ -99,6 +133,8 @@ export function validateBackupSnapshot(snapshot: BudgetBackupSnapshot): BackupVa
         counts: {
             accounts: snapshot.data.accounts.length,
             categories: snapshot.data.categories.length,
+            budgetTargets: snapshot.data.budgetTargets.length,
+            recurringTemplates: snapshot.data.recurringTemplates.length,
             transactions: snapshot.data.transactions.length,
         },
     }

@@ -237,6 +237,40 @@ export interface BudgetBackupCategory {
     description: string | null
 }
 
+export interface BudgetBackupBudgetTarget {
+    id: number
+    name: string
+    amount: number
+    period: BudgetPeriod
+    startDate: string
+    endDate: string | null
+    currency: string
+    isActive: boolean
+    note: string | null
+    categoryId: number
+}
+
+export interface BudgetBackupRecurringTransactionTemplate {
+    id: number
+    label: string
+    sourceAmount: number
+    sourceCurrency: string
+    accountAmount: number | null
+    conversionMode: ConversionMode
+    exchangeRate: number | null
+    exchangeProvider: string | null
+    kind: TransactionKind
+    note: string | null
+    frequency: RecurringFrequency
+    intervalCount: number
+    startDate: string
+    nextOccurrenceDate: string
+    endDate: string | null
+    isActive: boolean
+    accountId: number
+    categoryId: number | null
+}
+
 export interface BudgetBackupTransaction {
     id: number
     label: string
@@ -256,11 +290,13 @@ export interface BudgetBackupTransaction {
 
 export interface BudgetBackupSnapshot {
     kind: 'budget-backup'
-    version: 1
+    version: 2
     exportedAt: string
     data: {
         accounts: BudgetBackupAccount[]
         categories: BudgetBackupCategory[]
+        budgetTargets: BudgetBackupBudgetTarget[]
+        recurringTemplates: BudgetBackupRecurringTransactionTemplate[]
         transactions: BudgetBackupTransaction[]
     }
 }

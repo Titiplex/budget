@@ -61,18 +61,28 @@ const csv = useCsvImportExport({
   showNotice,
 })
 
-const jsonBackup = useJsonBackup({
-  accounts: budget.accounts,
-  categories: budget.categories,
-  transactions: budget.transactions,
-  refreshData: budget.refreshData,
-  showNotice,
-})
-
 const reports = useReports({
   accounts: budget.accounts,
   categories: budget.categories,
   transactions: budget.transactions,
+  showNotice,
+})
+
+function refreshEverything() {
+  return Promise.all([
+    budget.refreshData(),
+    budgetTargets.refreshBudgets(),
+    recurring.refreshRecurringTemplates(),
+  ])
+}
+
+const jsonBackup = useJsonBackup({
+  accounts: budget.accounts,
+  categories: budget.categories,
+  budgetTargets: budgetTargets.budgets,
+  recurringTemplates: recurring.recurringTemplates,
+  transactions: budget.transactions,
+  refreshAllData: refreshEverything,
   showNotice,
 })
 
@@ -140,20 +150,14 @@ const restorePreviewLines = computed(() => {
     `Fichier: ${jsonBackup.restorePreviewPath.value || '—'}`,
     `Comptes: ${validation.counts.accounts}`,
     `Catégories: ${validation.counts.categories}`,
+    `Budgets: ${validation.counts.budgetTargets}`,
+    `Récurrences: ${validation.counts.recurringTemplates}`,
     `Transactions: ${validation.counts.transactions}`,
   ]
 })
 
 function setCreateTab(tab: CreateTabKey) {
   budget.createTab.value = tab
-}
-
-function refreshEverything() {
-  return Promise.all([
-    budget.refreshData(),
-    budgetTargets.refreshBudgets(),
-    recurring.refreshRecurringTemplates(),
-  ])
 }
 
 function handleMenuCommand(rawCommand: unknown) {
