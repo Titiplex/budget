@@ -11,7 +11,10 @@ import type {
 import {buildRecurringForecast, summarizeRecurringForecast} from '../utils/recurringForecast'
 
 function toDateOnly(value: string | Date) {
-    return new Date(value).toISOString().slice(0, 10)
+    if (typeof value === 'string') {
+        return value.slice(0, 10)
+    }
+    return value.toISOString().slice(0, 10)
 }
 
 function normalizeCurrency(value: string | null | undefined) {
@@ -19,24 +22,24 @@ function normalizeCurrency(value: string | null | undefined) {
 }
 
 function addInterval(date: Date, frequency: RecurringFrequency, intervalCount: number) {
-    const next = new Date(date)
+    const next = new Date(date.getTime())
 
     if (frequency === 'DAILY') {
-        next.setDate(next.getDate() + intervalCount)
+        next.setUTCDate(next.getUTCDate() + intervalCount)
         return next
     }
 
     if (frequency === 'WEEKLY') {
-        next.setDate(next.getDate() + 7 * intervalCount)
+        next.setUTCDate(next.getUTCDate() + 7 * intervalCount)
         return next
     }
 
     if (frequency === 'MONTHLY') {
-        next.setMonth(next.getMonth() + intervalCount)
+        next.setUTCMonth(next.getUTCMonth() + intervalCount)
         return next
     }
 
-    next.setFullYear(next.getFullYear() + intervalCount)
+    next.setUTCFullYear(next.getUTCFullYear() + intervalCount)
     return next
 }
 
