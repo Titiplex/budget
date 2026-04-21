@@ -34,3 +34,7 @@ contextBridge.exposeInMainWorld('file', {
     openText: (options) => ipcRenderer.invoke('file:open-text', options),
     saveText: (options) => ipcRenderer.invoke('file:save-text', options),
 })
+
+contextBridge.exposeInMainWorld('fx', {
+    quoteHistorical: (options) => ipcRenderer.invoke('fx:quote-historical', options),
+})

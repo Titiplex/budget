@@ -50,6 +50,20 @@ function includeTransactionRelations() {
     }
 }
 
+function normalizeConversionMode(value, sourceCurrency, accountCurrency) {
+    const normalized = normalizeText(value)?.toUpperCase()
+
+    if (sourceCurrency === accountCurrency) {
+        return 'NONE'
+    }
+
+    if (normalized === 'MANUAL' || normalized === 'AUTOMATIC') {
+        return normalized
+    }
+
+    throw new Error('Le mode de conversion est invalide.')
+}
+
 function buildAccountPayload(data) {
     return {
         name: requireText(data?.name, 'Le nom du compte'),
@@ -68,14 +82,68 @@ function buildCategoryPayload(data) {
     }
 }
 
-function buildTransactionPayload(data) {
+async function buildTransactionPayload(prisma, data) {
+    const accountId = requireId(data?.accountId, 'Le compte')
+    const account = await prisma.account.findUnique({where: {id: accountId}})
+
+    if (!account) {
+        throw new Error('Le compte sélectionné est introuvable.')
+    }
+
+    const accountCurrency = normalizeCurrency(account.currency)
+    const sourceAmount = requirePositiveNumber(
+        data?.sourceAmount ?? data?.amount,
+        'Le montant',
+    )
+
+    const sourceCurrency = normalizeCurrency(
+        data?.sourceCurrency ?? accountCurrency,
+    )
+
+    const conversionMode = normalizeConversionMode(
+        data?.conversionMode,
+        sourceCurrency,
+        accountCurrency,
+    )
+
+    let bookedAmount = sourceAmount
+    let exchangeRate = 1
+    let exchangeProvider = 'ACCOUNT'
+    let exchangeDate = requireDate(data?.exchangeDate || data?.date)
+
+    if (sourceCurrency !== accountCurrency) {
+        bookedAmount = requirePositiveNumber(
+            data?.amount,
+            'Le montant converti dans la devise du compte',
+        )
+
+        if (conversionMode === 'AUTOMATIC') {
+            exchangeRate = requirePositiveNumber(data?.exchangeRate, 'Le taux de change')
+            exchangeProvider = requireText(data?.exchangeProvider, 'La source du taux')
+            exchangeDate = requireDate(data?.exchangeDate || data?.date)
+        } else if (conversionMode === 'MANUAL') {
+            exchangeRate = requirePositiveNumber(
+                data?.exchangeRate ?? bookedAmount / sourceAmount,
+                'Le taux de change',
+            )
+            exchangeProvider = normalizeText(data?.exchangeProvider) || 'MANUAL'
+            exchangeDate = requireDate(data?.exchangeDate || data?.date)
+        }
+    }
+
     return {
         label: requireText(data?.label, 'Le libellé'),
-        amount: requirePositiveNumber(data?.amount, 'Le montant'),
+        amount: bookedAmount,
+        sourceAmount,
+        sourceCurrency,
+        conversionMode,
+        exchangeRate,
+        exchangeProvider,
+        exchangeDate,
         kind: data?.kind,
         date: requireDate(data?.date),
         note: normalizeText(data?.note),
-        accountId: requireId(data?.accountId, 'Le compte'),
+        accountId,
         categoryId: data?.categoryId ? requireId(data.categoryId, 'La catégorie') : null,
     }
 }
@@ -153,7 +221,7 @@ function registerDbHandlers() {
 
     ipcMain.handle('db:transaction:create', async (_event, data) => {
         return prisma.transaction.create({
-            data: buildTransactionPayload(data),
+            data: await buildTransactionPayload(prisma, data),
             include: includeTransactionRelations(),
         })
     })
@@ -163,7 +231,7 @@ function registerDbHandlers() {
             where: {
                 id: requireId(id, 'La transaction'),
             },
-            data: buildTransactionPayload(data),
+            data: await buildTransactionPayload(prisma, data),
             include: includeTransactionRelations(),
         })
     })

@@ -8,13 +8,15 @@ import DeleteDialog from './components/DeleteDialog.vue'
 import EntityDrawer from './components/EntityDrawer.vue'
 import ImportReviewDialog from './components/ImportReviewDialog.vue'
 import OverviewSection from './components/OverviewSection.vue'
+import ReportsSection from './components/ReportsSection.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
 import TransactionsSection from './components/TransactionsSection.vue'
 import {useBudgetData} from './composables/useBudgetData'
 import {useCsvImportExport} from './composables/useCsvImportExport'
 import {useJsonBackup} from './composables/useJsonBackup'
+import {useReports} from './composables/useReports'
 import {useSettings} from './composables/useSettings'
-import type {CreateTabKey, SectionKey} from './types/budget'
+import type {CreateTabKey, SectionKey, ReportPreset} from './types/budget'
 
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -50,11 +52,19 @@ const jsonBackup = useJsonBackup({
   showNotice,
 })
 
+const reports = useReports({
+  accounts: budget.accounts,
+  categories: budget.categories,
+  transactions: budget.transactions,
+  showNotice,
+})
+
 const navigation = computed(() => [
   {key: 'overview' as SectionKey, label: t('nav.overview'), marker: 'OV'},
   {key: 'transactions' as SectionKey, label: t('nav.transactions'), marker: 'TX'},
   {key: 'accounts' as SectionKey, label: t('nav.accounts'), marker: 'AC'},
   {key: 'categories' as SectionKey, label: t('nav.categories'), marker: 'CA'},
+  {key: 'reports' as SectionKey, label: 'Rapports', marker: 'RP'},
 ])
 
 const sectionMeta = computed<Record<SectionKey, { title: string; description: string }>>(() => ({
@@ -73,6 +83,10 @@ const sectionMeta = computed<Record<SectionKey, { title: string; description: st
   categories: {
     title: t('sections.categories.title'),
     description: t('sections.categories.description'),
+  },
+  reports: {
+    title: 'Rapports',
+    description: 'Analyses avancées, statistiques multi-objets et export de rapports périodiques.',
   },
 }))
 
@@ -120,6 +134,13 @@ function handleMenuCommand(rawCommand: unknown) {
     case 'create-category':
       budget.openCreatePanel('category')
       break
+    case 'open-reports':
+      budget.selectSection('reports')
+      break
+    case 'export-period-report':
+      budget.selectSection('reports')
+      void reports.exportPeriodReport()
+      break
     case 'import-csv':
       void csv.beginImportCurrentCsv()
       break
@@ -162,6 +183,7 @@ onMounted(async () => {
   settings.initSettings()
   window.versions.on('app:menu-command', handleMenuCommand)
   await budget.refreshData()
+  reports.applyPreset('THIS_MONTH')
 })
 </script>
 
@@ -204,7 +226,8 @@ onMounted(async () => {
             {{ budget.lastSyncLabel.value }}
           </p>
           <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
-            {{ budget.transactions.value.length }} tx · {{ budget.accounts.value.length }} cpt · {{ budget.categories.value.length }} cat
+            {{ budget.transactions.value.length }} tx · {{ budget.accounts.value.length }} cpt ·
+            {{ budget.categories.value.length }} cat
           </p>
         </div>
 
@@ -242,7 +265,8 @@ onMounted(async () => {
       </aside>
 
       <div class="flex min-w-0 flex-1 flex-col">
-        <header class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
+        <header
+            class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
           <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
             <div class="flex min-w-0 items-center gap-3">
               <button
@@ -346,12 +370,30 @@ onMounted(async () => {
           />
 
           <CategoriesSection
-              v-else
+              v-else-if="budget.activeSection.value === 'categories'"
               :category-summaries="budget.categorySummaries.value"
               :summary-currency="budget.summaryCurrency.value"
               @create-category="budget.openCreatePanel('category')"
               @edit-category="budget.openEditCategory"
               @delete-category="budget.openDeleteDialog('category', $event)"
+          />
+
+          <ReportsSection
+              v-else
+              :preset="reports.reportPreset.value"
+              :start-date="reports.reportStartDate.value"
+              :end-date="reports.reportEndDate.value"
+              :summary="reports.reportSummary.value"
+              :account-type-rows="reports.accountTypeRows.value"
+              :account-rows="reports.accountRows.value"
+              :category-rows="reports.categoryRows.value"
+              :foreign-currency-rows="reports.foreignCurrencyRows.value"
+              :weekday-rows="reports.weekdayRows.value"
+              :insights="reports.insights.value"
+              @set-preset="reports.applyPreset($event as ReportPreset)"
+              @update:start-date="reports.reportStartDate.value = $event"
+              @update:end-date="reports.reportEndDate.value = $event"
+              @export-report="reports.exportPeriodReport"
           />
         </main>
       </div>
@@ -363,6 +405,8 @@ onMounted(async () => {
         :current-tab="budget.createTab.value"
         :editing-target="budget.editingTarget.value"
         :saving="budget.saving.value"
+        :fx-busy="budget.fxBusy.value"
+        :fx-preview="budget.fxPreview.value"
         :panel-title="budget.panelTitle.value"
         :panel-description="budget.panelDescription.value"
         :panel-submit-label="budget.panelSubmitLabel.value"
@@ -383,6 +427,7 @@ onMounted(async () => {
         @reset-account="budget.resetAccountForm"
         @reset-category="budget.resetCategoryForm"
         @request-delete="budget.requestDeleteCurrentForm"
+        @quote-transaction-fx="budget.quoteTransactionFx"
     />
 
     <DeleteDialog

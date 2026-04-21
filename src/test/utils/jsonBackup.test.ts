@@ -10,6 +10,12 @@ describe('json backup utils', () => {
                 id: 3,
                 label: 'Groceries',
                 amount: 42,
+                sourceAmount: 42,
+                sourceCurrency: 'CAD',
+                conversionMode: 'NONE',
+                exchangeRate: 1,
+                exchangeProvider: 'ACCOUNT',
+                exchangeDate: '2026-04-20T00:00:00.000Z',
                 kind: 'EXPENSE',
                 date: '2026-04-20T00:00:00.000Z',
                 note: null,
@@ -25,6 +31,7 @@ describe('json backup utils', () => {
         expect(parsed.data.accounts).toHaveLength(1)
         expect(parsed.data.categories).toHaveLength(1)
         expect(parsed.data.transactions).toHaveLength(1)
+        expect(parsed.data.transactions[0].conversionMode).toBe('NONE')
     })
 
     it('rejects invalid snapshot', () => {

@@ -3,6 +3,7 @@ const {updateElectronApp} = require('update-electron-app')
 const path = require('node:path')
 const {registerDbHandlers} = require('./ipc/registerDbHandlers')
 const {registerFileHandlers} = require('./ipc/registerFileHandlers')
+const {registerFxHandlers} = require('./ipc/registerFxHandlers')
 const {disconnectPrisma} = require('./db')
 
 updateElectronApp()
@@ -63,6 +64,17 @@ function buildAppMenu() {
                 },
                 {type: 'separator'},
                 {
+                    label: 'Open Reports',
+                    accelerator: 'CmdOrCtrl+R',
+                    click: () => sendMenuCommand('open-reports'),
+                },
+                {
+                    label: 'Export Period Report',
+                    accelerator: 'CmdOrCtrl+Shift+R',
+                    click: () => sendMenuCommand('export-period-report'),
+                },
+                {type: 'separator'},
+                {
                     label: 'Import CSV',
                     accelerator: 'CmdOrCtrl+I',
                     click: () => sendMenuCommand('import-csv'),
@@ -118,6 +130,10 @@ function buildAppMenu() {
         {
             label: 'View',
             submenu: [
+                {
+                    label: 'Open Reports',
+                    click: () => sendMenuCommand('open-reports'),
+                },
                 {
                     label: 'Toggle Theme',
                     accelerator: 'CmdOrCtrl+D',
@@ -179,10 +195,10 @@ function buildAppMenu() {
 
 const createWindow = () => {
     const win = new BrowserWindow({
-        width: 1280,
-        height: 860,
-        minWidth: 1100,
-        minHeight: 720,
+        width: 1360,
+        height: 900,
+        minWidth: 1150,
+        minHeight: 760,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
         },
@@ -196,6 +212,7 @@ app.whenReady().then(() => {
     ipcMain.handle('ping', () => 'pong')
     registerDbHandlers()
     registerFileHandlers()
+    registerFxHandlers()
 
     Menu.setApplicationMenu(buildAppMenu())
     createWindow()

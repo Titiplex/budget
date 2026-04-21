@@ -6,10 +6,14 @@ declare module '*.vue' {
     export default component
 }
 
+type AccountTypeDto = 'CASH' | 'BANK' | 'SAVINGS' | 'CREDIT' | 'INVESTMENT' | 'OTHER'
+type TransactionKindDto = 'INCOME' | 'EXPENSE' | 'TRANSFER'
+type ConversionModeDto = 'NONE' | 'MANUAL' | 'AUTOMATIC'
+
 interface AccountDto {
     id: number
     name: string
-    type: 'CASH' | 'BANK' | 'SAVINGS' | 'CREDIT' | 'INVESTMENT' | 'OTHER'
+    type: AccountTypeDto
     currency: string
     description: string | null
     createdAt: string
@@ -19,7 +23,7 @@ interface AccountDto {
 interface CategoryDto {
     id: number
     name: string
-    kind: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+    kind: TransactionKindDto
     color: string | null
     description: string | null
     createdAt: string
@@ -30,7 +34,13 @@ interface TransactionDto {
     id: number
     label: string
     amount: number
-    kind: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+    sourceAmount: number | null
+    sourceCurrency: string | null
+    conversionMode: ConversionModeDto
+    exchangeRate: number | null
+    exchangeProvider: string | null
+    exchangeDate: string | null
+    kind: TransactionKindDto
     date: string
     note: string | null
     accountId: number
@@ -52,6 +62,15 @@ interface FileSaveTextResult {
     filePath: string | null
 }
 
+interface FxQuoteResult {
+    from: string
+    to: string
+    rate: number
+    convertedAmount: number
+    provider: string
+    date: string
+}
+
 interface Window {
     versions: {
         node: () => string
@@ -67,13 +86,13 @@ interface Window {
             list: () => Promise<AccountDto[]>
             create: (data: {
                 name: string
-                type: AccountDto['type']
+                type: AccountTypeDto
                 currency?: string
                 description?: string | null
             }) => Promise<AccountDto>
             update: (id: number, data: {
                 name: string
-                type: AccountDto['type']
+                type: AccountTypeDto
                 currency?: string
                 description?: string | null
             }) => Promise<AccountDto>
@@ -84,13 +103,13 @@ interface Window {
             list: () => Promise<CategoryDto[]>
             create: (data: {
                 name: string
-                kind: CategoryDto['kind']
+                kind: TransactionKindDto
                 color?: string | null
                 description?: string | null
             }) => Promise<CategoryDto>
             update: (id: number, data: {
                 name: string
-                kind: CategoryDto['kind']
+                kind: TransactionKindDto
                 color?: string | null
                 description?: string | null
             }) => Promise<CategoryDto>
@@ -102,7 +121,13 @@ interface Window {
             create: (data: {
                 label: string
                 amount: number
-                kind: TransactionDto['kind']
+                sourceAmount?: number | null
+                sourceCurrency?: string | null
+                conversionMode?: ConversionModeDto
+                exchangeRate?: number | null
+                exchangeProvider?: string | null
+                exchangeDate?: string | null
+                kind: TransactionKindDto
                 date: string
                 note?: string | null
                 accountId: number
@@ -111,7 +136,13 @@ interface Window {
             update: (id: number, data: {
                 label: string
                 amount: number
-                kind: TransactionDto['kind']
+                sourceAmount?: number | null
+                sourceCurrency?: string | null
+                conversionMode?: ConversionModeDto
+                exchangeRate?: number | null
+                exchangeProvider?: string | null
+                exchangeDate?: string | null
+                kind: TransactionKindDto
                 date: string
                 note?: string | null
                 accountId: number
@@ -135,5 +166,14 @@ interface Window {
             content?: string
             filters?: Array<{ name: string; extensions: string[] }>
         }) => Promise<FileSaveTextResult>
+    }
+
+    fx: {
+        quoteHistorical: (options: {
+            from: string
+            to: string
+            amount: number
+            date: string
+        }) => Promise<FxQuoteResult>
     }
 }

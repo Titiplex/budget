@@ -5,6 +5,7 @@ import type {
     AccountType,
     Category,
     CategorySummary,
+    ConversionMode,
     CreateTabKey,
     DeleteState,
     EditTarget,
@@ -50,6 +51,9 @@ export function useBudgetData(
     const panelMode = ref<PanelMode>('create')
     const editingTarget = ref<EditTarget | null>(null)
 
+    const fxBusy = ref(false)
+    const fxPreview = ref<{ convertedAmount: number; rate: number; provider: string; date: string } | null>(null)
+
     const deleteDialog = reactive<DeleteState>({
         open: false,
         busy: false,
@@ -81,6 +85,12 @@ export function useBudgetData(
     const transactionForm = reactive({
         label: '',
         amount: '',
+        currency: 'CAD',
+        accountAmount: '',
+        conversionMode: 'NONE' as ConversionMode,
+        exchangeRate: '',
+        exchangeProvider: '',
+        exchangeDate: new Date().toISOString().slice(0, 10),
         kind: 'EXPENSE' as TransactionKind,
         date: new Date().toISOString().slice(0, 10),
         note: '',
@@ -93,6 +103,18 @@ export function useBudgetData(
             return error.message
         }
         return tr('notices.unknownError')
+    }
+
+    function parsePositive(value: string | number, fieldLabel: string) {
+        const parsed = Number(value)
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+            throw new Error(`${fieldLabel} doit être un nombre strictement positif.`)
+        }
+        return parsed
+    }
+
+    function normalizedCurrency(value: string | null | undefined) {
+        return (value || '').trim().toUpperCase()
     }
 
     function resetAccountForm() {
@@ -112,11 +134,18 @@ export function useBudgetData(
     function resetTransactionForm() {
         transactionForm.label = ''
         transactionForm.amount = ''
+        transactionForm.currency = selectedTransactionAccountCurrency.value || 'CAD'
+        transactionForm.accountAmount = ''
+        transactionForm.conversionMode = 'NONE'
+        transactionForm.exchangeRate = ''
+        transactionForm.exchangeProvider = ''
+        transactionForm.exchangeDate = new Date().toISOString().slice(0, 10)
         transactionForm.kind = 'EXPENSE'
         transactionForm.date = new Date().toISOString().slice(0, 10)
         transactionForm.note = ''
         transactionForm.accountId = ''
         transactionForm.categoryId = ''
+        fxPreview.value = null
     }
 
     function resetAllForms() {
@@ -138,6 +167,7 @@ export function useBudgetData(
 
         if (tab === 'transaction' && accounts.value.length === 1) {
             transactionForm.accountId = String(accounts.value[0].id)
+            transactionForm.currency = accounts.value[0].currency
         }
 
         createPanelOpen.value = true
@@ -170,12 +200,28 @@ export function useBudgetData(
         editingTarget.value = {type: 'transaction', id: transaction.id}
         createTab.value = 'transaction'
         transactionForm.label = transaction.label
-        transactionForm.amount = String(Math.abs(transaction.amount))
+        transactionForm.amount = String(Math.abs(transaction.sourceAmount ?? transaction.amount))
+        transactionForm.currency = normalizedCurrency(transaction.sourceCurrency || transaction.account?.currency || 'CAD')
+        transactionForm.accountAmount = String(Math.abs(transaction.amount))
+        transactionForm.conversionMode = transaction.conversionMode || 'NONE'
+        transactionForm.exchangeRate = transaction.exchangeRate ? String(transaction.exchangeRate) : ''
+        transactionForm.exchangeProvider = transaction.exchangeProvider || ''
+        transactionForm.exchangeDate = transaction.exchangeDate
+            ? new Date(transaction.exchangeDate).toISOString().slice(0, 10)
+            : new Date(transaction.date).toISOString().slice(0, 10)
         transactionForm.kind = transaction.kind
         transactionForm.date = new Date(transaction.date).toISOString().slice(0, 10)
         transactionForm.note = transaction.note || ''
         transactionForm.accountId = String(transaction.accountId)
         transactionForm.categoryId = transaction.categoryId == null ? '' : String(transaction.categoryId)
+        fxPreview.value = transaction.exchangeRate
+            ? {
+                convertedAmount: Math.abs(transaction.amount),
+                rate: transaction.exchangeRate,
+                provider: transaction.exchangeProvider || 'UNKNOWN',
+                date: transaction.exchangeDate || transaction.date,
+            }
+            : null
         createPanelOpen.value = true
     }
 
@@ -183,6 +229,7 @@ export function useBudgetData(
         createPanelOpen.value = false
         panelMode.value = 'create'
         editingTarget.value = null
+        fxPreview.value = null
         resetAllForms()
     }
 
@@ -225,7 +272,13 @@ export function useBudgetData(
             openDeleteDialog('transaction', {
                 id: editingTarget.value.id,
                 label: transactionForm.label,
-                amount: Number(transactionForm.amount) || 0,
+                amount: Number(transactionForm.accountAmount || transactionForm.amount || 0),
+                sourceAmount: Number(transactionForm.amount || 0),
+                sourceCurrency: transactionForm.currency || null,
+                conversionMode: transactionForm.conversionMode,
+                exchangeRate: transactionForm.exchangeRate ? Number(transactionForm.exchangeRate) : null,
+                exchangeProvider: transactionForm.exchangeProvider || null,
+                exchangeDate: transactionForm.exchangeDate || null,
                 kind: transactionForm.kind,
                 date: transactionForm.date,
                 note: transactionForm.note || null,
@@ -392,21 +445,70 @@ export function useBudgetData(
         }
     }
 
+    const selectedTransactionAccount = computed(() =>
+        accounts.value.find((account) => String(account.id) === transactionForm.accountId) || null,
+    )
+
+    const selectedTransactionAccountCurrency = computed(() =>
+        selectedTransactionAccount.value?.currency || 'CAD',
+    )
+
+    const isTransactionForeignCurrency = computed(() =>
+        normalizedCurrency(transactionForm.currency) !== normalizedCurrency(selectedTransactionAccountCurrency.value),
+    )
+
+    async function quoteTransactionFx() {
+        if (!transactionForm.accountId) {
+            showNotice('error', 'Il faut sélectionner un compte avant de convertir.')
+            return
+        }
+
+        const sourceCurrency = normalizedCurrency(transactionForm.currency)
+        const targetCurrency = normalizedCurrency(selectedTransactionAccountCurrency.value)
+        const sourceAmount = parsePositive(transactionForm.amount, 'Le montant saisi')
+
+        fxBusy.value = true
+        try {
+            const quote = await window.fx.quoteHistorical({
+                from: sourceCurrency,
+                to: targetCurrency,
+                amount: sourceAmount,
+                date: transactionForm.date,
+            })
+
+            transactionForm.accountAmount = String(quote.convertedAmount)
+            transactionForm.exchangeRate = String(quote.rate)
+            transactionForm.exchangeProvider = quote.provider
+            transactionForm.exchangeDate = quote.date
+            transactionForm.conversionMode = sourceCurrency === targetCurrency ? 'NONE' : 'AUTOMATIC'
+            fxPreview.value = quote
+        } catch (error) {
+            showNotice('error', normalizeError(error))
+        } finally {
+            fxBusy.value = false
+        }
+    }
+
     async function submitTransaction() {
         if (!accounts.value.length) {
             showNotice('error', tr('notices.accountNeededBeforeTransaction'))
             return
         }
 
+        if (!transactionForm.accountId) {
+            showNotice('error', tr('notices.accountRequired'))
+            return
+        }
+
         const label = transactionForm.label.trim()
-        const amount = Number(transactionForm.amount)
+        const sourceAmount = Number(transactionForm.amount)
 
         if (!label) {
             showNotice('error', tr('notices.transactionLabelRequired'))
             return
         }
 
-        if (!Number.isFinite(amount) || amount <= 0) {
+        if (!Number.isFinite(sourceAmount) || sourceAmount <= 0) {
             showNotice('error', tr('notices.positiveAmountRequired'))
             return
         }
@@ -416,16 +518,59 @@ export function useBudgetData(
             return
         }
 
-        if (!transactionForm.accountId) {
-            showNotice('error', tr('notices.accountRequired'))
-            return
-        }
+        const accountCurrency = normalizedCurrency(selectedTransactionAccountCurrency.value)
+        const sourceCurrency = normalizedCurrency(transactionForm.currency || accountCurrency) || accountCurrency
 
         saving.value = true
         try {
+            let bookedAmount = sourceAmount
+            let conversionMode: ConversionMode = 'NONE'
+            let exchangeRate = 1
+            let exchangeProvider = 'ACCOUNT'
+            let exchangeDate = transactionForm.date
+
+            if (sourceCurrency !== accountCurrency) {
+                if (transactionForm.conversionMode === 'AUTOMATIC') {
+                    const quote = await window.fx.quoteHistorical({
+                        from: sourceCurrency,
+                        to: accountCurrency,
+                        amount: sourceAmount,
+                        date: transactionForm.date,
+                    })
+
+                    bookedAmount = quote.convertedAmount
+                    conversionMode = 'AUTOMATIC'
+                    exchangeRate = quote.rate
+                    exchangeProvider = quote.provider
+                    exchangeDate = quote.date
+                    fxPreview.value = quote
+                    transactionForm.accountAmount = String(quote.convertedAmount)
+                    transactionForm.exchangeRate = String(quote.rate)
+                    transactionForm.exchangeProvider = quote.provider
+                    transactionForm.exchangeDate = quote.date
+                } else {
+                    bookedAmount = parsePositive(transactionForm.accountAmount, 'Le montant comptabilisé')
+                    conversionMode = 'MANUAL'
+                    exchangeRate = bookedAmount / sourceAmount
+                    exchangeProvider = transactionForm.exchangeProvider.trim() || 'MANUAL'
+                    exchangeDate = transactionForm.exchangeDate || transactionForm.date
+                }
+            } else {
+                transactionForm.accountAmount = String(sourceAmount)
+                transactionForm.exchangeRate = '1'
+                transactionForm.exchangeProvider = 'ACCOUNT'
+                transactionForm.exchangeDate = transactionForm.date
+            }
+
             const payload = {
                 label,
-                amount,
+                amount: bookedAmount,
+                sourceAmount,
+                sourceCurrency,
+                conversionMode,
+                exchangeRate,
+                exchangeProvider,
+                exchangeDate,
                 kind: transactionForm.kind,
                 date: transactionForm.date,
                 note: transactionForm.note.trim() || null,
@@ -450,6 +595,32 @@ export function useBudgetData(
             saving.value = false
         }
     }
+
+    watch(
+        () => selectedTransactionAccountCurrency.value,
+        (currency) => {
+            if (!transactionForm.currency) {
+                transactionForm.currency = currency
+            }
+        },
+        {immediate: true},
+    )
+
+    watch(
+        () => [transactionForm.amount, transactionForm.currency, selectedTransactionAccountCurrency.value, transactionForm.date],
+        () => {
+            const sourceCurrency = normalizedCurrency(transactionForm.currency)
+            const accountCurrency = normalizedCurrency(selectedTransactionAccountCurrency.value)
+            if (sourceCurrency && sourceCurrency === accountCurrency) {
+                transactionForm.conversionMode = 'NONE'
+                transactionForm.accountAmount = transactionForm.amount
+                transactionForm.exchangeRate = transactionForm.amount ? '1' : ''
+                transactionForm.exchangeProvider = 'ACCOUNT'
+                transactionForm.exchangeDate = transactionForm.date
+                fxPreview.value = null
+            }
+        },
+    )
 
     watch(() => transactionForm.kind, () => {
         if (!transactionForm.categoryId) return
@@ -487,10 +658,6 @@ export function useBudgetData(
         return [...transactions.value]
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .slice(0, 7)
-    })
-
-    const largestExpense = computed(() => {
-        return [...expenseTransactions.value].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))[0] || null
     })
 
     const accountSummaries = computed<AccountSummary[]>(() => {
@@ -630,6 +797,7 @@ export function useBudgetData(
                     tx.note || '',
                     tx.account?.name || '',
                     tx.category?.name || '',
+                    tx.sourceCurrency || '',
                     kindLabel(tx.kind),
                 ]
                     .join(' ')
@@ -661,10 +829,10 @@ export function useBudgetData(
 
     const panelDescription = computed(() => {
         if (panelMode.value === 'create') {
-            return tr('forms.descriptions.create')
+            return 'Crée rapidement des transactions, comptes ou catégories, y compris en devise étrangère.'
         }
 
-        return tr('forms.descriptions.edit')
+        return 'Édite les données existantes, puis enregistre ou supprime si nécessaire.'
     })
 
     const panelSubmitLabel = computed(() => {
@@ -704,6 +872,9 @@ export function useBudgetData(
         editingTarget,
         deleteDialog,
 
+        fxBusy,
+        fxPreview,
+
         transactionSearch,
         transactionKindFilter,
         transactionAccountFilter,
@@ -727,18 +898,20 @@ export function useBudgetData(
         closeDeleteDialog,
         refreshData,
         confirmDelete,
+        quoteTransactionFx,
         submitAccount,
         submitCategory,
         submitTransaction,
 
         summaryCurrency,
+        selectedTransactionAccountCurrency,
+        isTransactionForeignCurrency,
         incomeTransactions,
         expenseTransactions,
         totalIncome,
         totalExpense,
         netFlow,
         recentTransactions,
-        largestExpense,
         accountSummaries,
         categorySummaries,
         topExpenseCategories,
