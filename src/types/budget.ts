@@ -122,6 +122,28 @@ export interface RecurringTemplateRow {
     note: string | null
 }
 
+export interface RecurringForecastOccurrence {
+    templateId: number
+    label: string
+    kind: TransactionKind
+    plannedDate: string
+    amount: number
+    currency: string
+    accountName: string
+    categoryName: string
+}
+
+export interface RecurringInsightSummary {
+    activeCount: number
+    monthlyExpenseCommitment: number
+    monthlyIncomeCommitment: number
+    netMonthlyCommitment: number
+    next30DaysExpense: number
+    next30DaysIncome: number
+    next30DaysNet: number
+    upcomingCount: number
+}
+
 export interface AccountSummary extends Account {
     transactionCount: number
     income: number

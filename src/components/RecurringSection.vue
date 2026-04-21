@@ -4,6 +4,7 @@ import type {
   Account,
   Category,
   ConversionMode,
+  RecurringForecastOccurrence,
   RecurringFrequency,
   RecurringTemplateRow,
   TransactionKind,
@@ -21,6 +22,17 @@ const props = defineProps<{
     dueOccurrences: number
     overdueTemplates: number
   }
+  insights: {
+    activeCount: number
+    monthlyExpenseCommitment: number
+    monthlyIncomeCommitment: number
+    netMonthlyCommitment: number
+    next30DaysExpense: number
+    next30DaysIncome: number
+    next30DaysNet: number
+    upcomingCount: number
+  }
+  upcoming: RecurringForecastOccurrence[]
   loading: boolean
   saving: boolean
   generating: boolean
@@ -121,22 +133,105 @@ const isForeignCurrency = computed(() => {
       </div>
 
       <div class="stat-card">
-        <p class="stat-label">Actives</p>
-        <p class="stat-value">{{ summary.active }}</p>
-        <p class="stat-hint">Templates actuellement actifs</p>
+        <p class="stat-label">Engagement mensuel dépenses</p>
+        <p class="stat-value">{{ formatMoney(insights.monthlyExpenseCommitment) }}</p>
+        <p class="stat-hint">Charges structurelles estimées</p>
       </div>
 
       <div class="stat-card">
-        <p class="stat-label">À générer</p>
-        <p class="stat-value">{{ summary.dueOccurrences }}</p>
-        <p class="stat-hint">{{ summary.dueTemplates }} template(s) concerné(s)</p>
+        <p class="stat-label">Engagement mensuel revenus</p>
+        <p class="stat-value">{{ formatMoney(insights.monthlyIncomeCommitment) }}</p>
+        <p class="stat-hint">Entrées régulières estimées</p>
       </div>
 
       <div class="stat-card">
-        <p class="stat-label">En retard</p>
-        <p class="stat-value">{{ summary.overdueTemplates }}</p>
-        <p class="stat-hint">Templates à rattraper</p>
+        <p class="stat-label">Net mensuel récurrent</p>
+        <p class="stat-value">{{ formatMoney(insights.netMonthlyCommitment) }}</p>
+        <p class="stat-hint">Projection récurrente</p>
       </div>
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-12">
+      <section class="panel xl:col-span-7">
+        <div class="panel-header">
+          <div>
+            <p class="panel-eyebrow">Court terme</p>
+            <h3 class="panel-title">Prochaines occurrences sur 30 jours</h3>
+          </div>
+        </div>
+
+        <div v-if="upcoming.length" class="overflow-x-auto">
+          <table class="w-full min-w-[760px]">
+            <thead>
+            <tr class="table-head">
+              <th class="table-cell-head text-left">Date</th>
+              <th class="table-cell-head text-left">Libellé</th>
+              <th class="table-cell-head text-left">Compte</th>
+              <th class="table-cell-head text-left">Catégorie</th>
+              <th class="table-cell-head text-right">Montant</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="item in upcoming" :key="`${item.templateId}-${item.plannedDate}-${item.label}`"
+                class="table-row">
+              <td class="table-cell">{{ formatDate(item.plannedDate) }}</td>
+              <td class="table-cell">
+                <div>
+                  <p class="font-semibold text-slate-800 dark:text-slate-100">{{ item.label }}</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">{{ kindLabel(item.kind) }}</p>
+                </div>
+              </td>
+              <td class="table-cell">{{ item.accountName }}</td>
+              <td class="table-cell">{{ item.categoryName }}</td>
+              <td class="table-cell text-right">{{ formatMoney(item.amount, item.currency) }}</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else class="empty-state">
+          Aucune occurrence prévue dans les 30 prochains jours.
+        </div>
+      </section>
+
+      <section class="panel xl:col-span-5">
+        <div class="panel-header">
+          <div>
+            <p class="panel-eyebrow">Projection 30 jours</p>
+            <h3 class="panel-title">Impact attendu</h3>
+          </div>
+        </div>
+
+        <div class="space-y-3 px-6 pb-6">
+          <div class="mini-card">
+            <p class="mini-label">Dépenses prévues</p>
+            <p class="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+              {{ formatMoney(insights.next30DaysExpense) }}
+            </p>
+          </div>
+
+          <div class="mini-card">
+            <p class="mini-label">Revenus prévus</p>
+            <p class="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+              {{ formatMoney(insights.next30DaysIncome) }}
+            </p>
+          </div>
+
+          <div class="mini-card">
+            <p class="mini-label">Net attendu</p>
+            <p class="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+              {{ formatMoney(insights.next30DaysNet) }}
+            </p>
+          </div>
+
+          <div class="mini-card">
+            <p class="mini-label">Occurrences à venir</p>
+            <p class="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+              {{ insights.upcomingCount }}
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
 
     <section class="panel">

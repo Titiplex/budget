@@ -8,13 +8,7 @@ import type {
     RecurringTransactionTemplate,
     TransactionKind,
 } from '../types/budget'
-
-interface UseRecurringTemplatesOptions {
-    accounts: Ref<Account[]>
-    categories: Ref<Category[]>
-    showNotice: (type: 'success' | 'error', text: string) => void
-    refreshTransactions: () => Promise<void>
-}
+import {buildRecurringForecast, summarizeRecurringForecast} from '../utils/recurringForecast'
 
 function toDateOnly(value: string | Date) {
     return new Date(value).toISOString().slice(0, 10)
@@ -65,6 +59,13 @@ function countDueOccurrences(template: RecurringTransactionTemplate, asOfDate: D
     }
 
     return count
+}
+
+interface UseRecurringTemplatesOptions {
+    accounts: Ref<Account[]>
+    categories: Ref<Category[]>
+    showNotice: (type: 'success' | 'error', text: string) => void
+    refreshTransactions: () => Promise<void>
 }
 
 export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
@@ -355,6 +356,18 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
         }
     })
 
+    const recurringForecast = computed(() =>
+        buildRecurringForecast(recurringTemplates.value, 30, new Date()),
+    )
+
+    const recurringInsights = computed(() =>
+        summarizeRecurringForecast(recurringTemplates.value, recurringForecast.value),
+    )
+
+    const recurringUpcomingPreview = computed(() =>
+        recurringForecast.value.slice(0, 8),
+    )
+
     return {
         recurringTemplates,
         recurringLoading,
@@ -374,5 +387,8 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
         generateDueRecurring,
         recurringRows,
         recurringSummary,
+        recurringForecast,
+        recurringInsights,
+        recurringUpcomingPreview,
     }
 }
