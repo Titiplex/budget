@@ -475,6 +475,7 @@ onMounted(async () => {
               :start-date="reports.reportStartDate.value"
               :end-date="reports.reportEndDate.value"
               :summary="reports.reportSummary.value"
+              :comparison="reports.reportComparison.value"
               :account-type-rows="reports.accountTypeRows.value"
               :account-rows="reports.accountRows.value"
               :category-rows="reports.categoryRows.value"

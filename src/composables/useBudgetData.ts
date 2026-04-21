@@ -95,6 +95,7 @@ export function useBudgetData(
         date: new Date().toISOString().slice(0, 10),
         note: '',
         accountId: '',
+        transferTargetAccountId: '',
         categoryId: '',
     })
 
@@ -144,6 +145,7 @@ export function useBudgetData(
         transactionForm.date = new Date().toISOString().slice(0, 10)
         transactionForm.note = ''
         transactionForm.accountId = ''
+        transactionForm.transferTargetAccountId = ''
         transactionForm.categoryId = ''
         fxPreview.value = null
     }
@@ -199,6 +201,44 @@ export function useBudgetData(
         panelMode.value = 'edit'
         editingTarget.value = {type: 'transaction', id: transaction.id}
         createTab.value = 'transaction'
+
+        if (transaction.transferGroup) {
+            const groupTransactions = transactions.value.filter((entry) => entry.transferGroup === transaction.transferGroup)
+            const outgoing = groupTransactions.find((entry) => entry.transferDirection === 'OUT')
+                || (transaction.transferDirection === 'OUT' ? transaction : null)
+            const incoming = groupTransactions.find((entry) => entry.transferDirection === 'IN')
+                || (transaction.transferDirection === 'IN' ? transaction : null)
+            const sourceTransaction = outgoing || transaction
+            const targetTransaction = incoming || transaction
+
+            transactionForm.label = sourceTransaction.label
+            transactionForm.amount = String(Math.abs(sourceTransaction.sourceAmount ?? sourceTransaction.amount))
+            transactionForm.currency = normalizedCurrency(sourceTransaction.account?.currency || sourceTransaction.sourceCurrency || 'CAD')
+            transactionForm.accountAmount = String(Math.abs(targetTransaction.amount))
+            transactionForm.conversionMode = targetTransaction.conversionMode || 'NONE'
+            transactionForm.exchangeRate = targetTransaction.exchangeRate ? String(targetTransaction.exchangeRate) : ''
+            transactionForm.exchangeProvider = targetTransaction.exchangeProvider || ''
+            transactionForm.exchangeDate = targetTransaction.exchangeDate
+                ? new Date(targetTransaction.exchangeDate).toISOString().slice(0, 10)
+                : new Date(targetTransaction.date).toISOString().slice(0, 10)
+            transactionForm.kind = 'TRANSFER'
+            transactionForm.date = new Date(sourceTransaction.date).toISOString().slice(0, 10)
+            transactionForm.note = sourceTransaction.note || ''
+            transactionForm.accountId = String(sourceTransaction.accountId)
+            transactionForm.transferTargetAccountId = String(targetTransaction.accountId)
+            transactionForm.categoryId = ''
+            fxPreview.value = targetTransaction.exchangeRate && targetTransaction.conversionMode !== 'NONE'
+                ? {
+                    convertedAmount: Math.abs(targetTransaction.amount),
+                    rate: targetTransaction.exchangeRate,
+                    provider: targetTransaction.exchangeProvider || 'UNKNOWN',
+                    date: targetTransaction.exchangeDate || targetTransaction.date,
+                }
+                : null
+            createPanelOpen.value = true
+            return
+        }
+
         transactionForm.label = transaction.label
         transactionForm.amount = String(Math.abs(transaction.sourceAmount ?? transaction.amount))
         transactionForm.currency = normalizedCurrency(transaction.sourceCurrency || transaction.account?.currency || 'CAD')
@@ -213,8 +253,9 @@ export function useBudgetData(
         transactionForm.date = new Date(transaction.date).toISOString().slice(0, 10)
         transactionForm.note = transaction.note || ''
         transactionForm.accountId = String(transaction.accountId)
+        transactionForm.transferTargetAccountId = ''
         transactionForm.categoryId = transaction.categoryId == null ? '' : String(transaction.categoryId)
-        fxPreview.value = transaction.exchangeRate
+        fxPreview.value = transaction.exchangeRate && transaction.conversionMode !== 'NONE'
             ? {
                 convertedAmount: Math.abs(transaction.amount),
                 rate: transaction.exchangeRate,
@@ -449,12 +490,35 @@ export function useBudgetData(
         accounts.value.find((account) => String(account.id) === transactionForm.accountId) || null,
     )
 
+    const selectedTransferTargetAccount = computed(() =>
+        accounts.value.find((account) => String(account.id) === transactionForm.transferTargetAccountId) || null,
+    )
+
     const selectedTransactionAccountCurrency = computed(() =>
         selectedTransactionAccount.value?.currency || 'CAD',
     )
 
+    const selectedTransferTargetCurrency = computed(() =>
+        selectedTransferTargetAccount.value?.currency || selectedTransactionAccountCurrency.value,
+    )
+
+    const transactionSourceCurrency = computed(() => {
+        if (transactionForm.kind === 'TRANSFER') {
+            return normalizedCurrency(selectedTransactionAccountCurrency.value)
+        }
+        return normalizedCurrency(transactionForm.currency || selectedTransactionAccountCurrency.value)
+            || normalizedCurrency(selectedTransactionAccountCurrency.value)
+    })
+
+    const transactionTargetCurrency = computed(() => {
+        if (transactionForm.kind === 'TRANSFER') {
+            return normalizedCurrency(selectedTransferTargetCurrency.value)
+        }
+        return normalizedCurrency(selectedTransactionAccountCurrency.value)
+    })
+
     const isTransactionForeignCurrency = computed(() =>
-        normalizedCurrency(transactionForm.currency) !== normalizedCurrency(selectedTransactionAccountCurrency.value),
+        transactionSourceCurrency.value !== transactionTargetCurrency.value,
     )
 
     async function quoteTransactionFx() {
@@ -463,8 +527,13 @@ export function useBudgetData(
             return
         }
 
-        const sourceCurrency = normalizedCurrency(transactionForm.currency)
-        const targetCurrency = normalizedCurrency(selectedTransactionAccountCurrency.value)
+        if (transactionForm.kind === 'TRANSFER' && !transactionForm.transferTargetAccountId) {
+            showNotice('error', 'Il faut sélectionner un compte destination avant de convertir.')
+            return
+        }
+
+        const sourceCurrency = transactionSourceCurrency.value
+        const targetCurrency = transactionTargetCurrency.value
         const sourceAmount = parsePositive(transactionForm.amount, 'Le montant saisi')
 
         fxBusy.value = true
@@ -518,8 +587,20 @@ export function useBudgetData(
             return
         }
 
-        const accountCurrency = normalizedCurrency(selectedTransactionAccountCurrency.value)
-        const sourceCurrency = normalizedCurrency(transactionForm.currency || accountCurrency) || accountCurrency
+        if (transactionForm.kind === 'TRANSFER') {
+            if (!transactionForm.transferTargetAccountId) {
+                showNotice('error', 'Il faut sélectionner un compte destination.')
+                return
+            }
+
+            if (transactionForm.transferTargetAccountId === transactionForm.accountId) {
+                showNotice('error', 'Le compte source et le compte destination doivent être différents.')
+                return
+            }
+        }
+
+        const sourceCurrency = transactionSourceCurrency.value
+        const targetCurrency = transactionTargetCurrency.value
 
         saving.value = true
         try {
@@ -529,11 +610,11 @@ export function useBudgetData(
             let exchangeProvider = 'ACCOUNT'
             let exchangeDate = transactionForm.date
 
-            if (sourceCurrency !== accountCurrency) {
+            if (sourceCurrency !== targetCurrency) {
                 if (transactionForm.conversionMode === 'AUTOMATIC') {
                     const quote = await window.fx.quoteHistorical({
                         from: sourceCurrency,
-                        to: accountCurrency,
+                        to: targetCurrency,
                         amount: sourceAmount,
                         date: transactionForm.date,
                     })
@@ -549,7 +630,10 @@ export function useBudgetData(
                     transactionForm.exchangeProvider = quote.provider
                     transactionForm.exchangeDate = quote.date
                 } else {
-                    bookedAmount = parsePositive(transactionForm.accountAmount, 'Le montant comptabilisé')
+                    bookedAmount = parsePositive(
+                        transactionForm.accountAmount,
+                        transactionForm.kind === 'TRANSFER' ? 'Le montant crédité' : 'Le montant comptabilisé',
+                    )
                     conversionMode = 'MANUAL'
                     exchangeRate = bookedAmount / sourceAmount
                     exchangeProvider = transactionForm.exchangeProvider.trim() || 'MANUAL'
@@ -575,7 +659,12 @@ export function useBudgetData(
                 date: transactionForm.date,
                 note: transactionForm.note.trim() || null,
                 accountId: Number(transactionForm.accountId),
-                categoryId: transactionForm.categoryId ? Number(transactionForm.categoryId) : null,
+                categoryId: transactionForm.kind === 'TRANSFER'
+                    ? null
+                    : (transactionForm.categoryId ? Number(transactionForm.categoryId) : null),
+                transferTargetAccountId: transactionForm.kind === 'TRANSFER'
+                    ? Number(transactionForm.transferTargetAccountId)
+                    : null,
             }
 
             if (panelMode.value === 'edit' && editingTarget.value?.type === 'transaction') {
@@ -597,8 +686,13 @@ export function useBudgetData(
     }
 
     watch(
-        () => selectedTransactionAccountCurrency.value,
-        (currency) => {
+        () => [selectedTransactionAccountCurrency.value, transactionForm.kind],
+        ([currency, kind]) => {
+            if (kind === 'TRANSFER') {
+                transactionForm.currency = currency
+                return
+            }
+
             if (!transactionForm.currency) {
                 transactionForm.currency = currency
             }
@@ -607,11 +701,11 @@ export function useBudgetData(
     )
 
     watch(
-        () => [transactionForm.amount, transactionForm.currency, selectedTransactionAccountCurrency.value, transactionForm.date],
+        () => [transactionForm.amount, transactionSourceCurrency.value, transactionTargetCurrency.value, transactionForm.date],
         () => {
-            const sourceCurrency = normalizedCurrency(transactionForm.currency)
-            const accountCurrency = normalizedCurrency(selectedTransactionAccountCurrency.value)
-            if (sourceCurrency && sourceCurrency === accountCurrency) {
+            const sourceCurrency = transactionSourceCurrency.value
+            const targetCurrency = transactionTargetCurrency.value
+            if (sourceCurrency && sourceCurrency === targetCurrency) {
                 transactionForm.conversionMode = 'NONE'
                 transactionForm.accountAmount = transactionForm.amount
                 transactionForm.exchangeRate = transactionForm.amount ? '1' : ''
@@ -623,6 +717,11 @@ export function useBudgetData(
     )
 
     watch(() => transactionForm.kind, () => {
+        if (transactionForm.kind === 'TRANSFER') {
+            transactionForm.categoryId = ''
+            return
+        }
+
         if (!transactionForm.categoryId) return
 
         const stillAllowed = transactionFormCategories.value.some(
@@ -796,6 +895,7 @@ export function useBudgetData(
                     tx.label,
                     tx.note || '',
                     tx.account?.name || '',
+                    tx.transferPeerAccount?.name || '',
                     tx.category?.name || '',
                     tx.sourceCurrency || '',
                     kindLabel(tx.kind),
@@ -810,7 +910,7 @@ export function useBudgetData(
 
     const transactionFormCategories = computed(() => {
         if (transactionForm.kind === 'TRANSFER') {
-            return categories.value
+            return []
         }
         return categories.value.filter((category) => category.kind === transactionForm.kind)
     })

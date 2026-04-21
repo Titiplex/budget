@@ -16,7 +16,7 @@ export function createBudgetBackupSnapshot(
 ): BudgetBackupSnapshot {
     return {
         kind: 'budget-backup',
-        version: 2,
+        version: 3,
         exportedAt: new Date().toISOString(),
         data: {
             accounts: accounts.map((account) => ({
@@ -80,6 +80,9 @@ export function createBudgetBackupSnapshot(
                 note: transaction.note,
                 accountId: transaction.accountId,
                 categoryId: transaction.categoryId,
+                transferGroup: transaction.transferGroup ?? null,
+                transferDirection: transaction.transferDirection ?? null,
+                transferPeerAccountId: transaction.transferPeerAccountId ?? null,
             })),
         },
     }
@@ -95,7 +98,7 @@ export function parseBudgetBackup(content: string): BudgetBackupSnapshot {
     if (
         !parsed ||
         parsed.kind !== 'budget-backup' ||
-        parsed.version !== 2 ||
+        ![2, 3].includes(parsed.version) ||
         !parsed.data ||
         !Array.isArray(parsed.data.accounts) ||
         !Array.isArray(parsed.data.categories) ||

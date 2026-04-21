@@ -8,15 +8,16 @@ datasource db {
 }
 
 model Account {
-  id                 Int                            @id @default(autoincrement())
-  name               String
-  type               AccountType
-  currency           String                         @default("CAD")
-  description        String?
-  createdAt          DateTime                       @default(now())
-  updatedAt          DateTime                       @updatedAt
-  transactions       Transaction[]
-  recurringTemplates RecurringTransactionTemplate[]
+  id                  Int                            @id @default(autoincrement())
+  name                String
+  type                AccountType
+  currency            String                         @default("CAD")
+  description         String?
+  createdAt           DateTime                       @default(now())
+  updatedAt           DateTime                       @updatedAt
+  transactions        Transaction[]
+  recurringTemplates  RecurringTransactionTemplate[]
+  transferPeerForRows Transaction[]                  @relation("TransactionTransferPeer")
 }
 
 model Category {
@@ -53,6 +54,11 @@ model Transaction {
 
   categoryId Int?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  transferGroup         String?
+  transferDirection     TransferDirection?
+  transferPeerAccountId Int?
+  transferPeerAccount   Account?           @relation("TransactionTransferPeer", fields: [transferPeerAccountId], references: [id], onDelete: SetNull)
 }
 
 model BudgetTarget {
@@ -131,4 +137,9 @@ enum RecurringFrequency {
   WEEKLY
   MONTHLY
   YEARLY
+}
+
+enum TransferDirection {
+  OUT
+  IN
 }

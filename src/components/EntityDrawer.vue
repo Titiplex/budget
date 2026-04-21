@@ -39,6 +39,7 @@ interface TransactionFormState {
   date: string
   note: string
   accountId: string
+  transferTargetAccountId: string
   categoryId: string
 }
 
@@ -85,12 +86,28 @@ const selectedAccount = computed(() =>
     props.accounts.find((account) => String(account.id) === props.transactionForm.accountId) || null,
 )
 
+const isTransferMode = computed(() => props.transactionForm.kind === 'TRANSFER')
+
 const selectedAccountCurrency = computed(() => selectedAccount.value?.currency || 'CAD')
 
+const selectedTransferTargetAccount = computed(() =>
+    props.accounts.find((account) => String(account.id) === props.transactionForm.transferTargetAccountId) || null,
+)
+
+const selectedTransferTargetCurrency = computed(() => selectedTransferTargetAccount.value?.currency || selectedAccountCurrency.value)
+
+const sourceCurrency = computed(() => {
+  if (isTransferMode.value) return selectedAccountCurrency.value.trim().toUpperCase()
+  return props.transactionForm.currency.trim().toUpperCase()
+})
+
+const targetCurrency = computed(() => {
+  if (isTransferMode.value) return selectedTransferTargetCurrency.value.trim().toUpperCase()
+  return selectedAccountCurrency.value.trim().toUpperCase()
+})
+
 const isForeignCurrency = computed(() => {
-  const sourceCurrency = props.transactionForm.currency.trim().toUpperCase()
-  const accountCurrency = selectedAccountCurrency.value.trim().toUpperCase()
-  return Boolean(sourceCurrency && accountCurrency && sourceCurrency !== accountCurrency)
+  return Boolean(sourceCurrency.value && targetCurrency.value && sourceCurrency.value !== targetCurrency.value)
 })
 </script>
 
@@ -164,12 +181,12 @@ const isForeignCurrency = computed(() => {
                   v-model="transactionForm.label"
                   type="text"
                   class="field-control"
-                  placeholder="Courses, salaire, abonnement..."
+                  :placeholder="isTransferMode ? 'Transfert vers épargne, virement interne...' : 'Courses, salaire, abonnement...'"
               >
             </div>
 
             <div class="field-block">
-              <label class="field-label">Montant saisi</label>
+              <label class="field-label">{{ isTransferMode ? 'Montant débité' : 'Montant saisi' }}</label>
               <input
                   v-model="transactionForm.amount"
                   type="number"
@@ -180,7 +197,7 @@ const isForeignCurrency = computed(() => {
               >
             </div>
 
-            <div class="field-block">
+            <div v-if="!isTransferMode" class="field-block">
               <label class="field-label">Devise du montant saisi</label>
               <input
                   v-model="transactionForm.currency"
@@ -188,6 +205,16 @@ const isForeignCurrency = computed(() => {
                   maxlength="6"
                   class="field-control"
                   placeholder="USD, EUR, CAD..."
+              >
+            </div>
+
+            <div v-else class="field-block">
+              <label class="field-label">Devise source</label>
+              <input
+                  :value="sourceCurrency || 'CAD'"
+                  type="text"
+                  class="field-control"
+                  readonly
               >
             </div>
 
@@ -214,7 +241,7 @@ const isForeignCurrency = computed(() => {
             </div>
 
             <div class="field-block">
-              <label class="field-label">Compte</label>
+              <label class="field-label">{{ isTransferMode ? 'Compte source' : 'Compte' }}</label>
               <select v-model="transactionForm.accountId" class="field-control">
                 <option value="">Sélectionner un compte</option>
                 <option
@@ -227,7 +254,21 @@ const isForeignCurrency = computed(() => {
               </select>
             </div>
 
-            <div class="field-block">
+            <div v-if="isTransferMode" class="field-block">
+              <label class="field-label">Compte destination</label>
+              <select v-model="transactionForm.transferTargetAccountId" class="field-control">
+                <option value="">Sélectionner un compte</option>
+                <option
+                    v-for="account in accounts.filter((entry) => String(entry.id) !== transactionForm.accountId)"
+                    :key="account.id"
+                    :value="String(account.id)"
+                >
+                  {{ account.name }} ({{ account.currency }})
+                </option>
+              </select>
+            </div>
+
+            <div v-else class="field-block">
               <label class="field-label">Catégorie</label>
               <select v-model="transactionForm.categoryId" class="field-control">
                 <option value="">Aucune</option>
@@ -252,11 +293,20 @@ const isForeignCurrency = computed(() => {
             </div>
           </div>
 
-          <div v-if="selectedAccount" class="mini-card">
-            <p class="mini-label">Devise du compte</p>
-            <p class="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-              {{ selectedAccountCurrency }}
-            </p>
+          <div v-if="selectedAccount" class="grid gap-4 md:grid-cols-2">
+            <div class="mini-card">
+              <p class="mini-label">{{ isTransferMode ? 'Devise du compte source' : 'Devise du compte' }}</p>
+              <p class="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                {{ selectedAccountCurrency }}
+              </p>
+            </div>
+
+            <div v-if="isTransferMode && selectedTransferTargetAccount" class="mini-card">
+              <p class="mini-label">Devise du compte destination</p>
+              <p class="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                {{ selectedTransferTargetCurrency }}
+              </p>
+            </div>
           </div>
 
           <div v-if="isForeignCurrency" class="space-y-4">
@@ -272,7 +322,11 @@ const isForeignCurrency = computed(() => {
                 </label>
 
                 <label class="field-block">
-                  <span class="field-label">Montant comptabilisé ({{ selectedAccountCurrency }})</span>
+                  <span class="field-label">
+                    {{
+                      isTransferMode ? `Montant crédité (${targetCurrency})` : `Montant comptabilisé (${targetCurrency})`
+                    }}
+                  </span>
                   <input
                       v-model="transactionForm.accountAmount"
                       type="number"
@@ -332,8 +386,8 @@ const isForeignCurrency = computed(() => {
               </div>
 
               <div v-if="fxPreview" class="mt-4 inline-warning">
-                {{ transactionForm.amount || '0' }} {{ transactionForm.currency.toUpperCase() }}
-                ≈ {{ fxPreview.convertedAmount.toFixed(2) }} {{ selectedAccountCurrency }}
+                {{ transactionForm.amount || '0' }} {{ sourceCurrency }}
+                ≈ {{ fxPreview.convertedAmount.toFixed(2) }} {{ targetCurrency }}
                 avec un taux de {{ fxPreview.rate.toFixed(6) }}
                 ({{ fxPreview.provider }}, {{ fxPreview.date }})
               </div>
@@ -363,7 +417,6 @@ const isForeignCurrency = computed(() => {
             </button>
           </div>
         </form>
-
         <form
             v-else-if="currentTab === 'account'"
             class="space-y-5"

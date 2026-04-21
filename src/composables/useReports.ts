@@ -14,6 +14,7 @@ import type {
     Transaction,
 } from '../types/budget'
 import {accountTypeLabel, formatDate, formatMoney} from '../utils/budgetFormat'
+import {buildPreviousPeriod, buildReportComparison, summarizeTransactions, withinRange} from '../utils/reportComparison'
 
 interface UseReportsOptions {
     accounts: Ref<Account[]>
@@ -36,17 +37,6 @@ function startOfYear(now = new Date()) {
 
 function minusDays(now: Date, days: number) {
     return isoDate(new Date(now.getTime() - days * 24 * 60 * 60 * 1000))
-}
-
-function round2(value: number) {
-    return Math.round(value * 100) / 100
-}
-
-function withinRange(date: string, startDate: string, endDate: string) {
-    const tx = new Date(date).getTime()
-    const start = new Date(`${startDate}T00:00:00`).getTime()
-    const end = new Date(`${endDate}T23:59:59`).getTime()
-    return tx >= start && tx <= end
 }
 
 export function useReports(options: UseReportsOptions) {
@@ -93,38 +83,31 @@ export function useReports(options: UseReportsOptions) {
         ),
     )
 
-    const reportSummary = computed<ReportSummary>(() => {
-        const income = filteredTransactions.value
-            .filter((tx) => tx.kind === 'INCOME')
-            .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+    const comparisonPeriod = computed(() =>
+        buildPreviousPeriod(reportStartDate.value, reportEndDate.value),
+    )
 
-        const expense = filteredTransactions.value
-            .filter((tx) => tx.kind === 'EXPENSE')
-            .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+    const previousFilteredTransactions = computed(() =>
+        options.transactions.value.filter((tx) =>
+            withinRange(tx.date, comparisonPeriod.value.previousStartDate, comparisonPeriod.value.previousEndDate),
+        ),
+    )
 
-        const net = income - expense
+    const reportSummary = computed<ReportSummary>(() =>
+        summarizeTransactions(filteredTransactions.value, reportStartDate.value, reportEndDate.value),
+    )
 
-        const expenseRows = filteredTransactions.value.filter((tx) => tx.kind === 'EXPENSE')
-        const incomeRows = filteredTransactions.value.filter((tx) => tx.kind === 'INCOME')
-        const foreignCount = filteredTransactions.value.filter((tx) => {
-            const sourceCurrency = (tx.sourceCurrency || tx.account?.currency || '').toUpperCase()
-            const accountCurrency = (tx.account?.currency || '').toUpperCase()
-            return sourceCurrency && accountCurrency && sourceCurrency !== accountCurrency
-        }).length
+    const previousReportSummary = computed<ReportSummary>(() =>
+        summarizeTransactions(
+            previousFilteredTransactions.value,
+            comparisonPeriod.value.previousStartDate,
+            comparisonPeriod.value.previousEndDate,
+        ),
+    )
 
-        return {
-            startDate: reportStartDate.value,
-            endDate: reportEndDate.value,
-            transactionCount: filteredTransactions.value.length,
-            income,
-            expense,
-            net,
-            savingsRate: income > 0 ? round2((net / income) * 100) : 0,
-            averageExpense: expenseRows.length ? round2(expense / expenseRows.length) : 0,
-            averageIncome: incomeRows.length ? round2(income / incomeRows.length) : 0,
-            foreignTransactionCount: foreignCount,
-        }
-    })
+    const reportComparison = computed(() =>
+        buildReportComparison(reportSummary.value, previousReportSummary.value),
+    )
 
     const accountTypeRows = computed<ReportAccountTypeRow[]>(() => {
         const rows = new Map<AccountType, ReportAccountTypeRow>()
@@ -184,6 +167,8 @@ export function useReports(options: UseReportsOptions) {
         const map = new Map<number | null, ReportCategoryRow>()
 
         for (const tx of filteredTransactions.value) {
+            if (tx.kind === 'TRANSFER') continue
+
             const key = tx.categoryId ?? null
             const existing = map.get(key)
 
@@ -263,14 +248,30 @@ export function useReports(options: UseReportsOptions) {
             })
         }
 
-        const topAccountType = accountTypeRows.value
-            .slice()
-            .sort((a, b) => b.expense - a.expense)[0]
-
-        if (topAccountType) {
+        const expenseDelta = reportComparison.value.expense
+        if (expenseDelta.delta !== 0) {
             result.push({
-                title: 'Type de compte le plus sollicité',
-                text: `${accountTypeLabel(topAccountType.type)} concentre ${formatMoney(topAccountType.expense)} de dépenses.`,
+                title: 'Évolution des dépenses',
+                text: expenseDelta.delta > 0
+                    ? `Les dépenses augmentent de ${formatMoney(Math.abs(expenseDelta.delta))} par rapport à la période précédente.`
+                    : `Les dépenses diminuent de ${formatMoney(Math.abs(expenseDelta.delta))} par rapport à la période précédente.`,
+            })
+        }
+
+        const netDelta = reportComparison.value.net
+        if (netDelta.delta !== 0) {
+            result.push({
+                title: 'Variation du net',
+                text: netDelta.delta > 0
+                    ? `Le résultat net s’améliore de ${formatMoney(Math.abs(netDelta.delta))}.`
+                    : `Le résultat net recule de ${formatMoney(Math.abs(netDelta.delta))}.`,
+            })
+        }
+
+        if (reportSummary.value.internalTransferCount > 0) {
+            result.push({
+                title: 'Transferts internes',
+                text: `${reportSummary.value.internalTransferCount} transfert(s) interne(s) ont été exclus des revenus et dépenses du rapport.`,
             })
         }
 
@@ -281,21 +282,16 @@ export function useReports(options: UseReportsOptions) {
             })
         }
 
-        if (reportSummary.value.savingsRate > 0) {
-            result.push({
-                title: 'Taux d’épargne',
-                text: `Le taux d’épargne estimé sur la période est de ${reportSummary.value.savingsRate.toFixed(1)}%.`,
-            })
-        }
-
         return result
     })
 
     const reportMarkdown = computed(() => {
+        const comparison = reportComparison.value
         const lines = [
             `# Rapport financier`,
             ``,
             `Période : ${formatDate(reportSummary.value.startDate)} → ${formatDate(reportSummary.value.endDate)}`,
+            `Période précédente équivalente : ${formatDate(comparison.previousStartDate)} → ${formatDate(comparison.previousEndDate)}`,
             ``,
             `## Résumé`,
             `- Transactions : ${reportSummary.value.transactionCount}`,
@@ -306,6 +302,14 @@ export function useReports(options: UseReportsOptions) {
             `- Dépense moyenne : ${formatMoney(reportSummary.value.averageExpense)}`,
             `- Revenu moyen : ${formatMoney(reportSummary.value.averageIncome)}`,
             `- Transactions en devise étrangère : ${reportSummary.value.foreignTransactionCount}`,
+            `- Transferts internes : ${reportSummary.value.internalTransferCount}`,
+            ``,
+            `## Comparaisons intelligentes`,
+            `- Revenus : ${formatMoney(comparison.income.current)} vs ${formatMoney(comparison.income.previous)} (${comparison.income.delta >= 0 ? '+' : ''}${formatMoney(comparison.income.delta)})`,
+            `- Dépenses : ${formatMoney(comparison.expense.current)} vs ${formatMoney(comparison.expense.previous)} (${comparison.expense.delta >= 0 ? '+' : ''}${formatMoney(comparison.expense.delta)})`,
+            `- Net : ${formatMoney(comparison.net.current)} vs ${formatMoney(comparison.net.previous)} (${comparison.net.delta >= 0 ? '+' : ''}${formatMoney(comparison.net.delta)})`,
+            `- Taux d’épargne : ${comparison.savingsRate.current.toFixed(1)}% vs ${comparison.savingsRate.previous.toFixed(1)}%`,
+            `- Transferts internes : ${comparison.internalTransferCount.current} vs ${comparison.internalTransferCount.previous}`,
             ``,
             `## Types de comptes`,
             `| Type | Comptes | Transactions | Revenus | Dépenses | Net |`,
@@ -363,7 +367,11 @@ export function useReports(options: UseReportsOptions) {
         reportEndDate,
         applyPreset,
         filteredTransactions,
+        previousFilteredTransactions,
+        comparisonPeriod,
         reportSummary,
+        previousReportSummary,
+        reportComparison,
         accountTypeRows,
         accountRows,
         categoryRows,

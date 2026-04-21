@@ -2,6 +2,7 @@ import {ref, type Ref} from 'vue'
 import type {
     Account,
     BudgetBackupSnapshot,
+    BudgetBackupTransaction,
     BudgetTarget,
     Category,
     RecurringTransactionTemplate,
@@ -19,6 +20,10 @@ interface UseJsonBackupOptions {
     transactions: Ref<Transaction[]>
     refreshAllData: () => Promise<unknown>
     showNotice: (type: 'success' | 'error', text: string) => void
+}
+
+function absAmount(value: number | null | undefined) {
+    return Math.abs(value ?? 0)
 }
 
 export function useJsonBackup(options: UseJsonBackupOptions) {
@@ -103,6 +108,89 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         }
     }
 
+    function findIncomingTransferPeer(snapshot: BudgetBackupSnapshot, transaction: BudgetBackupTransaction) {
+        if (!transaction.transferGroup) return null
+        return snapshot.data.transactions.find((candidate) =>
+            candidate.transferGroup === transaction.transferGroup
+            && candidate.transferDirection === 'IN'
+            && candidate.id !== transaction.id,
+        ) || null
+    }
+
+    async function restoreTransactions(
+        snapshot: BudgetBackupSnapshot,
+        accountIdMap: Map<number, number>,
+        categoryIdMap: Map<number, number>,
+    ) {
+        const restoredTransferGroups = new Set<string>()
+
+        for (const transaction of snapshot.data.transactions) {
+            const mappedAccountId = accountIdMap.get(transaction.accountId)
+            if (!mappedAccountId) {
+                throw new Error(tr('notices.missingTransactionAccount', {label: transaction.label}))
+            }
+
+            const mappedCategoryId = transaction.categoryId == null
+                ? null
+                : (categoryIdMap.get(transaction.categoryId) ?? null)
+
+            if (transaction.kind === 'TRANSFER') {
+                if (transaction.transferGroup && restoredTransferGroups.has(transaction.transferGroup)) {
+                    continue
+                }
+
+                if (transaction.transferDirection === 'IN' && transaction.transferGroup) {
+                    continue
+                }
+
+                const incomingPeer = findIncomingTransferPeer(snapshot, transaction)
+                const rawTargetAccountId = incomingPeer?.accountId ?? transaction.transferPeerAccountId ?? null
+                const mappedTargetAccountId = rawTargetAccountId == null ? null : (accountIdMap.get(rawTargetAccountId) ?? null)
+
+                if (mappedTargetAccountId) {
+                    const referenceRow = incomingPeer || transaction
+                    await window.db.transaction.create({
+                        label: transaction.label,
+                        amount: absAmount(referenceRow.amount),
+                        sourceAmount: absAmount(transaction.sourceAmount ?? transaction.amount),
+                        sourceCurrency: transaction.sourceCurrency,
+                        conversionMode: referenceRow.conversionMode,
+                        exchangeRate: referenceRow.exchangeRate,
+                        exchangeProvider: referenceRow.exchangeProvider,
+                        exchangeDate: referenceRow.exchangeDate,
+                        kind: 'TRANSFER',
+                        date: transaction.date,
+                        note: transaction.note,
+                        accountId: mappedAccountId,
+                        categoryId: null,
+                        transferTargetAccountId: mappedTargetAccountId,
+                    })
+
+                    if (transaction.transferGroup) {
+                        restoredTransferGroups.add(transaction.transferGroup)
+                    }
+                    continue
+                }
+            }
+
+            await window.db.transaction.create({
+                label: transaction.label,
+                amount: absAmount(transaction.amount),
+                sourceAmount: transaction.sourceAmount == null ? null : absAmount(transaction.sourceAmount),
+                sourceCurrency: transaction.sourceCurrency,
+                conversionMode: transaction.conversionMode,
+                exchangeRate: transaction.exchangeRate,
+                exchangeProvider: transaction.exchangeProvider,
+                exchangeDate: transaction.exchangeDate,
+                kind: transaction.kind,
+                date: transaction.date,
+                note: transaction.note,
+                accountId: mappedAccountId,
+                categoryId: transaction.kind === 'TRANSFER' ? null : mappedCategoryId,
+            })
+        }
+    }
+
     async function confirmRestoreBackupJson() {
         if (!restorePreviewSnapshot.value) return
 
@@ -184,32 +272,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
                 })
             }
 
-            for (const transaction of snapshot.data.transactions) {
-                const mappedAccountId = accountIdMap.get(transaction.accountId)
-                if (!mappedAccountId) {
-                    throw new Error(tr('notices.missingTransactionAccount', {label: transaction.label}))
-                }
-
-                const mappedCategoryId = transaction.categoryId == null
-                    ? null
-                    : (categoryIdMap.get(transaction.categoryId) ?? null)
-
-                await window.db.transaction.create({
-                    label: transaction.label,
-                    amount: Math.abs(transaction.amount),
-                    sourceAmount: transaction.sourceAmount,
-                    sourceCurrency: transaction.sourceCurrency,
-                    conversionMode: transaction.conversionMode,
-                    exchangeRate: transaction.exchangeRate,
-                    exchangeProvider: transaction.exchangeProvider,
-                    exchangeDate: transaction.exchangeDate,
-                    kind: transaction.kind,
-                    date: transaction.date,
-                    note: transaction.note,
-                    accountId: mappedAccountId,
-                    categoryId: mappedCategoryId,
-                })
-            }
+            await restoreTransactions(snapshot, accountIdMap, categoryIdMap)
 
             await options.refreshAllData()
             closeRestorePreview()

@@ -109,6 +109,8 @@ export function validateBackupSnapshot(snapshot: BudgetBackupSnapshot): BackupVa
         }
     }
 
+    const transferGroups = new Map<string, number>()
+
     for (const transaction of snapshot.data.transactions) {
         if (!accountIds.has(transaction.accountId)) {
             warnings.push(`Transaction "${transaction.label}" référence un compte manquant (${transaction.accountId}).`)
@@ -124,6 +126,24 @@ export function validateBackupSnapshot(snapshot: BudgetBackupSnapshot): BackupVa
 
         if (!(transaction.amount > 0)) {
             warnings.push(`Transaction "${transaction.label}" avec montant non positif.`)
+        }
+
+        if (transaction.transferPeerAccountId != null && !accountIds.has(transaction.transferPeerAccountId)) {
+            warnings.push(`Transaction "${transaction.label}" référence un compte pair manquant (${transaction.transferPeerAccountId}).`)
+        }
+
+        if (transaction.kind === 'TRANSFER' && transaction.categoryId != null) {
+            warnings.push(`Transaction "${transaction.label}" est un transfert mais porte une catégorie (${transaction.categoryId}).`)
+        }
+
+        if (transaction.transferGroup) {
+            transferGroups.set(transaction.transferGroup, (transferGroups.get(transaction.transferGroup) || 0) + 1)
+        }
+    }
+
+    for (const [group, count] of transferGroups.entries()) {
+        if (count === 1) {
+            warnings.push(`Le transfert interne ${group} ne contient qu'une seule jambe.`)
         }
     }
 

@@ -3,19 +3,21 @@ import type {
   ReportAccountRow,
   ReportAccountTypeRow,
   ReportCategoryRow,
+  ReportComparisonSummary,
   ReportCurrencyRow,
   ReportInsight,
   ReportPreset,
   ReportSummary,
   ReportWeekdayRow,
 } from '../types/budget'
-import {accountTypeLabel, formatMoney} from '../utils/budgetFormat'
+import {accountTypeLabel, formatDate, formatMoney} from '../utils/budgetFormat'
 
 defineProps<{
   preset: ReportPreset
   startDate: string
   endDate: string
   summary: ReportSummary
+  comparison: ReportComparisonSummary
   accountTypeRows: ReportAccountTypeRow[]
   accountRows: ReportAccountRow[]
   categoryRows: ReportCategoryRow[]
@@ -30,6 +32,23 @@ const emit = defineEmits<{
   (e: 'update:end-date', value: string): void
   (e: 'export-report'): void
 }>()
+
+function deltaText(value: number, suffix = '') {
+  if (value === 0) return `stable${suffix}`
+  return `${value > 0 ? '+' : ''}${value.toFixed(1)}${suffix}`
+}
+
+function percentText(value: number | null) {
+  if (value == null) return 'base précédente nulle'
+  if (value === 0) return 'stable'
+  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
+}
+
+function deltaClass(value: number, invert = false) {
+  if (value === 0) return 'text-slate-500 dark:text-slate-400'
+  const positive = invert ? value < 0 : value > 0
+  return positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+}
 </script>
 
 <template>
@@ -43,7 +62,7 @@ const emit = defineEmits<{
           </h2>
           <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
             Défini une période, inspecte les finances par type de compte, compte, catégorie et devise, puis exporte un
-            rapport.
+            rapport avec comparaison à la période précédente équivalente.
           </p>
         </div>
 
@@ -90,33 +109,142 @@ const emit = defineEmits<{
           >
         </div>
       </div>
+
+      <div
+          class="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+        Comparaison automatique avec la période précédente équivalente :
+        <strong>{{ formatDate(comparison.previousStartDate) }}</strong>
+        →
+        <strong>{{ formatDate(comparison.previousEndDate) }}</strong>
+      </div>
     </section>
 
-    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
       <div class="stat-card">
         <p class="stat-label">Transactions</p>
         <p class="stat-value">{{ summary.transactionCount }}</p>
-        <p class="stat-hint">Volume total sur la période</p>
+        <p class="stat-hint" :class="deltaClass(comparison.transactionCount.delta)">
+          {{ percentText(comparison.transactionCount.deltaPercent) }} vs période précédente
+        </p>
       </div>
       <div class="stat-card">
         <p class="stat-label">Revenus</p>
         <p class="stat-value">{{ formatMoney(summary.income) }}</p>
-        <p class="stat-hint">Entrées cumulées</p>
+        <p class="stat-hint" :class="deltaClass(comparison.income.delta)">
+          {{ percentText(comparison.income.deltaPercent) }}
+        </p>
       </div>
       <div class="stat-card">
         <p class="stat-label">Dépenses</p>
         <p class="stat-value">{{ formatMoney(summary.expense) }}</p>
-        <p class="stat-hint">Sorties cumulées</p>
+        <p class="stat-hint" :class="deltaClass(comparison.expense.delta, true)">
+          {{ percentText(comparison.expense.deltaPercent) }}
+        </p>
       </div>
       <div class="stat-card">
         <p class="stat-label">Net / épargne</p>
         <p class="stat-value">{{ formatMoney(summary.net) }}</p>
-        <p class="stat-hint">Taux d’épargne : {{ summary.savingsRate.toFixed(1) }}%</p>
+        <p class="stat-hint" :class="deltaClass(comparison.net.delta)">
+          {{ deltaText(comparison.savingsRate.delta, ' pts') }} de taux d’épargne
+        </p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-label">Transferts internes</p>
+        <p class="stat-value">{{ summary.internalTransferCount }}</p>
+        <p class="stat-hint" :class="deltaClass(comparison.internalTransferCount.delta, true)">
+          {{ percentText(comparison.internalTransferCount.deltaPercent) }}
+        </p>
       </div>
     </div>
 
     <div class="grid gap-6 xl:grid-cols-12">
       <section class="panel xl:col-span-7">
+        <div class="panel-header">
+          <div>
+            <p class="panel-eyebrow">Comparaisons</p>
+            <h3 class="panel-title">Période vs période précédente</h3>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[760px]">
+            <thead>
+            <tr class="table-head">
+              <th class="table-cell-head text-left">Indicateur</th>
+              <th class="table-cell-head text-right">Actuel</th>
+              <th class="table-cell-head text-right">Précédent</th>
+              <th class="table-cell-head text-right">Écart</th>
+              <th class="table-cell-head text-right">Écart %</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr class="table-row">
+              <td class="table-cell">Revenus</td>
+              <td class="table-cell text-right">{{ formatMoney(comparison.income.current) }}</td>
+              <td class="table-cell text-right">{{ formatMoney(comparison.income.previous) }}</td>
+              <td class="table-cell text-right" :class="deltaClass(comparison.income.delta)">
+                {{ formatMoney(comparison.income.delta) }}
+              </td>
+              <td class="table-cell text-right">{{ percentText(comparison.income.deltaPercent) }}</td>
+            </tr>
+            <tr class="table-row">
+              <td class="table-cell">Dépenses</td>
+              <td class="table-cell text-right">{{ formatMoney(comparison.expense.current) }}</td>
+              <td class="table-cell text-right">{{ formatMoney(comparison.expense.previous) }}</td>
+              <td class="table-cell text-right" :class="deltaClass(comparison.expense.delta, true)">
+                {{ formatMoney(comparison.expense.delta) }}
+              </td>
+              <td class="table-cell text-right">{{ percentText(comparison.expense.deltaPercent) }}</td>
+            </tr>
+            <tr class="table-row">
+              <td class="table-cell">Net</td>
+              <td class="table-cell text-right">{{ formatMoney(comparison.net.current) }}</td>
+              <td class="table-cell text-right">{{ formatMoney(comparison.net.previous) }}</td>
+              <td class="table-cell text-right" :class="deltaClass(comparison.net.delta)">
+                {{ formatMoney(comparison.net.delta) }}
+              </td>
+              <td class="table-cell text-right">{{ percentText(comparison.net.deltaPercent) }}</td>
+            </tr>
+            <tr class="table-row">
+              <td class="table-cell">Taux d’épargne</td>
+              <td class="table-cell text-right">{{ comparison.savingsRate.current.toFixed(1) }}%</td>
+              <td class="table-cell text-right">{{ comparison.savingsRate.previous.toFixed(1) }}%</td>
+              <td class="table-cell text-right" :class="deltaClass(comparison.savingsRate.delta)">
+                {{ deltaText(comparison.savingsRate.delta, ' pts') }}
+              </td>
+              <td class="table-cell text-right">{{ percentText(comparison.savingsRate.deltaPercent) }}</td>
+            </tr>
+            <tr class="table-row">
+              <td class="table-cell">Transferts internes</td>
+              <td class="table-cell text-right">{{ comparison.internalTransferCount.current }}</td>
+              <td class="table-cell text-right">{{ comparison.internalTransferCount.previous }}</td>
+              <td class="table-cell text-right">{{ comparison.internalTransferCount.delta }}</td>
+              <td class="table-cell text-right">{{ percentText(comparison.internalTransferCount.deltaPercent) }}</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel xl:col-span-5">
+        <div class="panel-header">
+          <div>
+            <p class="panel-eyebrow">Insights</p>
+            <h3 class="panel-title">Points saillants</h3>
+          </div>
+        </div>
+
+        <div class="space-y-3 px-6 pb-6">
+          <div v-for="insight in insights" :key="insight.title" class="mini-card">
+            <p class="mini-label">{{ insight.title }}</p>
+            <p class="mt-2 text-sm text-slate-700 dark:text-slate-200">{{ insight.text }}</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-12">
+      <section class="panel xl:col-span-6">
         <div class="panel-header">
           <div>
             <p class="panel-eyebrow">Types de comptes</p>
@@ -150,24 +278,6 @@ const emit = defineEmits<{
         </div>
       </section>
 
-      <section class="panel xl:col-span-5">
-        <div class="panel-header">
-          <div>
-            <p class="panel-eyebrow">Insights</p>
-            <h3 class="panel-title">Points saillants</h3>
-          </div>
-        </div>
-
-        <div class="space-y-3 px-6 pb-6">
-          <div v-for="insight in insights" :key="insight.title" class="mini-card">
-            <p class="mini-label">{{ insight.title }}</p>
-            <p class="mt-2 text-sm text-slate-700 dark:text-slate-200">{{ insight.text }}</p>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <div class="grid gap-6 xl:grid-cols-12">
       <section class="panel xl:col-span-6">
         <div class="panel-header">
           <div>
@@ -199,7 +309,9 @@ const emit = defineEmits<{
           </table>
         </div>
       </section>
+    </div>
 
+    <div class="grid gap-6 xl:grid-cols-12">
       <section class="panel xl:col-span-6">
         <div class="panel-header">
           <div>
@@ -229,9 +341,7 @@ const emit = defineEmits<{
           </table>
         </div>
       </section>
-    </div>
 
-    <div class="grid gap-6 xl:grid-cols-12">
       <section class="panel xl:col-span-6">
         <div class="panel-header">
           <div>
@@ -265,30 +375,30 @@ const emit = defineEmits<{
           Aucune transaction multidevise sur cette période.
         </div>
       </section>
-
-      <section class="panel xl:col-span-6">
-        <div class="panel-header">
-          <div>
-            <p class="panel-eyebrow">Habitudes</p>
-            <h3 class="panel-title">Dépenses par jour de semaine</h3>
-          </div>
-        </div>
-
-        <div class="space-y-3 px-6 pb-6">
-          <div v-for="row in weekdayRows" :key="row.label">
-            <div class="mb-2 flex items-center justify-between">
-              <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ row.label }}</span>
-              <span class="text-sm font-semibold text-slate-900 dark:text-white">{{ formatMoney(row.total) }}</span>
-            </div>
-            <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800">
-              <div
-                  class="h-2 rounded-full bg-violet-500"
-                  :style="{ width: `${Math.min(100, weekdayRows[0] && Math.max(...weekdayRows.map(item => item.total)) > 0 ? (row.total / Math.max(...weekdayRows.map(item => item.total))) * 100 : 0)}%` }"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
+
+    <section class="panel xl:col-span-6">
+      <div class="panel-header">
+        <div>
+          <p class="panel-eyebrow">Habitudes</p>
+          <h3 class="panel-title">Dépenses par jour de semaine</h3>
+        </div>
+      </div>
+
+      <div class="space-y-3 px-6 pb-6">
+        <div v-for="row in weekdayRows" :key="row.label">
+          <div class="mb-2 flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ row.label }}</span>
+            <span class="text-sm font-semibold text-slate-900 dark:text-white">{{ formatMoney(row.total) }}</span>
+          </div>
+          <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800">
+            <div
+                class="h-2 rounded-full bg-violet-500"
+                :style="{ width: `${Math.min(100, weekdayRows[0] && Math.max(...weekdayRows.map(item => item.total)) > 0 ? (row.total / Math.max(...weekdayRows.map(item => item.total))) * 100 : 0)}%` }"
+            />
+          </div>
+        </div>
+      </div>
+    </section>
   </section>
 </template>

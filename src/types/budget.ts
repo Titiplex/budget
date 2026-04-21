@@ -5,6 +5,7 @@ export type PanelMode = 'create' | 'edit'
 export type TransactionKind = 'INCOME' | 'EXPENSE' | 'TRANSFER'
 export type AccountType = 'CASH' | 'BANK' | 'SAVINGS' | 'CREDIT' | 'INVESTMENT' | 'OTHER'
 export type ConversionMode = 'NONE' | 'MANUAL' | 'AUTOMATIC'
+export type TransferDirection = 'OUT' | 'IN'
 export type ReportPreset = 'THIS_MONTH' | 'LAST_30_DAYS' | 'THIS_YEAR' | 'ALL' | 'CUSTOM'
 export type BudgetPeriod = 'MONTHLY' | 'YEARLY' | 'CUSTOM'
 export type BudgetStatus = 'UNDER' | 'NEAR' | 'OVER'
@@ -41,8 +42,12 @@ export interface Transaction {
     note: string | null
     accountId: number
     categoryId: number | null
+    transferGroup?: string | null
+    transferDirection?: TransferDirection | null
+    transferPeerAccountId?: number | null
     account?: Account | null
     category?: Category | null
+    transferPeerAccount?: Account | null
 }
 
 export interface BudgetTarget {
@@ -196,6 +201,29 @@ export interface ReportSummary {
     averageExpense: number
     averageIncome: number
     foreignTransactionCount: number
+    internalTransferCount: number
+}
+
+export interface ReportMetricComparison {
+    current: number
+    previous: number
+    delta: number
+    deltaPercent: number | null
+    trend: 'up' | 'down' | 'flat'
+}
+
+export interface ReportComparisonSummary {
+    previousStartDate: string
+    previousEndDate: string
+    transactionCount: ReportMetricComparison
+    income: ReportMetricComparison
+    expense: ReportMetricComparison
+    net: ReportMetricComparison
+    savingsRate: ReportMetricComparison
+    averageExpense: ReportMetricComparison
+    averageIncome: ReportMetricComparison
+    foreignTransactionCount: ReportMetricComparison
+    internalTransferCount: ReportMetricComparison
 }
 
 export interface ReportAccountTypeRow {
@@ -308,11 +336,14 @@ export interface BudgetBackupTransaction {
     note: string | null
     accountId: number
     categoryId: number | null
+    transferGroup?: string | null
+    transferDirection?: TransferDirection | null
+    transferPeerAccountId?: number | null
 }
 
 export interface BudgetBackupSnapshot {
     kind: 'budget-backup'
-    version: 2
+    version: 2 | 3
     exportedAt: string
     data: {
         accounts: BudgetBackupAccount[]

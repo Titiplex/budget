@@ -15,10 +15,10 @@ describe('import validation', () => {
         expect(summary.warnings.length).toBeGreaterThan(0)
     })
 
-    it('validates backup references across all entity types', () => {
+    it('validates backup references across all entity types including transfers', () => {
         const result = validateBackupSnapshot({
             kind: 'budget-backup',
-            version: 2,
+            version: 3,
             exportedAt: '2026-04-20T00:00:00.000Z',
             data: {
                 accounts: [{id: 1, name: 'Main', type: 'BANK', currency: 'CAD', description: null}],
@@ -57,7 +57,7 @@ describe('import validation', () => {
                 }],
                 transactions: [{
                     id: 2,
-                    label: 'Broken tx',
+                    label: 'Broken transfer leg',
                     amount: 10,
                     sourceAmount: 12,
                     sourceCurrency: 'USD',
@@ -65,11 +65,14 @@ describe('import validation', () => {
                     exchangeRate: 0.833333,
                     exchangeProvider: 'ECB via Frankfurter',
                     exchangeDate: '2026-04-20T00:00:00.000Z',
-                    kind: 'EXPENSE',
+                    kind: 'TRANSFER',
                     date: '2026-04-20T00:00:00.000Z',
                     note: null,
                     accountId: 999,
-                    categoryId: null,
+                    categoryId: 123,
+                    transferGroup: 'grp-1',
+                    transferDirection: 'OUT',
+                    transferPeerAccountId: 998,
                 }],
             },
         })
@@ -78,5 +81,6 @@ describe('import validation', () => {
         expect(result.counts.budgetTargets).toBe(1)
         expect(result.counts.recurringTemplates).toBe(1)
         expect(result.warnings.length).toBeGreaterThan(0)
+        expect(result.warnings.some((warning) => warning.includes('compte pair manquant'))).toBe(true)
     })
 })

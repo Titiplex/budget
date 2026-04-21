@@ -31,6 +31,17 @@ const emit = defineEmits<{
 }>()
 
 const {t} = useI18n()
+
+function transferSubtitle(transaction: Transaction) {
+  if (transaction.kind !== 'TRANSFER' || !transaction.transferPeerAccount) return null
+  if (transaction.transferDirection === 'OUT') {
+    return `→ ${transaction.transferPeerAccount.name}`
+  }
+  if (transaction.transferDirection === 'IN') {
+    return `← ${transaction.transferPeerAccount.name}`
+  }
+  return transaction.transferPeerAccount.name
+}
 </script>
 
 <template>
@@ -149,6 +160,10 @@ const {t} = useI18n()
                 <p class="font-semibold text-slate-800 dark:text-slate-100">
                   {{ transaction.label }}
                 </p>
+                <p v-if="transaction.kind === 'TRANSFER' && transferSubtitle(transaction)"
+                   class="text-xs text-sky-600 dark:text-sky-300">
+                  {{ transferSubtitle(transaction) }}
+                </p>
                 <p v-if="transaction.note" class="text-xs text-slate-500 dark:text-slate-400">
                   {{ transaction.note }}
                 </p>
@@ -162,7 +177,9 @@ const {t} = useI18n()
             <td class="table-cell">
               <div class="flex items-center gap-2">
                 <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(transaction.category?.color)"/>
-                <span>{{ transaction.category?.name || t('common.none') }}</span>
+                <span>{{
+                    transaction.kind === 'TRANSFER' ? 'Interne' : (transaction.category?.name || t('common.none'))
+                  }}</span>
               </div>
             </td>
 

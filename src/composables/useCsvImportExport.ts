@@ -24,6 +24,10 @@ interface UseCsvImportExportOptions {
     showNotice: (type: 'success' | 'error', text: string) => void
 }
 
+function absoluteAmount(value: number | null | undefined) {
+    return Math.abs(value ?? 0)
+}
+
 export function useCsvImportExport(options: UseCsvImportExportOptions) {
     const currentCsvEntity = computed<EntityType>(() => sectionToEntityType(options.activeSection.value))
 
@@ -106,20 +110,47 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
     }
 
     function buildTransactionExportRows() {
-        return options.transactions.value.map((transaction) => ({
-            id: transaction.id,
-            label: transaction.label,
-            amount: Math.abs(transaction.amount),
-            kind: transaction.kind,
-            date: toDateKey(transaction.date),
-            note: transaction.note || '',
-            accountId: transaction.accountId,
-            accountName: transaction.account?.name || '',
-            categoryId: transaction.categoryId || '',
-            categoryName: transaction.category?.name || '',
-            categoryKind: transaction.category?.kind || '',
-            categoryColor: transaction.category?.color || '',
-        }))
+        return options.transactions.value.map((transaction) => {
+            const peerTransaction = transaction.transferGroup
+                ? options.transactions.value.find((candidate) =>
+                candidate.transferGroup === transaction.transferGroup && candidate.id !== transaction.id,
+            ) || null
+                : null
+
+            const transferSourceTransaction = transaction.transferDirection === 'IN' ? peerTransaction : transaction
+            const transferTargetTransaction = transaction.transferDirection === 'OUT' ? peerTransaction : transaction
+
+            return {
+                id: transaction.id,
+                label: transaction.label,
+                amount: absoluteAmount(transaction.amount),
+                sourceAmount: absoluteAmount(transaction.sourceAmount ?? transaction.amount),
+                sourceCurrency: transaction.sourceCurrency || '',
+                conversionMode: transaction.conversionMode,
+                exchangeRate: transaction.exchangeRate ?? '',
+                exchangeProvider: transaction.exchangeProvider || '',
+                exchangeDate: transaction.exchangeDate ? toDateKey(transaction.exchangeDate) : '',
+                kind: transaction.kind,
+                date: toDateKey(transaction.date),
+                note: transaction.note || '',
+                accountId: transaction.accountId,
+                accountName: transaction.account?.name || '',
+                categoryId: transaction.categoryId || '',
+                categoryName: transaction.category?.name || '',
+                categoryKind: transaction.category?.kind || '',
+                categoryColor: transaction.category?.color || '',
+                transferGroup: transaction.transferGroup || '',
+                transferDirection: transaction.transferDirection || '',
+                transferPeerAccountId: transaction.transferPeerAccountId || '',
+                transferPeerAccountName: transaction.transferPeerAccount?.name || '',
+                transferSourceAccountId: transferSourceTransaction?.accountId || '',
+                transferSourceAccountName: transferSourceTransaction?.account?.name || '',
+                transferTargetAccountId: transferTargetTransaction?.accountId || '',
+                transferTargetAccountName: transferTargetTransaction?.account?.name || '',
+                transferSourceAmount: absoluteAmount(transferSourceTransaction?.sourceAmount ?? transferSourceTransaction?.amount),
+                transferTargetAmount: absoluteAmount(transferTargetTransaction?.amount),
+            }
+        })
     }
 
     async function exportCurrentCsv() {
@@ -128,7 +159,36 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
             ? ['id', 'name', 'type', 'currency', 'description']
             : entity === 'category'
                 ? ['id', 'name', 'kind', 'color', 'description']
-                : ['id', 'label', 'amount', 'kind', 'date', 'note', 'accountId', 'accountName', 'categoryId', 'categoryName', 'categoryKind', 'categoryColor']
+                : [
+                    'id',
+                    'label',
+                    'amount',
+                    'sourceAmount',
+                    'sourceCurrency',
+                    'conversionMode',
+                    'exchangeRate',
+                    'exchangeProvider',
+                    'exchangeDate',
+                    'kind',
+                    'date',
+                    'note',
+                    'accountId',
+                    'accountName',
+                    'categoryId',
+                    'categoryName',
+                    'categoryKind',
+                    'categoryColor',
+                    'transferGroup',
+                    'transferDirection',
+                    'transferPeerAccountId',
+                    'transferPeerAccountName',
+                    'transferSourceAccountId',
+                    'transferSourceAccountName',
+                    'transferTargetAccountId',
+                    'transferTargetAccountName',
+                    'transferSourceAmount',
+                    'transferTargetAmount',
+                ]
 
         const rows = entity === 'account'
             ? buildAccountExportRows()
@@ -226,16 +286,30 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
         return {created, updated, skipped}
     }
 
-    async function resolveAccountFromCsvRow(row: CsvRecord, accountCache: Account[]) {
-        const explicitId = readCsvValue(row, ['accountId', 'compteId'])
+    async function resolveAccountReference(
+        row: CsvRecord,
+        accountCache: Account[],
+        lookup: {
+            idKeys: string[]
+            nameKeys: string[]
+            typeKeys?: string[]
+            currencyKeys?: string[]
+            descriptionKeys?: string[]
+            required?: boolean
+        },
+    ) {
+        const explicitId = readCsvValue(row, lookup.idKeys)
         if (explicitId) {
             const byId = accountCache.find((account) => account.id === Number(explicitId))
             if (byId) return {account: byId, created: false}
         }
 
-        const name = readCsvValue(row, ['accountName', 'account', 'compte', 'nomCompte'])
+        const name = readCsvValue(row, lookup.nameKeys)
         if (!name) {
-            throw new Error(tr('notices.missingCsvTransactionAccount'))
+            if (lookup.required) {
+                throw new Error(tr('notices.missingCsvTransactionAccount'))
+            }
+            return {account: null, created: false}
         }
 
         const existing = findAccountByName(accountCache, name)
@@ -243,13 +317,35 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
 
         const createdAccount = await window.db.account.create({
             name,
-            type: parseAccountTypeValue(readCsvValue(row, ['accountType', 'typeCompte']), 'BANK'),
-            currency: normalizeCurrencyCode(readCsvValue(row, ['accountCurrency', 'currency', 'devise']), 'CAD'),
-            description: readCsvValue(row, ['accountDescription', 'descriptionCompte']) || null,
+            type: parseAccountTypeValue(readCsvValue(row, lookup.typeKeys || []), 'BANK'),
+            currency: normalizeCurrencyCode(readCsvValue(row, lookup.currencyKeys || []), 'CAD'),
+            description: readCsvValue(row, lookup.descriptionKeys || []) || null,
         })
 
         accountCache.push(createdAccount)
         return {account: createdAccount, created: true}
+    }
+
+    async function resolveAccountFromCsvRow(row: CsvRecord, accountCache: Account[]) {
+        return resolveAccountReference(row, accountCache, {
+            idKeys: ['accountId', 'compteId'],
+            nameKeys: ['accountName', 'account', 'compte', 'nomCompte'],
+            typeKeys: ['accountType', 'typeCompte'],
+            currencyKeys: ['accountCurrency', 'currency', 'devise'],
+            descriptionKeys: ['accountDescription', 'descriptionCompte'],
+            required: true,
+        })
+    }
+
+    async function resolveTransferTargetAccount(row: CsvRecord, accountCache: Account[]) {
+        return resolveAccountReference(row, accountCache, {
+            idKeys: ['transferTargetAccountId', 'transferPeerAccountId', 'compteDestinationId'],
+            nameKeys: ['transferTargetAccountName', 'transferPeerAccountName', 'compteDestinationNom'],
+            typeKeys: ['transferTargetAccountType'],
+            currencyKeys: ['transferTargetAccountCurrency'],
+            descriptionKeys: ['transferTargetAccountDescription'],
+            required: false,
+        })
     }
 
     async function resolveCategoryFromCsvRow(
@@ -286,6 +382,17 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
         const accountCache = [...options.accounts.value]
         const categoryCache = [...options.categories.value]
         const transactionCache = [...options.transactions.value]
+        const transferGroups = new Map<string, CsvRecord[]>()
+        const processedTransferGroups = new Set<string>()
+
+        for (const row of rows) {
+            const transferGroup = readCsvValue(row, ['transferGroup'])
+            if (transferGroup) {
+                const entries = transferGroups.get(transferGroup) || []
+                entries.push(row)
+                transferGroups.set(transferGroup, entries)
+            }
+        }
 
         let created = 0
         let skipped = 0
@@ -298,24 +405,111 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
                 const amount = parsePositiveCsvNumber(readCsvValue(row, ['amount', 'montant']))
                 const date = readCsvValue(row, ['date'])
                 const kind = parseTransactionKindValue(readCsvValue(row, ['kind', 'type']), 'EXPENSE')
+                const transferGroup = readCsvValue(row, ['transferGroup'])
+                const transferDirection = readCsvValue(row, ['transferDirection']).toUpperCase()
 
                 if (!label || !amount || !date || !toDateKey(date)) {
                     skipped += 1
                     continue
                 }
 
+                if (kind === 'TRANSFER') {
+                    if (transferGroup && processedTransferGroups.has(transferGroup)) {
+                        skipped += 1
+                        continue
+                    }
+
+                    if (transferDirection === 'IN' && transferGroup) {
+                        skipped += 1
+                        continue
+                    }
+                }
+
                 const accountResult = await resolveAccountFromCsvRow(row, accountCache)
                 if (accountResult.created) createdAccounts += 1
+                const sourceAccount = accountResult.account
+                if (!sourceAccount) {
+                    skipped += 1
+                    continue
+                }
+
+                if (kind === 'TRANSFER') {
+                    const groupedRows = transferGroup ? (transferGroups.get(transferGroup) || []) : []
+                    const incomingRow = groupedRows.find((entry) => readCsvValue(entry, ['transferDirection']).toUpperCase() === 'IN') || null
+                    const targetLookupRow = incomingRow || row
+                    const targetAccountResult = await resolveTransferTargetAccount(targetLookupRow, accountCache)
+                    if (targetAccountResult.created) createdAccounts += 1
+                    const targetAccount = targetAccountResult.account
+
+                    if (!targetAccount || targetAccount.id === sourceAccount.id) {
+                        skipped += 1
+                        continue
+                    }
+
+                    const transferSourceAmount = parsePositiveCsvNumber(
+                        readCsvValue(row, ['transferSourceAmount', 'sourceAmount', 'montantSource']) || String(amount),
+                    ) || amount
+                    const transferTargetAmount = parsePositiveCsvNumber(
+                        readCsvValue(targetLookupRow, ['transferTargetAmount', 'amount', 'montant']) || String(amount),
+                    ) || amount
+                    const sourceCurrency = normalizeCurrencyCode(
+                        readCsvValue(row, ['sourceCurrency']) || sourceAccount.currency,
+                        sourceAccount.currency,
+                    )
+                    const conversionMode = readCsvValue(targetLookupRow, ['conversionMode']).toUpperCase() || 'NONE'
+                    const exchangeRateRaw = readCsvValue(targetLookupRow, ['exchangeRate'])
+                    const exchangeRate = exchangeRateRaw ? Number(exchangeRateRaw.replace(',', '.')) : null
+
+                    const duplicateTransfer = transactionCache.some((transaction) =>
+                        transaction.kind === 'TRANSFER'
+                        && transaction.transferDirection === 'OUT'
+                        && transaction.accountId === sourceAccount.id
+                        && transaction.transferPeerAccountId === targetAccount.id
+                        && absoluteAmount(transaction.sourceAmount ?? transaction.amount) === transferSourceAmount
+                        && toDateKey(transaction.date) === toDateKey(date)
+                        && transaction.label.trim().toLowerCase() === label.trim().toLowerCase(),
+                    )
+
+                    if (duplicateTransfer) {
+                        skipped += 1
+                        if (transferGroup) processedTransferGroups.add(transferGroup)
+                        continue
+                    }
+
+                    const createdTransaction = await window.db.transaction.create({
+                        label,
+                        amount: transferTargetAmount,
+                        sourceAmount: transferSourceAmount,
+                        sourceCurrency,
+                        conversionMode: ['NONE', 'MANUAL', 'AUTOMATIC'].includes(conversionMode)
+                            ? conversionMode as 'NONE' | 'MANUAL' | 'AUTOMATIC'
+                            : 'NONE',
+                        exchangeRate: Number.isFinite(exchangeRate ?? Number.NaN) ? exchangeRate : null,
+                        exchangeProvider: readCsvValue(targetLookupRow, ['exchangeProvider']) || null,
+                        exchangeDate: readCsvValue(targetLookupRow, ['exchangeDate']) || null,
+                        kind: 'TRANSFER',
+                        date,
+                        note: readCsvValue(row, ['note', 'notes']) || null,
+                        accountId: sourceAccount.id,
+                        categoryId: null,
+                        transferTargetAccountId: targetAccount.id,
+                    })
+
+                    transactionCache.push(createdTransaction)
+                    created += 1
+                    if (transferGroup) processedTransferGroups.add(transferGroup)
+                    continue
+                }
 
                 const categoryResult = await resolveCategoryFromCsvRow(row, categoryCache, kind)
                 if (categoryResult.created) createdCategories += 1
 
                 const duplicate = transactionCache.some((transaction) =>
                     transaction.label.trim().toLowerCase() === label.trim().toLowerCase()
-                    && Math.abs(transaction.amount) === amount
+                    && absoluteAmount(transaction.amount) === amount
                     && transaction.kind === kind
                     && toDateKey(transaction.date) === toDateKey(date)
-                    && transaction.accountId === accountResult.account.id
+                    && transaction.accountId === sourceAccount.id
                     && (transaction.categoryId ?? null) === (categoryResult.category?.id ?? null),
                 )
 
@@ -324,13 +518,26 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
                     continue
                 }
 
+                const sourceAmount = parsePositiveCsvNumber(readCsvValue(row, ['sourceAmount', 'montantSource']))
+                const conversionMode = readCsvValue(row, ['conversionMode']).toUpperCase() || 'NONE'
+                const exchangeRateRaw = readCsvValue(row, ['exchangeRate'])
+                const exchangeRate = exchangeRateRaw ? Number(exchangeRateRaw.replace(',', '.')) : null
+
                 const createdTransaction = await window.db.transaction.create({
                     label,
                     amount,
+                    sourceAmount,
+                    sourceCurrency: readCsvValue(row, ['sourceCurrency']) || null,
+                    conversionMode: ['NONE', 'MANUAL', 'AUTOMATIC'].includes(conversionMode)
+                        ? conversionMode as 'NONE' | 'MANUAL' | 'AUTOMATIC'
+                        : 'NONE',
+                    exchangeRate: Number.isFinite(exchangeRate ?? Number.NaN) ? exchangeRate : null,
+                    exchangeProvider: readCsvValue(row, ['exchangeProvider']) || null,
+                    exchangeDate: readCsvValue(row, ['exchangeDate']) || null,
                     kind,
                     date,
                     note: readCsvValue(row, ['note', 'notes']) || null,
-                    accountId: accountResult.account.id,
+                    accountId: sourceAccount.id,
                     categoryId: categoryResult.category?.id ?? null,
                 })
 

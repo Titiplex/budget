@@ -9,6 +9,7 @@ declare module '*.vue' {
 type AccountTypeDto = 'CASH' | 'BANK' | 'SAVINGS' | 'CREDIT' | 'INVESTMENT' | 'OTHER'
 type TransactionKindDto = 'INCOME' | 'EXPENSE' | 'TRANSFER'
 type ConversionModeDto = 'NONE' | 'MANUAL' | 'AUTOMATIC'
+type TransferDirectionDto = 'OUT' | 'IN'
 type BudgetPeriodDto = 'MONTHLY' | 'YEARLY' | 'CUSTOM'
 type RecurringFrequencyDto = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
 
@@ -47,10 +48,14 @@ interface TransactionDto {
     note: string | null
     accountId: number
     categoryId: number | null
+    transferGroup?: string | null
+    transferDirection?: TransferDirectionDto | null
+    transferPeerAccountId?: number | null
     createdAt: string
     updatedAt: string
     account?: AccountDto
     category?: CategoryDto | null
+    transferPeerAccount?: AccountDto | null
 }
 
 interface BudgetTargetDto {
@@ -181,6 +186,7 @@ interface Window {
                 note?: string | null
                 accountId: number
                 categoryId?: number | null
+                transferTargetAccountId?: number | null
             }) => Promise<TransactionDto>
             update: (id: number, data: {
                 label: string
@@ -196,6 +202,7 @@ interface Window {
                 note?: string | null
                 accountId: number
                 categoryId?: number | null
+                transferTargetAccountId?: number | null
             }) => Promise<TransactionDto>
             delete: (id: number) => Promise<TransactionDto>
         }
