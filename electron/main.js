@@ -2,6 +2,7 @@ const {app, BrowserWindow, ipcMain, Menu} = require('electron')
 const {updateElectronApp} = require('update-electron-app')
 const path = require('node:path')
 const {registerDbHandlers} = require('./ipc/registerDbHandlers')
+const {registerBudgetHandlers} = require('./ipc/registerBudgetHandlers')
 const {registerFileHandlers} = require('./ipc/registerFileHandlers')
 const {registerFxHandlers} = require('./ipc/registerFxHandlers')
 const {disconnectPrisma} = require('./db')
@@ -61,6 +62,11 @@ function buildAppMenu() {
                     label: 'New Category',
                     accelerator: 'CmdOrCtrl+Shift+C',
                     click: () => sendMenuCommand('create-category'),
+                },
+                {
+                    label: 'Open Budgets',
+                    accelerator: 'CmdOrCtrl+B',
+                    click: () => sendMenuCommand('open-budgets'),
                 },
                 {type: 'separator'},
                 {
@@ -130,6 +136,10 @@ function buildAppMenu() {
         {
             label: 'View',
             submenu: [
+                {
+                    label: 'Open Budgets',
+                    click: () => sendMenuCommand('open-budgets'),
+                },
                 {
                     label: 'Open Reports',
                     click: () => sendMenuCommand('open-reports'),
@@ -211,6 +221,7 @@ const createWindow = () => {
 app.whenReady().then(() => {
     ipcMain.handle('ping', () => 'pong')
     registerDbHandlers()
+    registerBudgetHandlers()
     registerFileHandlers()
     registerFxHandlers()
 

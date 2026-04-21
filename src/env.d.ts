@@ -9,6 +9,7 @@ declare module '*.vue' {
 type AccountTypeDto = 'CASH' | 'BANK' | 'SAVINGS' | 'CREDIT' | 'INVESTMENT' | 'OTHER'
 type TransactionKindDto = 'INCOME' | 'EXPENSE' | 'TRANSFER'
 type ConversionModeDto = 'NONE' | 'MANUAL' | 'AUTOMATIC'
+type BudgetPeriodDto = 'MONTHLY' | 'YEARLY' | 'CUSTOM'
 
 interface AccountDto {
     id: number
@@ -48,6 +49,22 @@ interface TransactionDto {
     createdAt: string
     updatedAt: string
     account?: AccountDto
+    category?: CategoryDto | null
+}
+
+interface BudgetTargetDto {
+    id: number
+    name: string
+    amount: number
+    period: BudgetPeriodDto
+    startDate: string
+    endDate: string | null
+    currency: string
+    isActive: boolean
+    note: string | null
+    categoryId: number
+    createdAt: string
+    updatedAt: string
     category?: CategoryDto | null
 }
 
@@ -149,6 +166,33 @@ interface Window {
                 categoryId?: number | null
             }) => Promise<TransactionDto>
             delete: (id: number) => Promise<TransactionDto>
+        }
+
+        budgetTarget: {
+            list: () => Promise<BudgetTargetDto[]>
+            create: (data: {
+                name: string
+                amount: number
+                period: BudgetPeriodDto
+                startDate: string
+                endDate?: string | null
+                currency?: string
+                isActive?: boolean
+                note?: string | null
+                categoryId: number
+            }) => Promise<BudgetTargetDto>
+            update: (id: number, data: {
+                name: string
+                amount: number
+                period: BudgetPeriodDto
+                startDate: string
+                endDate?: string | null
+                currency?: string
+                isActive?: boolean
+                note?: string | null
+                categoryId: number
+            }) => Promise<BudgetTargetDto>
+            delete: (id: number) => Promise<BudgetTargetDto>
         }
     }
 

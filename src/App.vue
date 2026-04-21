@@ -3,6 +3,7 @@ import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import AccountsSection from './components/AccountsSection.vue'
 import AnalyticsToolbar from './components/AnalyticsToolbar.vue'
+import BudgetsSection from './components/BudgetsSection.vue'
 import CategoriesSection from './components/CategoriesSection.vue'
 import DeleteDialog from './components/DeleteDialog.vue'
 import EntityDrawer from './components/EntityDrawer.vue'
@@ -12,11 +13,12 @@ import ReportsSection from './components/ReportsSection.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
 import TransactionsSection from './components/TransactionsSection.vue'
 import {useBudgetData} from './composables/useBudgetData'
+import {useBudgetTargets} from './composables/useBudgetTargets'
 import {useCsvImportExport} from './composables/useCsvImportExport'
 import {useJsonBackup} from './composables/useJsonBackup'
 import {useReports} from './composables/useReports'
 import {useSettings} from './composables/useSettings'
-import type {CreateTabKey, SectionKey, ReportPreset} from './types/budget'
+import type {CreateTabKey, ReportPreset, SectionKey} from './types/budget'
 
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -32,6 +34,12 @@ function showNotice(type: 'success' | 'error', text: string) {
 const {t} = useI18n()
 const settings = useSettings()
 const budget = useBudgetData(showNotice)
+
+const budgetTargets = useBudgetTargets({
+  categories: budget.categories,
+  transactions: budget.transactions,
+  showNotice,
+})
 
 const csv = useCsvImportExport({
   activeSection: budget.activeSection,
@@ -64,6 +72,7 @@ const navigation = computed(() => [
   {key: 'transactions' as SectionKey, label: t('nav.transactions'), marker: 'TX'},
   {key: 'accounts' as SectionKey, label: t('nav.accounts'), marker: 'AC'},
   {key: 'categories' as SectionKey, label: t('nav.categories'), marker: 'CA'},
+  {key: 'budgets' as SectionKey, label: 'Budgets', marker: 'BG'},
   {key: 'reports' as SectionKey, label: 'Rapports', marker: 'RP'},
 ])
 
@@ -83,6 +92,10 @@ const sectionMeta = computed<Record<SectionKey, { title: string; description: st
   categories: {
     title: t('sections.categories.title'),
     description: t('sections.categories.description'),
+  },
+  budgets: {
+    title: 'Budgets',
+    description: 'Objectifs par catégorie, suivi de consommation et alertes de dépassement.',
   },
   reports: {
     title: 'Rapports',
@@ -134,6 +147,9 @@ function handleMenuCommand(rawCommand: unknown) {
     case 'create-category':
       budget.openCreatePanel('category')
       break
+    case 'open-budgets':
+      budget.selectSection('budgets')
+      break
     case 'open-reports':
       budget.selectSection('reports')
       break
@@ -154,7 +170,7 @@ function handleMenuCommand(rawCommand: unknown) {
       void jsonBackup.beginRestoreBackupJson()
       break
     case 'refresh-data':
-      void budget.refreshData()
+      void Promise.all([budget.refreshData(), budgetTargets.refreshBudgets()])
       break
     case 'toggle-theme':
       settings.toggleTheme()
@@ -183,6 +199,7 @@ onMounted(async () => {
   settings.initSettings()
   window.versions.on('app:menu-command', handleMenuCommand)
   await budget.refreshData()
+  await budgetTargets.refreshBudgets()
   reports.applyPreset('THIS_MONTH')
 })
 </script>
@@ -322,7 +339,7 @@ onMounted(async () => {
               :account-count="budget.accounts.value.length"
               :category-count="budget.categories.value.length"
               :current-csv-entity="csv.currentCsvEntity.value"
-              @refresh="budget.refreshData"
+              @refresh="() => Promise.all([budget.refreshData(), budgetTargets.refreshBudgets()])"
               @create-transaction="budget.openCreatePanel('transaction')"
               @create-account="budget.openCreatePanel('account')"
               @create-category="budget.openCreatePanel('category')"
@@ -376,6 +393,23 @@ onMounted(async () => {
               @create-category="budget.openCreatePanel('category')"
               @edit-category="budget.openEditCategory"
               @delete-category="budget.openDeleteDialog('category', $event)"
+          />
+
+          <BudgetsSection
+              v-else-if="budget.activeSection.value === 'budgets'"
+              :categories="budget.categories.value"
+              :rows="budgetTargets.budgetProgressRows.value"
+              :summary="budgetTargets.budgetGlobalSummary.value"
+              :loading="budgetTargets.budgetLoading.value"
+              :saving="budgetTargets.budgetSaving.value"
+              :dialog-open="budgetTargets.budgetDialogOpen.value"
+              :editing-budget-id="budgetTargets.editingBudgetId.value"
+              :budget-form="budgetTargets.budgetForm"
+              @open-create="budgetTargets.openCreateBudget($event)"
+              @open-edit="(row) => budgetTargets.openEditBudget(budgetTargets.budgets.value.find((entry) => entry.id === row.budgetId)!)"
+              @delete-budget="budgetTargets.deleteBudget"
+              @close-dialog="budgetTargets.closeBudgetDialog"
+              @submit-budget="budgetTargets.submitBudget"
           />
 
           <ReportsSection

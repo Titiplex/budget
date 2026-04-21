@@ -28,6 +28,12 @@ contextBridge.exposeInMainWorld('db', {
         update: (id, data) => ipcRenderer.invoke('db:transaction:update', id, data),
         delete: (id) => ipcRenderer.invoke('db:transaction:delete', id),
     },
+    budgetTarget: {
+        list: () => ipcRenderer.invoke('db:budgetTarget:list'),
+        create: (data) => ipcRenderer.invoke('db:budgetTarget:create', data),
+        update: (id, data) => ipcRenderer.invoke('db:budgetTarget:update', id, data),
+        delete: (id) => ipcRenderer.invoke('db:budgetTarget:delete', id),
+    },
 })
 
 contextBridge.exposeInMainWorld('file', {

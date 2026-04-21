@@ -1,4 +1,4 @@
-export type SectionKey = 'overview' | 'transactions' | 'accounts' | 'categories' | 'reports'
+export type SectionKey = 'overview' | 'transactions' | 'accounts' | 'categories' | 'budgets' | 'reports'
 export type CreateTabKey = 'transaction' | 'account' | 'category'
 export type EntityType = 'transaction' | 'account' | 'category'
 export type PanelMode = 'create' | 'edit'
@@ -6,6 +6,8 @@ export type TransactionKind = 'INCOME' | 'EXPENSE' | 'TRANSFER'
 export type AccountType = 'CASH' | 'BANK' | 'SAVINGS' | 'CREDIT' | 'INVESTMENT' | 'OTHER'
 export type ConversionMode = 'NONE' | 'MANUAL' | 'AUTOMATIC'
 export type ReportPreset = 'THIS_MONTH' | 'LAST_30_DAYS' | 'THIS_YEAR' | 'ALL' | 'CUSTOM'
+export type BudgetPeriod = 'MONTHLY' | 'YEARLY' | 'CUSTOM'
+export type BudgetStatus = 'UNDER' | 'NEAR' | 'OVER'
 
 export interface Account {
     id: number
@@ -40,6 +42,40 @@ export interface Transaction {
     categoryId: number | null
     account?: Account | null
     category?: Category | null
+}
+
+export interface BudgetTarget {
+    id: number
+    name: string
+    amount: number
+    period: BudgetPeriod
+    startDate: string
+    endDate: string | null
+    currency: string
+    isActive: boolean
+    note: string | null
+    categoryId: number
+    category?: Category | null
+}
+
+export interface BudgetProgressRow {
+    budgetId: number
+    name: string
+    categoryId: number
+    categoryName: string
+    categoryColor: string | null
+    period: BudgetPeriod
+    startDate: string
+    endDate: string | null
+    targetAmount: number
+    spentAmount: number
+    remainingAmount: number
+    progressPercent: number
+    status: BudgetStatus
+    transactionCount: number
+    currency: string
+    note: string | null
+    isActive: boolean
 }
 
 export interface AccountSummary extends Account {

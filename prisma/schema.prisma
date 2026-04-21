@@ -19,14 +19,15 @@ model Account {
 }
 
 model Category {
-  id           Int             @id @default(autoincrement())
-  name         String          @unique
-  kind         TransactionKind
-  color        String?
-  description  String?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  transactions Transaction[]
+  id            Int             @id @default(autoincrement())
+  name          String          @unique
+  kind          TransactionKind
+  color         String?
+  description   String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  transactions  Transaction[]
+  budgetTargets BudgetTarget[]
 }
 
 model Transaction {
@@ -88,4 +89,10 @@ enum ConversionMode {
   NONE
   MANUAL
   AUTOMATIC
+}
+
+enum BudgetPeriod {
+  MONTHLY
+  YEARLY
+  CUSTOM
 }
