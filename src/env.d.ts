@@ -10,6 +10,7 @@ type AccountTypeDto = 'CASH' | 'BANK' | 'SAVINGS' | 'CREDIT' | 'INVESTMENT' | 'O
 type TransactionKindDto = 'INCOME' | 'EXPENSE' | 'TRANSFER'
 type ConversionModeDto = 'NONE' | 'MANUAL' | 'AUTOMATIC'
 type BudgetPeriodDto = 'MONTHLY' | 'YEARLY' | 'CUSTOM'
+type RecurringFrequencyDto = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
 
 interface AccountDto {
     id: number
@@ -68,6 +69,31 @@ interface BudgetTargetDto {
     category?: CategoryDto | null
 }
 
+interface RecurringTransactionTemplateDto {
+    id: number
+    label: string
+    sourceAmount: number
+    sourceCurrency: string
+    accountAmount: number | null
+    conversionMode: ConversionModeDto
+    exchangeRate: number | null
+    exchangeProvider: string | null
+    kind: TransactionKindDto
+    note: string | null
+    frequency: RecurringFrequencyDto
+    intervalCount: number
+    startDate: string
+    nextOccurrenceDate: string
+    endDate: string | null
+    isActive: boolean
+    accountId: number
+    categoryId: number | null
+    createdAt: string
+    updatedAt: string
+    account?: AccountDto | null
+    category?: CategoryDto | null
+}
+
 interface FileOpenTextResult {
     canceled: boolean
     filePath: string | null
@@ -86,6 +112,12 @@ interface FxQuoteResult {
     convertedAmount: number
     provider: string
     date: string
+}
+
+interface RecurringGenerationResult {
+    asOfDate: string
+    generatedTemplates: number
+    generatedTransactions: number
 }
 
 interface Window {
@@ -193,6 +225,53 @@ interface Window {
                 categoryId: number
             }) => Promise<BudgetTargetDto>
             delete: (id: number) => Promise<BudgetTargetDto>
+        }
+
+        recurringTemplate: {
+            list: () => Promise<RecurringTransactionTemplateDto[]>
+            create: (data: {
+                label: string
+                sourceAmount: number
+                sourceCurrency: string
+                accountAmount?: number | null
+                conversionMode?: ConversionModeDto
+                exchangeRate?: number | null
+                exchangeProvider?: string | null
+                kind: TransactionKindDto
+                note?: string | null
+                frequency: RecurringFrequencyDto
+                intervalCount?: number
+                startDate: string
+                nextOccurrenceDate: string
+                endDate?: string | null
+                isActive?: boolean
+                accountId: number
+                categoryId?: number | null
+            }) => Promise<RecurringTransactionTemplateDto>
+            update: (id: number, data: {
+                label: string
+                sourceAmount: number
+                sourceCurrency: string
+                accountAmount?: number | null
+                conversionMode?: ConversionModeDto
+                exchangeRate?: number | null
+                exchangeProvider?: string | null
+                kind: TransactionKindDto
+                note?: string | null
+                frequency: RecurringFrequencyDto
+                intervalCount?: number
+                startDate: string
+                nextOccurrenceDate: string
+                endDate?: string | null
+                isActive?: boolean
+                accountId: number
+                categoryId?: number | null
+            }) => Promise<RecurringTransactionTemplateDto>
+            delete: (id: number) => Promise<RecurringTransactionTemplateDto>
+            generateDue: (data?: {
+                asOfDate?: string
+                templateId?: number
+            }) => Promise<RecurringGenerationResult>
         }
     }
 

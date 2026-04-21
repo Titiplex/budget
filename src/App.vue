@@ -9,6 +9,7 @@ import DeleteDialog from './components/DeleteDialog.vue'
 import EntityDrawer from './components/EntityDrawer.vue'
 import ImportReviewDialog from './components/ImportReviewDialog.vue'
 import OverviewSection from './components/OverviewSection.vue'
+import RecurringSection from './components/RecurringSection.vue'
 import ReportsSection from './components/ReportsSection.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
 import TransactionsSection from './components/TransactionsSection.vue'
@@ -16,6 +17,7 @@ import {useBudgetData} from './composables/useBudgetData'
 import {useBudgetTargets} from './composables/useBudgetTargets'
 import {useCsvImportExport} from './composables/useCsvImportExport'
 import {useJsonBackup} from './composables/useJsonBackup'
+import {useRecurringTemplates} from './composables/useRecurringTemplates'
 import {useReports} from './composables/useReports'
 import {useSettings} from './composables/useSettings'
 import type {CreateTabKey, ReportPreset, SectionKey} from './types/budget'
@@ -39,6 +41,13 @@ const budgetTargets = useBudgetTargets({
   categories: budget.categories,
   transactions: budget.transactions,
   showNotice,
+})
+
+const recurring = useRecurringTemplates({
+  accounts: budget.accounts,
+  categories: budget.categories,
+  showNotice,
+  refreshTransactions: budget.refreshData,
 })
 
 const csv = useCsvImportExport({
@@ -73,6 +82,7 @@ const navigation = computed(() => [
   {key: 'accounts' as SectionKey, label: t('nav.accounts'), marker: 'AC'},
   {key: 'categories' as SectionKey, label: t('nav.categories'), marker: 'CA'},
   {key: 'budgets' as SectionKey, label: 'Budgets', marker: 'BG'},
+  {key: 'recurring' as SectionKey, label: 'Récurrences', marker: 'RC'},
   {key: 'reports' as SectionKey, label: 'Rapports', marker: 'RP'},
 ])
 
@@ -96,6 +106,10 @@ const sectionMeta = computed<Record<SectionKey, { title: string; description: st
   budgets: {
     title: 'Budgets',
     description: 'Objectifs par catégorie, suivi de consommation et alertes de dépassement.',
+  },
+  recurring: {
+    title: 'Récurrences',
+    description: 'Templates de transactions récurrentes et génération des occurrences dues.',
   },
   reports: {
     title: 'Rapports',
@@ -134,6 +148,14 @@ function setCreateTab(tab: CreateTabKey) {
   budget.createTab.value = tab
 }
 
+function refreshEverything() {
+  return Promise.all([
+    budget.refreshData(),
+    budgetTargets.refreshBudgets(),
+    recurring.refreshRecurringTemplates(),
+  ])
+}
+
 function handleMenuCommand(rawCommand: unknown) {
   const command = typeof rawCommand === 'string' ? rawCommand : ''
 
@@ -149,6 +171,13 @@ function handleMenuCommand(rawCommand: unknown) {
       break
     case 'open-budgets':
       budget.selectSection('budgets')
+      break
+    case 'open-recurring':
+      budget.selectSection('recurring')
+      break
+    case 'generate-due-recurring':
+      budget.selectSection('recurring')
+      void recurring.generateDueRecurring()
       break
     case 'open-reports':
       budget.selectSection('reports')
@@ -170,7 +199,7 @@ function handleMenuCommand(rawCommand: unknown) {
       void jsonBackup.beginRestoreBackupJson()
       break
     case 'refresh-data':
-      void Promise.all([budget.refreshData(), budgetTargets.refreshBudgets()])
+      void refreshEverything()
       break
     case 'toggle-theme':
       settings.toggleTheme()
@@ -198,8 +227,7 @@ function handleMenuCommand(rawCommand: unknown) {
 onMounted(async () => {
   settings.initSettings()
   window.versions.on('app:menu-command', handleMenuCommand)
-  await budget.refreshData()
-  await budgetTargets.refreshBudgets()
+  await refreshEverything()
   reports.applyPreset('THIS_MONTH')
 })
 </script>
@@ -339,7 +367,7 @@ onMounted(async () => {
               :account-count="budget.accounts.value.length"
               :category-count="budget.categories.value.length"
               :current-csv-entity="csv.currentCsvEntity.value"
-              @refresh="() => Promise.all([budget.refreshData(), budgetTargets.refreshBudgets()])"
+              @refresh="refreshEverything"
               @create-transaction="budget.openCreatePanel('transaction')"
               @create-account="budget.openCreatePanel('account')"
               @create-category="budget.openCreatePanel('category')"
@@ -410,6 +438,27 @@ onMounted(async () => {
               @delete-budget="budgetTargets.deleteBudget"
               @close-dialog="budgetTargets.closeBudgetDialog"
               @submit-budget="budgetTargets.submitBudget"
+          />
+
+          <RecurringSection
+              v-else-if="budget.activeSection.value === 'recurring'"
+              :accounts="budget.accounts.value"
+              :categories="budget.categories.value"
+              :rows="recurring.recurringRows.value"
+              :summary="recurring.recurringSummary.value"
+              :loading="recurring.recurringLoading.value"
+              :saving="recurring.recurringSaving.value"
+              :generating="recurring.recurringGenerating.value"
+              :dialog-open="recurring.recurringDialogOpen.value"
+              :editing-recurring-id="recurring.editingRecurringId.value"
+              :recurring-form="recurring.recurringForm"
+              @open-create="recurring.openCreateRecurring"
+              @open-edit="(row) => recurring.openEditRecurring(recurring.recurringTemplates.value.find((entry) => entry.id === row.templateId)!)"
+              @delete-template="recurring.deleteRecurring"
+              @generate-template="recurring.generateDueRecurring"
+              @generate-all="recurring.generateDueRecurring()"
+              @close-dialog="recurring.closeRecurringDialog"
+              @submit-template="recurring.submitRecurring"
           />
 
           <ReportsSection

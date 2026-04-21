@@ -34,6 +34,13 @@ contextBridge.exposeInMainWorld('db', {
         update: (id, data) => ipcRenderer.invoke('db:budgetTarget:update', id, data),
         delete: (id) => ipcRenderer.invoke('db:budgetTarget:delete', id),
     },
+    recurringTemplate: {
+        list: () => ipcRenderer.invoke('db:recurringTemplate:list'),
+        create: (data) => ipcRenderer.invoke('db:recurringTemplate:create', data),
+        update: (id, data) => ipcRenderer.invoke('db:recurringTemplate:update', id, data),
+        delete: (id) => ipcRenderer.invoke('db:recurringTemplate:delete', id),
+        generateDue: (data) => ipcRenderer.invoke('db:recurringTemplate:generateDue', data),
+    },
 })
 
 contextBridge.exposeInMainWorld('file', {

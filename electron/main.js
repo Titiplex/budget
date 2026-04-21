@@ -3,6 +3,7 @@ const {updateElectronApp} = require('update-electron-app')
 const path = require('node:path')
 const {registerDbHandlers} = require('./ipc/registerDbHandlers')
 const {registerBudgetHandlers} = require('./ipc/registerBudgetHandlers')
+const {registerRecurringHandlers} = require('./ipc/registerRecurringHandlers')
 const {registerFileHandlers} = require('./ipc/registerFileHandlers')
 const {registerFxHandlers} = require('./ipc/registerFxHandlers')
 const {disconnectPrisma} = require('./db')
@@ -67,6 +68,14 @@ function buildAppMenu() {
                     label: 'Open Budgets',
                     accelerator: 'CmdOrCtrl+B',
                     click: () => sendMenuCommand('open-budgets'),
+                },
+                {
+                    label: 'Open Recurring',
+                    click: () => sendMenuCommand('open-recurring'),
+                },
+                {
+                    label: 'Generate Due Recurring Transactions',
+                    click: () => sendMenuCommand('generate-due-recurring'),
                 },
                 {type: 'separator'},
                 {
@@ -139,6 +148,10 @@ function buildAppMenu() {
                 {
                     label: 'Open Budgets',
                     click: () => sendMenuCommand('open-budgets'),
+                },
+                {
+                    label: 'Open Recurring',
+                    click: () => sendMenuCommand('open-recurring'),
                 },
                 {
                     label: 'Open Reports',
@@ -222,6 +235,7 @@ app.whenReady().then(() => {
     ipcMain.handle('ping', () => 'pong')
     registerDbHandlers()
     registerBudgetHandlers()
+    registerRecurringHandlers()
     registerFileHandlers()
     registerFxHandlers()
 

@@ -1,4 +1,4 @@
-export type SectionKey = 'overview' | 'transactions' | 'accounts' | 'categories' | 'budgets' | 'reports'
+export type SectionKey = 'overview' | 'transactions' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'reports'
 export type CreateTabKey = 'transaction' | 'account' | 'category'
 export type EntityType = 'transaction' | 'account' | 'category'
 export type PanelMode = 'create' | 'edit'
@@ -8,6 +8,7 @@ export type ConversionMode = 'NONE' | 'MANUAL' | 'AUTOMATIC'
 export type ReportPreset = 'THIS_MONTH' | 'LAST_30_DAYS' | 'THIS_YEAR' | 'ALL' | 'CUSTOM'
 export type BudgetPeriod = 'MONTHLY' | 'YEARLY' | 'CUSTOM'
 export type BudgetStatus = 'UNDER' | 'NEAR' | 'OVER'
+export type RecurringFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
 
 export interface Account {
     id: number
@@ -76,6 +77,49 @@ export interface BudgetProgressRow {
     currency: string
     note: string | null
     isActive: boolean
+}
+
+export interface RecurringTransactionTemplate {
+    id: number
+    label: string
+    sourceAmount: number
+    sourceCurrency: string
+    accountAmount: number | null
+    conversionMode: ConversionMode
+    exchangeRate: number | null
+    exchangeProvider: string | null
+    kind: TransactionKind
+    note: string | null
+    frequency: RecurringFrequency
+    intervalCount: number
+    startDate: string
+    nextOccurrenceDate: string
+    endDate: string | null
+    isActive: boolean
+    accountId: number
+    categoryId: number | null
+    account?: Account | null
+    category?: Category | null
+}
+
+export interface RecurringTemplateRow {
+    templateId: number
+    label: string
+    sourceAmount: number
+    sourceCurrency: string
+    accountCurrency: string
+    conversionMode: ConversionMode
+    kind: TransactionKind
+    frequency: RecurringFrequency
+    intervalCount: number
+    nextOccurrenceDate: string
+    endDate: string | null
+    isActive: boolean
+    dueCount: number
+    overdue: boolean
+    accountName: string
+    categoryName: string
+    note: string | null
 }
 
 export interface AccountSummary extends Account {

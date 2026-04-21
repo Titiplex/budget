@@ -8,26 +8,28 @@ datasource db {
 }
 
 model Account {
-  id           Int           @id @default(autoincrement())
-  name         String
-  type         AccountType
-  currency     String        @default("CAD")
-  description  String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  transactions Transaction[]
+  id                 Int                            @id @default(autoincrement())
+  name               String
+  type               AccountType
+  currency           String                         @default("CAD")
+  description        String?
+  createdAt          DateTime                       @default(now())
+  updatedAt          DateTime                       @updatedAt
+  transactions       Transaction[]
+  recurringTemplates RecurringTransactionTemplate[]
 }
 
 model Category {
-  id            Int             @id @default(autoincrement())
-  name          String          @unique
-  kind          TransactionKind
-  color         String?
-  description   String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  transactions  Transaction[]
-  budgetTargets BudgetTarget[]
+  id                 Int                            @id @default(autoincrement())
+  name               String                         @unique
+  kind               TransactionKind
+  color              String?
+  description        String?
+  createdAt          DateTime                       @default(now())
+  updatedAt          DateTime                       @updatedAt
+  transactions       Transaction[]
+  budgetTargets      BudgetTarget[]
+  recurringTemplates RecurringTransactionTemplate[]
 }
 
 model Transaction {
@@ -70,6 +72,33 @@ model BudgetTarget {
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 }
 
+model RecurringTransactionTemplate {
+  id                 Int                @id @default(autoincrement())
+  label              String
+  sourceAmount       Float
+  sourceCurrency     String
+  accountAmount      Float?
+  conversionMode     ConversionMode     @default(NONE)
+  exchangeRate       Float?
+  exchangeProvider   String?
+  kind               TransactionKind
+  note               String?
+  frequency          RecurringFrequency
+  intervalCount      Int                @default(1)
+  startDate          DateTime
+  nextOccurrenceDate DateTime
+  endDate            DateTime?
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  accountId Int
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  categoryId Int?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+}
+
 enum AccountType {
   CASH
   BANK
@@ -95,4 +124,11 @@ enum BudgetPeriod {
   MONTHLY
   YEARLY
   CUSTOM
+}
+
+enum RecurringFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
 }
