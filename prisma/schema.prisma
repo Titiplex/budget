@@ -30,20 +30,43 @@ model Category {
 }
 
 model Transaction {
-  id        Int             @id @default(autoincrement())
-  label     String
-  amount    Float
-  kind      TransactionKind
-  date      DateTime
-  note      String?
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  id               Int             @id @default(autoincrement())
+  label            String
+  amount           Float
+  sourceAmount     Float?
+  sourceCurrency   String?
+  conversionMode   ConversionMode  @default(NONE)
+  exchangeRate     Float?
+  exchangeProvider String?
+  exchangeDate     DateTime?
+  kind             TransactionKind
+  date             DateTime
+  note             String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   accountId Int
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   categoryId Int?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+}
+
+model BudgetTarget {
+  id        Int          @id @default(autoincrement())
+  name      String
+  amount    Float
+  period    BudgetPeriod
+  startDate DateTime
+  endDate   DateTime?
+  currency  String       @default("CAD")
+  isActive  Boolean      @default(true)
+  note      String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 }
 
 enum AccountType {
@@ -59,4 +82,10 @@ enum TransactionKind {
   INCOME
   EXPENSE
   TRANSFER
+}
+
+enum ConversionMode {
+  NONE
+  MANUAL
+  AUTOMATIC
 }
