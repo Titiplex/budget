@@ -19,7 +19,7 @@ import type {
 } from '../types/budget'
 import {currentLocaleCode, tr} from '../i18n'
 import {kindLabel} from '../utils/budgetFormat'
-import {toDateOnly} from '../utils/date'
+import {toDateOnly, toUtcDate} from '../utils/date'
 import {collapseTransferTransactions} from "../utils/transferDisplay";
 
 export function useBudgetData(
@@ -861,8 +861,8 @@ export function useBudgetData(
         const buckets: MonthlyPoint[] = []
 
         for (let offset = 5; offset >= 0; offset -= 1) {
-            const current = new Date(now.getFullYear(), now.getMonth() - offset, 1)
-            const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`
+            const current = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 1))
+            const key = `${current.getUTCFullYear()}-${String(current.getUTCMonth() + 1).padStart(2, '0')}`
             const label = new Intl.DateTimeFormat(currentLocaleCode(), {month: 'short'}).format(current)
 
             buckets.push({
@@ -875,10 +875,10 @@ export function useBudgetData(
         }
 
         for (const tx of transactions.value) {
-            const date = new Date(tx.date)
+            const date = toUtcDate(tx.date)
             if (Number.isNaN(date.getTime())) continue
 
-            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+            const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
             const bucket = buckets.find((entry) => entry.key === key)
             if (!bucket) continue
 
@@ -933,7 +933,7 @@ export function useBudgetData(
 
                 return haystack.includes(q)
             })
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .sort((a, b) => toUtcDate(b.date).getTime() - toUtcDate(a.date).getTime())
 
         return collapseTransferTransactions(ordered)
     })

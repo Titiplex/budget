@@ -8,6 +8,7 @@ import type {
     RecurringTransactionTemplate,
     TransactionKind,
 } from '../types/budget'
+import {tr} from '../i18n'
 import {buildRecurringForecast, summarizeRecurringForecast} from '../utils/recurringForecast'
 import {
     addUtcDays,
@@ -24,18 +25,9 @@ function normalizeCurrency(value: string | null | undefined) {
 }
 
 function addInterval(date: Date, frequency: RecurringFrequency, intervalCount: number) {
-    if (frequency === 'DAILY') {
-        return addUtcDays(date, intervalCount)
-    }
-
-    if (frequency === 'WEEKLY') {
-        return addUtcWeeks(date, intervalCount)
-    }
-
-    if (frequency === 'MONTHLY') {
-        return addUtcMonths(date, intervalCount)
-    }
-
+    if (frequency === 'DAILY') return addUtcDays(date, intervalCount)
+    if (frequency === 'WEEKLY') return addUtcWeeks(date, intervalCount)
+    if (frequency === 'MONTHLY') return addUtcMonths(date, intervalCount)
     return addUtcYears(date, intervalCount)
 }
 
@@ -121,7 +113,7 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
         try {
             recurringTemplates.value = await window.db.recurringTemplate.list()
         } catch (error) {
-            options.showNotice('error', error instanceof Error ? error.message : 'Impossible de charger les récurrences.')
+            options.showNotice('error', error instanceof Error ? error.message : tr('recurring.errors.load'))
         } finally {
             recurringLoading.value = false
         }
@@ -185,22 +177,22 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
         const accountId = Number(recurringForm.accountId)
 
         if (!label) {
-            options.showNotice('error', 'Le libellé est obligatoire.')
+            options.showNotice('error', tr('recurring.errors.labelRequired'))
             return
         }
 
         if (!Number.isFinite(sourceAmount) || sourceAmount <= 0) {
-            options.showNotice('error', 'Le montant source doit être strictement positif.')
+            options.showNotice('error', tr('recurring.errors.sourceAmountPositive'))
             return
         }
 
         if (!Number.isInteger(intervalCount) || intervalCount <= 0) {
-            options.showNotice('error', 'L’intervalle doit être un entier strictement positif.')
+            options.showNotice('error', tr('recurring.errors.intervalPositive'))
             return
         }
 
         if (!Number.isInteger(accountId) || accountId <= 0) {
-            options.showNotice('error', 'Il faut sélectionner un compte.')
+            options.showNotice('error', tr('recurring.errors.accountRequired'))
             return
         }
 
@@ -218,7 +210,7 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
                 if (recurringForm.conversionMode === 'MANUAL') {
                     accountAmount = Number(recurringForm.accountAmount)
                     if (!Number.isFinite(accountAmount) || accountAmount <= 0) {
-                        throw new Error('Le montant comptabilisé doit être strictement positif.')
+                        throw new Error(tr('recurring.errors.accountAmountPositive'))
                     }
                     conversionMode = 'MANUAL'
                     exchangeRate = Number(recurringForm.exchangeRate || accountAmount / sourceAmount)
@@ -253,16 +245,16 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
 
             if (editingRecurringId.value) {
                 await window.db.recurringTemplate.update(editingRecurringId.value, payload)
-                options.showNotice('success', 'Récurrence mise à jour.')
+                options.showNotice('success', tr('recurring.success.updated'))
             } else {
                 await window.db.recurringTemplate.create(payload)
-                options.showNotice('success', 'Récurrence créée.')
+                options.showNotice('success', tr('recurring.success.created'))
             }
 
             await refreshRecurringTemplates()
             closeRecurringDialog()
         } catch (error) {
-            options.showNotice('error', error instanceof Error ? error.message : 'Impossible d’enregistrer la récurrence.')
+            options.showNotice('error', error instanceof Error ? error.message : tr('recurring.errors.saveFailed'))
         } finally {
             recurringSaving.value = false
         }
@@ -272,9 +264,9 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
         try {
             await window.db.recurringTemplate.delete(id)
             await refreshRecurringTemplates()
-            options.showNotice('success', 'Récurrence supprimée.')
+            options.showNotice('success', tr('recurring.success.deleted'))
         } catch (error) {
-            options.showNotice('error', error instanceof Error ? error.message : 'Impossible de supprimer la récurrence.')
+            options.showNotice('error', error instanceof Error ? error.message : tr('recurring.errors.deleteFailed'))
         }
     }
 
@@ -294,13 +286,16 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
             if (result.generatedTransactions > 0) {
                 options.showNotice(
                     'success',
-                    `${result.generatedTransactions} transaction(s) générée(s) à partir de ${result.generatedTemplates} récurrence(s).`,
+                    tr('recurring.success.generated', {
+                        transactions: result.generatedTransactions,
+                        templates: result.generatedTemplates,
+                    }),
                 )
             } else {
-                options.showNotice('success', 'Aucune transaction récurrente due à générer.')
+                options.showNotice('success', tr('recurring.success.noneDue'))
             }
         } catch (error) {
-            options.showNotice('error', error instanceof Error ? error.message : 'Impossible de générer les récurrences dues.')
+            options.showNotice('error', error instanceof Error ? error.message : tr('recurring.errors.generateFailed'))
         } finally {
             recurringGenerating.value = false
         }
@@ -328,16 +323,16 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
                     endDate: template.endDate ? toDateOnly(template.endDate) : null,
                     isActive: template.isActive,
                     dueCount,
-                    overdue: dueCount > 0 && nextOccurrenceDate < toDateOnly(new Date()),
-                    accountName: template.account?.name || 'Compte inconnu',
-                    categoryName: template.category?.name || 'Sans catégorie',
+                    overdue: dueCount > 0 && toUtcDate(nextOccurrenceDate).getTime() < toUtcDate(toDateOnly(new Date())).getTime(),
+                    accountName: template.account?.name || tr('recurring.unknownAccount'),
+                    categoryName: template.category?.name || tr('recurring.noCategory'),
                     note: template.note,
                 }
             })
             .sort((a, b) => {
                 if (a.isActive !== b.isActive) return a.isActive ? -1 : 1
                 if (a.dueCount !== b.dueCount) return b.dueCount - a.dueCount
-                return new Date(a.nextOccurrenceDate).getTime() - new Date(b.nextOccurrenceDate).getTime()
+                return toUtcDate(a.nextOccurrenceDate).getTime() - toUtcDate(b.nextOccurrenceDate).getTime()
             })
     })
 

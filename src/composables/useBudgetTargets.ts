@@ -7,6 +7,8 @@ import type {
     Category,
     Transaction,
 } from '../types/budget'
+import {tr} from '../i18n'
+import {toDateOnly, toUtcDate} from '../utils/date'
 
 interface UseBudgetTargetsOptions {
     categories: Ref<Category[]>
@@ -14,41 +16,33 @@ interface UseBudgetTargetsOptions {
     showNotice: (type: 'success' | 'error', text: string) => void
 }
 
-function toDateOnly(value: string) {
-    return new Date(value).toISOString().slice(0, 10)
-}
-
-function lastDayOfMonth(year: number, monthIndex: number) {
-    return new Date(year, monthIndex + 1, 0)
-}
-
 function computeBudgetRange(period: BudgetPeriod, referenceDate: string, explicitEndDate: string | null) {
-    const date = new Date(`${referenceDate}T00:00:00`)
+    const date = toUtcDate(referenceDate)
 
     if (period === 'MONTHLY') {
         return {
-            startDate: toDateOnly(new Date(date.getFullYear(), date.getMonth(), 1).toDateString()),
-            endDate: toDateOnly(lastDayOfMonth(date.getFullYear(), date.getMonth()).toDateString()),
+            startDate: toDateOnly(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1))),
+            endDate: toDateOnly(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0))),
         }
     }
 
     if (period === 'YEARLY') {
         return {
-            startDate: toDateOnly(new Date(date.getFullYear(), 0, 1).toDateString()),
-            endDate: toDateOnly(new Date(date.getFullYear(), 11, 31).toDateString()),
+            startDate: toDateOnly(new Date(Date.UTC(date.getUTCFullYear(), 0, 1))),
+            endDate: toDateOnly(new Date(Date.UTC(date.getUTCFullYear(), 11, 31))),
         }
     }
 
     return {
-        startDate: referenceDate,
-        endDate: explicitEndDate || referenceDate,
+        startDate: toDateOnly(referenceDate),
+        endDate: explicitEndDate ? toDateOnly(explicitEndDate) : toDateOnly(referenceDate),
     }
 }
 
 function dateInRange(date: string, startDate: string, endDate: string) {
-    const current = new Date(`${toDateOnly(date)}T00:00:00`).getTime()
-    const start = new Date(`${startDate}T00:00:00`).getTime()
-    const end = new Date(`${endDate}T00:00:00`).getTime()
+    const current = toUtcDate(date).getTime()
+    const start = toUtcDate(startDate).getTime()
+    const end = toUtcDate(endDate).getTime()
     return current >= start && current <= end
 }
 
@@ -68,7 +62,7 @@ export function useBudgetTargets(options: UseBudgetTargetsOptions) {
         name: '',
         amount: '',
         period: 'MONTHLY' as BudgetPeriod,
-        startDate: new Date().toISOString().slice(0, 10),
+        startDate: toDateOnly(new Date()),
         endDate: '',
         currency: 'CAD',
         isActive: true,
@@ -80,7 +74,7 @@ export function useBudgetTargets(options: UseBudgetTargetsOptions) {
         budgetForm.name = ''
         budgetForm.amount = ''
         budgetForm.period = 'MONTHLY'
-        budgetForm.startDate = new Date().toISOString().slice(0, 10)
+        budgetForm.startDate = toDateOnly(new Date())
         budgetForm.endDate = ''
         budgetForm.currency = 'CAD'
         budgetForm.isActive = true
@@ -93,7 +87,7 @@ export function useBudgetTargets(options: UseBudgetTargetsOptions) {
         try {
             budgets.value = await window.db.budgetTarget.list()
         } catch (error) {
-            options.showNotice('error', error instanceof Error ? error.message : 'Impossible de charger les budgets.')
+            options.showNotice('error', error instanceof Error ? error.message : tr('budgets.errors.load'))
         } finally {
             budgetLoading.value = false
         }
@@ -107,7 +101,7 @@ export function useBudgetTargets(options: UseBudgetTargetsOptions) {
             budgetForm.categoryId = String(categoryId)
             const category = options.categories.value.find((entry) => entry.id === categoryId)
             if (category) {
-                budgetForm.name = `Budget ${category.name}`
+                budgetForm.name = `${tr('budgets.budget')} ${category.name}`
             }
         }
 
@@ -140,17 +134,17 @@ export function useBudgetTargets(options: UseBudgetTargetsOptions) {
         const categoryId = Number(budgetForm.categoryId)
 
         if (!name) {
-            options.showNotice('error', 'Le nom du budget est obligatoire.')
+            options.showNotice('error', tr('budgets.errors.nameRequired'))
             return
         }
 
         if (!Number.isFinite(amount) || amount <= 0) {
-            options.showNotice('error', 'Le montant cible doit être strictement positif.')
+            options.showNotice('error', tr('budgets.errors.positiveAmount'))
             return
         }
 
         if (!Number.isInteger(categoryId) || categoryId <= 0) {
-            options.showNotice('error', 'Il faut sélectionner une catégorie.')
+            options.showNotice('error', tr('budgets.errors.categoryRequired'))
             return
         }
 
@@ -170,16 +164,16 @@ export function useBudgetTargets(options: UseBudgetTargetsOptions) {
 
             if (editingBudgetId.value) {
                 await window.db.budgetTarget.update(editingBudgetId.value, payload)
-                options.showNotice('success', 'Budget mis à jour.')
+                options.showNotice('success', tr('budgets.success.updated'))
             } else {
                 await window.db.budgetTarget.create(payload)
-                options.showNotice('success', 'Budget créé.')
+                options.showNotice('success', tr('budgets.success.created'))
             }
 
             await refreshBudgets()
             closeBudgetDialog()
         } catch (error) {
-            options.showNotice('error', error instanceof Error ? error.message : 'Impossible d’enregistrer le budget.')
+            options.showNotice('error', error instanceof Error ? error.message : tr('budgets.errors.saveFailed'))
         } finally {
             budgetSaving.value = false
         }
@@ -189,9 +183,9 @@ export function useBudgetTargets(options: UseBudgetTargetsOptions) {
         try {
             await window.db.budgetTarget.delete(id)
             await refreshBudgets()
-            options.showNotice('success', 'Budget supprimé.')
+            options.showNotice('success', tr('budgets.success.deleted'))
         } catch (error) {
-            options.showNotice('error', error instanceof Error ? error.message : 'Impossible de supprimer le budget.')
+            options.showNotice('error', error instanceof Error ? error.message : tr('budgets.errors.deleteFailed'))
         }
     }
 
@@ -227,7 +221,7 @@ export function useBudgetTargets(options: UseBudgetTargetsOptions) {
                 budgetId: budget.id,
                 name: budget.name,
                 categoryId: budget.categoryId,
-                categoryName: budget.category?.name || 'Catégorie inconnue',
+                categoryName: budget.category?.name || tr('budgets.unknownCategory'),
                 categoryColor: budget.category?.color || null,
                 period: budget.period,
                 startDate: range.startDate,

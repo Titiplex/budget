@@ -13,6 +13,7 @@ import type {
     ReportWeekdayRow,
     Transaction,
 } from '../types/budget'
+import {tr} from '../i18n'
 import {accountTypeLabel, formatDate, formatMoney} from '../utils/budgetFormat'
 import {buildPreviousPeriod, buildReportComparison, summarizeTransactions, withinRange} from '../utils/reportComparison'
 import {addUtcDays, toDateOnly, toUtcDate} from '../utils/date'
@@ -180,7 +181,7 @@ export function useReports(options: UseReportsOptions) {
             } else {
                 map.set(key, {
                     categoryId: key,
-                    name: tx.category?.name || 'Sans catégorie',
+                    name: tx.category?.name || tr('reports.noCategory'),
                     transactionCount: 1,
                     total: Math.abs(tx.amount),
                     kind: tx.category?.kind || tx.kind,
@@ -224,12 +225,20 @@ export function useReports(options: UseReportsOptions) {
     })
 
     const weekdayRows = computed<ReportWeekdayRow[]>(() => {
-        const labels = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
+        const labels = [
+            tr('reports.weekdays.sunday'),
+            tr('reports.weekdays.monday'),
+            tr('reports.weekdays.tuesday'),
+            tr('reports.weekdays.wednesday'),
+            tr('reports.weekdays.thursday'),
+            tr('reports.weekdays.friday'),
+            tr('reports.weekdays.saturday'),
+        ]
         const rows = labels.map((label) => ({label, total: 0}))
 
         for (const tx of filteredTransactions.value) {
             if (tx.kind !== 'EXPENSE') continue
-            const index = new Date(tx.date).getDay()
+            const index = toUtcDate(tx.date).getUTCDay()
             rows[index].total += Math.abs(tx.amount)
         }
 
@@ -242,42 +251,49 @@ export function useReports(options: UseReportsOptions) {
         const topCategory = categoryRows.value[0]
         if (topCategory) {
             result.push({
-                title: 'Catégorie dominante',
-                text: `${topCategory.name} représente ${formatMoney(topCategory.total)} sur la période.`,
+                title: tr('reports.insight.dominantCategoryTitle'),
+                text: tr('reports.insight.dominantCategoryText', {
+                    category: topCategory.name,
+                    amount: formatMoney(topCategory.total),
+                }),
             })
         }
 
         const expenseDelta = reportComparison.value.expense
         if (expenseDelta.delta !== 0) {
             result.push({
-                title: 'Évolution des dépenses',
+                title: tr('reports.insight.expenseTrendTitle'),
                 text: expenseDelta.delta > 0
-                    ? `Les dépenses augmentent de ${formatMoney(Math.abs(expenseDelta.delta))} par rapport à la période précédente.`
-                    : `Les dépenses diminuent de ${formatMoney(Math.abs(expenseDelta.delta))} par rapport à la période précédente.`,
+                    ? tr('reports.insight.expenseTrendUp', {amount: formatMoney(Math.abs(expenseDelta.delta))})
+                    : tr('reports.insight.expenseTrendDown', {amount: formatMoney(Math.abs(expenseDelta.delta))}),
             })
         }
 
         const netDelta = reportComparison.value.net
         if (netDelta.delta !== 0) {
             result.push({
-                title: 'Variation du net',
+                title: tr('reports.insight.netTrendTitle'),
                 text: netDelta.delta > 0
-                    ? `Le résultat net s’améliore de ${formatMoney(Math.abs(netDelta.delta))}.`
-                    : `Le résultat net recule de ${formatMoney(Math.abs(netDelta.delta))}.`,
+                    ? tr('reports.insight.netTrendUp', {amount: formatMoney(Math.abs(netDelta.delta))})
+                    : tr('reports.insight.netTrendDown', {amount: formatMoney(Math.abs(netDelta.delta))}),
             })
         }
 
         if (reportSummary.value.internalTransferCount > 0) {
             result.push({
-                title: 'Transferts internes',
-                text: `${reportSummary.value.internalTransferCount} transfert(s) interne(s) ont été exclus des revenus et dépenses du rapport.`,
+                title: tr('reports.insight.internalTransfersTitle'),
+                text: tr('reports.insight.internalTransfersText', {
+                    count: reportSummary.value.internalTransferCount,
+                }),
             })
         }
 
         if (reportSummary.value.foreignTransactionCount > 0) {
             result.push({
-                title: 'Exposition devises',
-                text: `${reportSummary.value.foreignTransactionCount} transaction(s) ont été enregistrées dans une devise différente de celle du compte.`,
+                title: tr('reports.insight.foreignExposureTitle'),
+                text: tr('reports.insight.foreignExposureText', {
+                    count: reportSummary.value.foreignTransactionCount,
+                }),
             })
         }
 
@@ -287,59 +303,18 @@ export function useReports(options: UseReportsOptions) {
     const reportMarkdown = computed(() => {
         const comparison = reportComparison.value
         const lines = [
-            `# Rapport financier`,
+            `# ${tr('reports.sectionName')}`,
             ``,
-            `Période : ${formatDate(reportSummary.value.startDate)} → ${formatDate(reportSummary.value.endDate)}`,
-            `Période précédente équivalente : ${formatDate(comparison.previousStartDate)} → ${formatDate(comparison.previousEndDate)}`,
+            `${tr('reports.current')}: ${formatDate(reportSummary.value.startDate)} → ${formatDate(reportSummary.value.endDate)}`,
+            `${tr('reports.previous')}: ${formatDate(comparison.previousStartDate)} → ${formatDate(comparison.previousEndDate)}`,
             ``,
-            `## Résumé`,
-            `- Transactions : ${reportSummary.value.transactionCount}`,
-            `- Revenus : ${formatMoney(reportSummary.value.income)}`,
-            `- Dépenses : ${formatMoney(reportSummary.value.expense)}`,
-            `- Net : ${formatMoney(reportSummary.value.net)}`,
-            `- Taux d’épargne : ${reportSummary.value.savingsRate.toFixed(1)}%`,
-            `- Dépense moyenne : ${formatMoney(reportSummary.value.averageExpense)}`,
-            `- Revenu moyen : ${formatMoney(reportSummary.value.averageIncome)}`,
-            `- Transactions en devise étrangère : ${reportSummary.value.foreignTransactionCount}`,
-            `- Transferts internes : ${reportSummary.value.internalTransferCount}`,
-            ``,
-            `## Comparaisons intelligentes`,
-            `- Revenus : ${formatMoney(comparison.income.current)} vs ${formatMoney(comparison.income.previous)} (${comparison.income.delta >= 0 ? '+' : ''}${formatMoney(comparison.income.delta)})`,
-            `- Dépenses : ${formatMoney(comparison.expense.current)} vs ${formatMoney(comparison.expense.previous)} (${comparison.expense.delta >= 0 ? '+' : ''}${formatMoney(comparison.expense.delta)})`,
-            `- Net : ${formatMoney(comparison.net.current)} vs ${formatMoney(comparison.net.previous)} (${comparison.net.delta >= 0 ? '+' : ''}${formatMoney(comparison.net.delta)})`,
-            `- Taux d’épargne : ${comparison.savingsRate.current.toFixed(1)}% vs ${comparison.savingsRate.previous.toFixed(1)}%`,
-            `- Transferts internes : ${comparison.internalTransferCount.current} vs ${comparison.internalTransferCount.previous}`,
-            ``,
-            `## Types de comptes`,
-            `| Type | Comptes | Transactions | Revenus | Dépenses | Net |`,
-            `|---|---:|---:|---:|---:|---:|`,
-            ...accountTypeRows.value.map((row) =>
-                `| ${accountTypeLabel(row.type)} | ${row.accountCount} | ${row.transactionCount} | ${formatMoney(row.income)} | ${formatMoney(row.expense)} | ${formatMoney(row.net)} |`,
-            ),
-            ``,
-            `## Comptes`,
-            `| Compte | Type | Devise | Transactions | Revenus | Dépenses | Net |`,
-            `|---|---|---|---:|---:|---:|---:|`,
-            ...accountRows.value.map((row) =>
-                `| ${row.name} | ${accountTypeLabel(row.type)} | ${row.currency} | ${row.transactionCount} | ${formatMoney(row.income, row.currency)} | ${formatMoney(row.expense, row.currency)} | ${formatMoney(row.net, row.currency)} |`,
-            ),
-            ``,
-            `## Catégories`,
-            `| Catégorie | Transactions | Total | Nature |`,
-            `|---|---:|---:|---|`,
-            ...categoryRows.value.slice(0, 12).map((row) =>
-                `| ${row.name} | ${row.transactionCount} | ${formatMoney(row.total)} | ${row.kind} |`,
-            ),
-            ``,
-            `## Devises étrangères`,
-            `| Devise | Transactions | Total source | Total comptabilisé |`,
-            `|---|---:|---:|---:|`,
-            ...foreignCurrencyRows.value.map((row) =>
-                `| ${row.currency} | ${row.transactionCount} | ${row.sourceTotal.toFixed(2)} ${row.currency} | ${formatMoney(row.bookedTotal)} |`,
-            ),
-            ``,
-            `## Points saillants`,
-            ...insights.value.map((insight) => `- **${insight.title}** : ${insight.text}`),
+            `## ${tr('reports.summary.transactions')}`,
+            `- ${tr('reports.summary.transactions')} : ${reportSummary.value.transactionCount}`,
+            `- ${tr('reports.summary.income')} : ${formatMoney(reportSummary.value.income)}`,
+            `- ${tr('reports.summary.expense')} : ${formatMoney(reportSummary.value.expense)}`,
+            `- ${tr('reports.summary.net')} : ${formatMoney(reportSummary.value.net)}`,
+            `- ${tr('reports.summary.savingsRate')} : ${reportSummary.value.savingsRate.toFixed(1)}%`,
+            `- ${tr('reports.summary.internalTransfers')} : ${reportSummary.value.internalTransferCount}`,
             ``,
         ]
 
@@ -349,14 +324,14 @@ export function useReports(options: UseReportsOptions) {
     async function exportPeriodReport() {
         const fileName = `budget-report-${reportStartDate.value}-to-${reportEndDate.value}.md`
         const result = await window.file.saveText({
-            title: 'Exporter le rapport de période',
+            title: tr('reports.exportDialogTitle'),
             defaultPath: fileName,
             content: reportMarkdown.value,
             filters: [{name: 'Markdown', extensions: ['md']}],
         })
 
         if (!result?.canceled) {
-            options.showNotice('success', 'Rapport exporté.')
+            options.showNotice('success', tr('reports.exportSuccess'))
         }
     }
 
