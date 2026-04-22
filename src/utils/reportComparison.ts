@@ -1,34 +1,28 @@
 import type {ReportComparisonSummary, ReportMetricComparison, ReportSummary, Transaction} from '../types/budget'
+import {addUtcDays, endOfUtcDay, startOfUtcDay, toDateOnly, toUtcDate} from './date'
 
 function round2(value: number) {
     return Math.round(value * 100) / 100
 }
 
-function isoDate(date: Date) {
-    return new Date(date).toISOString().slice(0, 10)
-}
-
 export function withinRange(date: string, startDate: string, endDate: string) {
-    const tx = new Date(date).getTime()
-    const start = new Date(`${startDate}T00:00:00`).getTime()
-    const end = new Date(`${endDate}T23:59:59`).getTime()
+    const tx = toUtcDate(date).getTime()
+    const start = startOfUtcDay(startDate).getTime()
+    const end = endOfUtcDay(endDate).getTime()
     return tx >= start && tx <= end
 }
 
 export function buildPreviousPeriod(startDate: string, endDate: string) {
-    const start = new Date(`${startDate}T00:00:00`)
-    const end = new Date(`${endDate}T00:00:00`)
+    const start = startOfUtcDay(startDate)
+    const end = startOfUtcDay(endDate)
     const daySpan = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1)
 
-    const previousEnd = new Date(start)
-    previousEnd.setDate(previousEnd.getDate() - 1)
-
-    const previousStart = new Date(previousEnd)
-    previousStart.setDate(previousStart.getDate() - (daySpan - 1))
+    const previousEnd = addUtcDays(start, -1)
+    const previousStart = addUtcDays(previousEnd, -(daySpan - 1))
 
     return {
-        previousStartDate: isoDate(previousStart),
-        previousEndDate: isoDate(previousEnd),
+        previousStartDate: toDateOnly(previousStart),
+        previousEndDate: toDateOnly(previousEnd),
         daySpan,
     }
 }
@@ -41,6 +35,7 @@ export function summarizeTransactions(transactions: Transaction[], startDate: st
     const income = incomeRows.reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
     const expense = expenseRows.reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
     const net = income - expense
+
     const foreignCount = transactions.filter((tx) => {
         const sourceCurrency = (tx.sourceCurrency || tx.account?.currency || '').toUpperCase()
         const accountCurrency = (tx.account?.currency || '').toUpperCase()
@@ -65,6 +60,7 @@ export function summarizeTransactions(transactions: Transaction[], startDate: st
 export function buildMetricComparison(current: number, previous: number): ReportMetricComparison {
     const delta = round2(current - previous)
     let deltaPercent: number | null = null
+
     if (previous !== 0) {
         deltaPercent = round2((delta / previous) * 100)
     } else if (current === 0) {

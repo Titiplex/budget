@@ -15,6 +15,7 @@ import type {
 } from '../types/budget'
 import {accountTypeLabel, formatDate, formatMoney} from '../utils/budgetFormat'
 import {buildPreviousPeriod, buildReportComparison, summarizeTransactions, withinRange} from '../utils/reportComparison'
+import {addUtcDays, toDateOnly, toUtcDate} from '../utils/date'
 
 interface UseReportsOptions {
     accounts: Ref<Account[]>
@@ -23,57 +24,55 @@ interface UseReportsOptions {
     showNotice: (type: 'success' | 'error', text: string) => void
 }
 
-function isoDate(date: Date) {
-    return new Date(date).toISOString().slice(0, 10)
-}
-
 function startOfMonth(now = new Date()) {
-    return isoDate(new Date(now.getFullYear(), now.getMonth(), 1))
+    const current = toUtcDate(now)
+    return toDateOnly(new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), 1)))
 }
 
 function startOfYear(now = new Date()) {
-    return isoDate(new Date(now.getFullYear(), 0, 1))
+    const current = toUtcDate(now)
+    return toDateOnly(new Date(Date.UTC(current.getUTCFullYear(), 0, 1)))
 }
 
 function minusDays(now: Date, days: number) {
-    return isoDate(new Date(now.getTime() - days * 24 * 60 * 60 * 1000))
+    return toDateOnly(addUtcDays(toUtcDate(now), -days))
 }
 
 export function useReports(options: UseReportsOptions) {
     const today = new Date()
     const reportPreset = ref<ReportPreset>('THIS_MONTH')
     const reportStartDate = ref(startOfMonth(today))
-    const reportEndDate = ref(isoDate(today))
+    const reportEndDate = ref(toDateOnly(today))
 
     function applyPreset(preset: ReportPreset) {
         reportPreset.value = preset
 
         if (preset === 'THIS_MONTH') {
             reportStartDate.value = startOfMonth()
-            reportEndDate.value = isoDate(new Date())
+            reportEndDate.value = toDateOnly(new Date())
             return
         }
 
         if (preset === 'LAST_30_DAYS') {
             reportStartDate.value = minusDays(new Date(), 29)
-            reportEndDate.value = isoDate(new Date())
+            reportEndDate.value = toDateOnly(new Date())
             return
         }
 
         if (preset === 'THIS_YEAR') {
             reportStartDate.value = startOfYear()
-            reportEndDate.value = isoDate(new Date())
+            reportEndDate.value = toDateOnly(new Date())
             return
         }
 
         if (preset === 'ALL') {
             const ordered = [...options.transactions.value]
-                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                .sort((a, b) => toUtcDate(a.date).getTime() - toUtcDate(b.date).getTime())
 
-            reportStartDate.value = ordered[0] ? isoDate(new Date(ordered[0].date)) : isoDate(new Date())
+            reportStartDate.value = ordered[0] ? toDateOnly(ordered[0].date) : toDateOnly(new Date())
             reportEndDate.value = ordered[ordered.length - 1]
-                ? isoDate(new Date(ordered[ordered.length - 1].date))
-                : isoDate(new Date())
+                ? toDateOnly(ordered[ordered.length - 1].date)
+                : toDateOnly(new Date())
         }
     }
 

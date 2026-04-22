@@ -5,6 +5,7 @@ import type {
     TransactionKind,
 } from '../types/budget'
 import {currentLocaleCode, i18n, tr} from '../i18n'
+import {toUtcDate} from './date'
 
 export function formatMoney(amount: number, currency = 'CAD') {
     i18n.global.locale.value
@@ -26,7 +27,7 @@ export function formatMoney(amount: number, currency = 'CAD') {
 
 export function formatDate(value: string) {
     i18n.global.locale.value
-    return new Intl.DateTimeFormat(currentLocaleCode(), {dateStyle: 'medium'}).format(new Date(value))
+    return new Intl.DateTimeFormat(currentLocaleCode(), {dateStyle: 'medium'}).format(toUtcDate(value))
 }
 
 export function kindLabel(kind: TransactionKind) {

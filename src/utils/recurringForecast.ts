@@ -4,38 +4,34 @@ import type {
     RecurringInsightSummary,
     RecurringTransactionTemplate,
 } from '../types/budget'
-
-function toDateOnly(value: string | Date) {
-    if (typeof value === 'string') {
-        return value.slice(0, 10)
-    }
-    return value.toISOString().slice(0, 10)
-}
+import {
+    addUtcDays,
+    addUtcMonths,
+    addUtcWeeks,
+    addUtcYears,
+    startOfUtcDay,
+    toDateOnly,
+    toUtcDate,
+} from './date'
 
 function round2(value: number) {
     return Math.round(value * 100) / 100
 }
 
 export function addRecurringInterval(date: Date, frequency: RecurringFrequency, intervalCount: number) {
-    const next = new Date(date.getTime())
-
     if (frequency === 'DAILY') {
-        next.setUTCDate(next.getUTCDate() + intervalCount)
-        return next
+        return addUtcDays(date, intervalCount)
     }
 
     if (frequency === 'WEEKLY') {
-        next.setUTCDate(next.getUTCDate() + 7 * intervalCount)
-        return next
+        return addUtcWeeks(date, intervalCount)
     }
 
     if (frequency === 'MONTHLY') {
-        next.setUTCMonth(next.getUTCMonth() + intervalCount)
-        return next
+        return addUtcMonths(date, intervalCount)
     }
 
-    next.setUTCFullYear(next.getUTCFullYear() + intervalCount)
-    return next
+    return addUtcYears(date, intervalCount)
 }
 
 export function estimateMonthlyEquivalent(template: RecurringTransactionTemplate) {
@@ -61,17 +57,16 @@ export function buildRecurringForecast(
     horizonDays = 30,
     now = new Date(),
 ): RecurringForecastOccurrence[] {
-    const start = new Date(`${toDateOnly(now)}T00:00:00.000Z`)
-    const end = new Date(start.getTime())
-    end.setUTCDate(end.getUTCDate() + horizonDays)
+    const start = startOfUtcDay(now)
+    const end = addUtcDays(start, horizonDays)
 
     const results: RecurringForecastOccurrence[] = []
 
     for (const template of templates) {
         if (!template.isActive) continue
 
-        let cursor = new Date(template.nextOccurrenceDate)
-        const endDate = template.endDate ? new Date(template.endDate) : null
+        let cursor = toUtcDate(template.nextOccurrenceDate)
+        const endDate = template.endDate ? toUtcDate(template.endDate) : null
         let guard = 0
 
         while (
@@ -99,8 +94,7 @@ export function buildRecurringForecast(
     }
 
     return results.sort((a, b) =>
-        new Date(`${a.plannedDate}T00:00:00.000Z`).getTime()
-        - new Date(`${b.plannedDate}T00:00:00.000Z`).getTime(),
+        startOfUtcDay(a.plannedDate).getTime() - startOfUtcDay(b.plannedDate).getTime(),
     )
 }
 
@@ -137,7 +131,7 @@ export function summarizeRecurringForecast(
     return {
         activeCount: activeTemplates.length,
         monthlyExpenseCommitment,
-        monthlyIncomeCommitment: monthlyIncomeCommitment,
+        monthlyIncomeCommitment,
         netMonthlyCommitment: round2(monthlyIncomeCommitment - monthlyExpenseCommitment),
         next30DaysExpense,
         next30DaysIncome,

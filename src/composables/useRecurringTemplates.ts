@@ -9,45 +9,41 @@ import type {
     TransactionKind,
 } from '../types/budget'
 import {buildRecurringForecast, summarizeRecurringForecast} from '../utils/recurringForecast'
-
-function toDateOnly(value: string | Date) {
-    if (typeof value === 'string') {
-        return value.slice(0, 10)
-    }
-    return value.toISOString().slice(0, 10)
-}
+import {
+    addUtcDays,
+    addUtcMonths,
+    addUtcWeeks,
+    addUtcYears,
+    endOfUtcDay,
+    toDateOnly,
+    toUtcDate,
+} from '../utils/date'
 
 function normalizeCurrency(value: string | null | undefined) {
     return (value || '').trim().toUpperCase()
 }
 
 function addInterval(date: Date, frequency: RecurringFrequency, intervalCount: number) {
-    const next = new Date(date.getTime())
-
     if (frequency === 'DAILY') {
-        next.setUTCDate(next.getUTCDate() + intervalCount)
-        return next
+        return addUtcDays(date, intervalCount)
     }
 
     if (frequency === 'WEEKLY') {
-        next.setUTCDate(next.getUTCDate() + 7 * intervalCount)
-        return next
+        return addUtcWeeks(date, intervalCount)
     }
 
     if (frequency === 'MONTHLY') {
-        next.setUTCMonth(next.getUTCMonth() + intervalCount)
-        return next
+        return addUtcMonths(date, intervalCount)
     }
 
-    next.setUTCFullYear(next.getUTCFullYear() + intervalCount)
-    return next
+    return addUtcYears(date, intervalCount)
 }
 
 function countDueOccurrences(template: RecurringTransactionTemplate, asOfDate: Date) {
     if (!template.isActive) return 0
 
-    let current = new Date(template.nextOccurrenceDate)
-    const endDate = template.endDate ? new Date(template.endDate) : null
+    let current = toUtcDate(template.nextOccurrenceDate)
+    const endDate = template.endDate ? toUtcDate(template.endDate) : null
     let count = 0
     let guard = 0
 
@@ -92,8 +88,8 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
         note: '',
         frequency: 'MONTHLY' as RecurringFrequency,
         intervalCount: '1',
-        startDate: new Date().toISOString().slice(0, 10),
-        nextOccurrenceDate: new Date().toISOString().slice(0, 10),
+        startDate: toDateOnly(new Date()),
+        nextOccurrenceDate: toDateOnly(new Date()),
         endDate: '',
         isActive: true,
         accountId: '',
@@ -112,8 +108,8 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
         recurringForm.note = ''
         recurringForm.frequency = 'MONTHLY'
         recurringForm.intervalCount = '1'
-        recurringForm.startDate = new Date().toISOString().slice(0, 10)
-        recurringForm.nextOccurrenceDate = new Date().toISOString().slice(0, 10)
+        recurringForm.startDate = toDateOnly(new Date())
+        recurringForm.nextOccurrenceDate = toDateOnly(new Date())
         recurringForm.endDate = ''
         recurringForm.isActive = true
         recurringForm.accountId = ''
@@ -311,7 +307,7 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
     }
 
     const recurringRows = computed<RecurringTemplateRow[]>(() => {
-        const today = new Date(`${toDateOnly(new Date())}T23:59:59`)
+        const today = endOfUtcDay(new Date())
 
         return recurringTemplates.value
             .map((template) => {
