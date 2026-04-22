@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import {computed} from 'vue'
 import type {ExpenseBreakdownItem, MonthlyPoint, RecurringForecastOccurrence, Transaction} from '../types/budget'
 import {formatDate, formatMoney, kindLabel} from '../utils/budgetFormat'
 
-defineProps<{
+const props = defineProps<{
   recentTransactions: Transaction[]
   monthlyTrend: MonthlyPoint[]
   expenseBreakdown: ExpenseBreakdownItem[]
@@ -28,6 +29,13 @@ const emit = defineEmits<{
   (e: 'create-category'): void
 }>()
 
+const maxTrendValue = computed(() =>
+    Math.max(
+        1,
+        ...props.monthlyTrend.map((item) => Math.max(item.income, item.expense, 1)),
+    ),
+)
+
 function barHeight(value: number, max: number) {
   if (max <= 0) return 12
   return Math.max(12, Math.round((value / max) * 140))
@@ -48,32 +56,33 @@ function barHeight(value: number, max: number) {
           </button>
         </div>
 
-        <div class="chart-card">
-          <div class="trend-chart">
+        <div class="px-6 pb-6">
+          <div class="chart-shell overflow-x-auto">
             <div
                 v-for="point in monthlyTrend"
                 :key="point.key"
-                class="trend-column"
+                class="chart-column min-w-[88px]"
             >
-              <div class="trend-bars">
+              <div class="chart-double-bars">
                 <div
-                    class="trend-bar trend-bar-income"
-                    :style="{ height: `${barHeight(point.income, Math.max(...monthlyTrend.map((item) => Math.max(item.income, item.expense, 1))))}px` }"
+                    class="chart-bar chart-bar-income"
+                    :style="{ height: `${barHeight(point.income, maxTrendValue)}px` }"
                     :title="`Revenus: ${formatMoney(point.income, summaryCurrency)}`"
                 />
                 <div
-                    class="trend-bar trend-bar-expense"
-                    :style="{ height: `${barHeight(point.expense, Math.max(...monthlyTrend.map((item) => Math.max(item.income, item.expense, 1))))}px` }"
+                    class="chart-bar chart-bar-expense"
+                    :style="{ height: `${barHeight(point.expense, maxTrendValue)}px` }"
                     :title="`Dépenses: ${formatMoney(point.expense, summaryCurrency)}`"
                 />
               </div>
-              <div class="trend-meta">
-                <span class="trend-month">{{ point.label }}</span>
-                <span class="trend-net"
-                      :class="point.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
-                  {{ formatMoney(point.net, summaryCurrency) }}
-                </span>
-              </div>
+
+              <span class="chart-label">{{ point.label }}</span>
+              <span
+                  class="chart-subvalue"
+                  :class="point.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
+              >
+                {{ formatMoney(point.net, summaryCurrency) }}
+              </span>
             </div>
           </div>
         </div>
