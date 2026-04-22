@@ -1,172 +1,190 @@
-# Electron Vue Prisma Template
+# Budget
 
-A starter template for cross-platform desktop applications built with:
+Application desktop locale-first pour gérer :
+
+- des comptes
+- des catégories
+- des transactions
+- des budgets par catégorie
+- des transactions récurrentes
+- des rapports avec comparaison intelligente
+- des sauvegardes / restaurations JSON
+
+Le projet est construit avec :
 
 - Electron
 - Vue 3
 - Vite
 - Tailwind CSS
-- DaisyUI
 - Prisma
 - SQLite
 
-This template is intended for local-first desktop apps with a clean separation between:
+## Principes
 
-- **Electron main process** for native APIs and database access
-- **preload bridge** for secure IPC exposure
-- **Vue renderer** for the user interface
+- **local-first** : les données sont stockées localement
+- **renderer léger** : pas d’accès direct Prisma dans Vue
+- **IPC étroit** : la logique base de données reste côté Electron main
+- **backup explicite** : export / restauration JSON pour sécuriser les données
 
-## Features
+## Fonctionnalités
 
-- Electron Forge packaging for Windows, macOS and Linux
-- Vue 3 + Vite renderer setup
-- Tailwind CSS + DaisyUI styling
-- Prisma ORM with SQLite
-- TypeScript-ready project with JavaScript still allowed
-- Template-friendly project structure
+### Comptes
 
-## Project structure
+- création, édition, suppression
+- types de comptes
+- multi-devise
+- vue consolidée revenus / dépenses / net
+
+### Transactions
+
+- revenus, dépenses, transferts internes
+- édition / suppression
+- support des montants source et montants comptables
+- support conversion manuelle / automatique
+
+### Budgets
+
+- objectifs par catégorie
+- suivi de consommation
+- statuts under / near / over
+
+### Récurrences
+
+- templates quotidiens, hebdomadaires, mensuels, annuels
+- génération des occurrences dues
+- projection rapide sur 30 jours
+
+### Rapports
+
+- résumé de période
+- comparaison avec période précédente équivalente
+- types de comptes
+- catégories
+- devises
+- insights
+- export markdown
+
+### Sauvegarde / import
+
+- export JSON complet
+- restauration JSON validée
+- import / export CSV selon la section active
+
+## Structure du projet
 
 ```text
 .
 ├── electron/
+│   ├── db/
+│   ├── ipc/
 │   ├── main.js
-│   ├── preload.js
-│   └── db.js
+│   └── preload.js
 ├── prisma/
-│   └── schema.prisma
+│   ├── schema.prisma
+│   └── seed.js
 ├── src/
+│   ├── components/
+│   ├── composables/
+│   ├── test/
+│   ├── types/
+│   ├── utils/
 │   ├── App.vue
-│   ├── renderer.js
 │   ├── input.css
-│   └── styles/
-│       └── output.css
+│   └── renderer.js
 ├── index.html
-├── vite.config.mjs
 ├── forge.config.js
-├── tsconfig.json
-└── package.json
+├── package.json
+└── README.md
 ```
 
-## Getting started
-
-### 1. Install dependencies
+## Installation
 
 ````shell
 npm install
 ````
 
-### 2. Create your environment file
-
-Copy .env.example to .env:
+Crée ensuite ton fichier d’environnement :
 
 ````shell
 cp .env.example .env
 ````
 
-On Windows PowerShell:
+Sous PowerShell :
 
-````powershell
+````shell
 Copy-Item .env.example .env
 ````
 
-### 3. Generate Prisma client
+## Base de données
+
+Générer Prisma :
 
 ````shell
 npm run prisma:generate
 ````
 
-### 4. Create the database
+Créer / synchroniser la base :
+
+````shell
+npm run db:push
+````
+
+Si tu veux travailler avec des migrations Prisma en dev :
 
 ````shell
 npm run db:migrate
 ````
 
-### 5. Start the app
+## Lancement en développement
 
 ````shell
 npm run start
 ````
 
-## Available scripts
-
-### Build CSS and renderer
+## Tests
 
 ````shell
-npm run build:vite
+npm run test:run
 ````
 
-### Type-check Vue / TypeScript files
+## Vérification TypeScript
 
 ````shell
 npm run typecheck
 ````
 
-### Generate Prisma client
-
-````shell
-npm run prisma:generate
-````
-
-### Run Prisma migrations
-
-````shell
-npm run db:migrate
-````
-
-### Open Prisma Studio
-
-````shell
-npm run db:studio
-````
-
-### Package the application
+## Packaging
 
 ````shell
 npm run package
 ````
 
-### Create distributables
+Créer les artefacts :
 
 ````shell
 npm run make
 ````
 
-### Publish GitHub draft release
+## Notes base de données
 
-````shell
-npm run publish
-````
+- en dev, la base SQLite est stockée dans ``prisma/dev.db``
+- en build packagé, la base SQLite est stockée dans le répertoire Electron ``userData``
 
-## Database notes
+## Sauvegarde
 
-This template uses **Prisma + SQLite** by default.
+Le format de sauvegarde fiable est le **JSON**.
+Le CSV est un format d’échange pratique, mais ce n’est pas le format canonique complet du projet.
 
-For development, the database URL points to a local SQLite file. For packaged production builds, you should store user
-data inside Electron's ``userData`` directory instead of writing into the application folder.
+## Roadmap courte
 
-## Security notes
+Avant `1.0.0`, les priorités sont :
 
-- Keep database access in the Electron main process
-- Expose only narrow APIs through preload.js
-- Do not import Prisma directly in the Vue renderer
-- Keep contextIsolation enabled
+- stabilisation dates / timezone
+- solidification des rapports
+- UX transferts internes
+- validation backup / restore
+- packaging propre
 
-## Turning this repository into your own app
-
-You should rename:
-
-- `name` in ``package.json``
-- productName in ``package.json``
-- the GitHub repository URL
-- the application title in ``index.html``
-
-Then update:
-
-- Prisma models in ``prisma/schema.prisma``
-- preload APIs
-- Vue UI components
-
-## License
+## Licence
 
 MIT

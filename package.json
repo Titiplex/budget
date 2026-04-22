@@ -1,17 +1,18 @@
 {
-  "name": "electron-vue-prisma-template",
-  "productName": "Electron Vue Prisma Template",
-  "version": "0.1.0",
-  "description": "Starter template for Electron desktop apps using Vue, Vite, Tailwind CSS, DaisyUI and Prisma with SQLite.",
+  "name": "budget",
+  "productName": "Budget",
+  "version": "0.9.0",
+  "description": "Application desktop locale-first pour gérer comptes, transactions, budgets, récurrences, rapports et sauvegardes JSON.",
   "main": "electron/main.js",
   "type": "commonjs",
   "author": "Titiplex",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Titiplex/template_app"
+    "url": "https://github.com/Titiplex/budget"
   },
   "scripts": {
+    "dev": "npm run start",
     "build:css": "tailwindcss -i src/input.css -o src/styles/output.css",
     "build:vite": "npm run build:css && vite build",
     "typecheck": "vue-tsc --noEmit",
