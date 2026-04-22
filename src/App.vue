@@ -23,6 +23,7 @@ import {useSettings} from './composables/useSettings'
 import type {CreateTabKey, ReportPreset, SectionKey} from './types/budget'
 
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null)
+const appVersion = ref('')
 
 function showNotice(type: 'success' | 'error', text: string) {
   notice.value = {type, text}
@@ -231,6 +232,9 @@ function handleMenuCommand(rawCommand: unknown) {
 onMounted(async () => {
   settings.initSettings()
   window.versions.on('app:menu-command', handleMenuCommand)
+  if (window.appShell) {
+    appVersion.value = await window.appShell.getVersion()
+  }
   await refreshEverything()
   reports.applyPreset('THIS_MONTH')
 })
@@ -310,6 +314,17 @@ onMounted(async () => {
           <button class="quick-create-btn-secondary !py-2.5 text-sm" @click="budget.openCreatePanel('category')">
             + {{ t('entities.singular.category') }}
           </button>
+        </div>
+        <div class="mt-auto px-2 pt-6">
+          <div
+              class="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">
+            <p class="font-semibold text-slate-700 dark:text-slate-200">
+              Budget
+            </p>
+            <p class="mt-1">
+              v{{ appVersion || '0.9.0' }}
+            </p>
+          </div>
         </div>
       </aside>
 

@@ -18,6 +18,9 @@ export function useSettings() {
     function applyLocale() {
         i18n.global.locale.value = locale.value
         persistLocale(locale.value)
+        if (window.appShell) {
+            window.appShell.setLocale(locale.value)
+        }
     }
 
     function initSettings() {

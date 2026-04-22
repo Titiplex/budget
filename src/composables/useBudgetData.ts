@@ -19,6 +19,8 @@ import type {
 } from '../types/budget'
 import {currentLocaleCode, tr} from '../i18n'
 import {kindLabel} from '../utils/budgetFormat'
+import {toDateOnly} from '../utils/date'
+import {collapseTransferTransactions} from "../utils/transferDisplay";
 
 export function useBudgetData(
     showNotice: (type: 'success' | 'error', text: string) => void,
@@ -91,9 +93,9 @@ export function useBudgetData(
         conversionMode: 'NONE' as ConversionMode,
         exchangeRate: '',
         exchangeProvider: '',
-        exchangeDate: new Date().toISOString().slice(0, 10),
+        exchangeDate: toDateOnly(new Date()),
         kind: 'EXPENSE' as TransactionKind,
-        date: new Date().toISOString().slice(0, 10),
+        date: toDateOnly(new Date()),
         note: '',
         accountId: '',
         transferTargetAccountId: '',
@@ -129,34 +131,6 @@ export function useBudgetData(
             : tr('deleteDialog.deleteTransaction')
     }
 
-    function collapseTransferTransactions(list: Transaction[]) {
-        const seenGroups = new Set<string>()
-        const grouped = new Map<string, Transaction[]>()
-
-        for (const transaction of list) {
-            if (!transaction.transferGroup) continue
-
-            const bucket = grouped.get(transaction.transferGroup) || []
-            bucket.push(transaction)
-            grouped.set(transaction.transferGroup, bucket)
-        }
-
-        return list.filter((transaction) => {
-            if (!transaction.transferGroup) return true
-            if (seenGroups.has(transaction.transferGroup)) return false
-
-            const group = grouped.get(transaction.transferGroup) || [transaction]
-            const preferred =
-                group.find((entry) => entry.transferDirection === 'OUT')
-                || group[0]
-
-            if (preferred.id !== transaction.id) return false
-
-            seenGroups.add(transaction.transferGroup)
-            return true
-        })
-    }
-
     function resetAccountForm() {
         accountForm.name = ''
         accountForm.type = 'BANK'
@@ -179,9 +153,9 @@ export function useBudgetData(
         transactionForm.conversionMode = 'NONE'
         transactionForm.exchangeRate = ''
         transactionForm.exchangeProvider = ''
-        transactionForm.exchangeDate = new Date().toISOString().slice(0, 10)
+        transactionForm.exchangeDate = toDateOnly(new Date())
         transactionForm.kind = 'EXPENSE'
-        transactionForm.date = new Date().toISOString().slice(0, 10)
+        transactionForm.date = toDateOnly(new Date())
         transactionForm.note = ''
         transactionForm.accountId = ''
         transactionForm.transferTargetAccountId = ''
@@ -258,10 +232,10 @@ export function useBudgetData(
             transactionForm.exchangeRate = targetTransaction.exchangeRate ? String(targetTransaction.exchangeRate) : ''
             transactionForm.exchangeProvider = targetTransaction.exchangeProvider || ''
             transactionForm.exchangeDate = targetTransaction.exchangeDate
-                ? new Date(targetTransaction.exchangeDate).toISOString().slice(0, 10)
-                : new Date(targetTransaction.date).toISOString().slice(0, 10)
+                ? toDateOnly(new Date(targetTransaction.exchangeDate))
+                : toDateOnly(new Date(targetTransaction.date))
             transactionForm.kind = 'TRANSFER'
-            transactionForm.date = new Date(sourceTransaction.date).toISOString().slice(0, 10)
+            transactionForm.date = toDateOnly(new Date(sourceTransaction.date))
             transactionForm.note = sourceTransaction.note || ''
             transactionForm.accountId = String(sourceTransaction.accountId)
             transactionForm.transferTargetAccountId = String(targetTransaction.accountId)
@@ -286,10 +260,10 @@ export function useBudgetData(
         transactionForm.exchangeRate = transaction.exchangeRate ? String(transaction.exchangeRate) : ''
         transactionForm.exchangeProvider = transaction.exchangeProvider || ''
         transactionForm.exchangeDate = transaction.exchangeDate
-            ? new Date(transaction.exchangeDate).toISOString().slice(0, 10)
-            : new Date(transaction.date).toISOString().slice(0, 10)
+            ? toDateOnly(new Date(transaction.exchangeDate))
+            : toDateOnly(new Date(transaction.date))
         transactionForm.kind = transaction.kind
-        transactionForm.date = new Date(transaction.date).toISOString().slice(0, 10)
+        transactionForm.date = toDateOnly(new Date(transaction.date))
         transactionForm.note = transaction.note || ''
         transactionForm.accountId = String(transaction.accountId)
         transactionForm.transferTargetAccountId = ''

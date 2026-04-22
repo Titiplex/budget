@@ -9,6 +9,11 @@ contextBridge.exposeInMainWorld('versions', {
     on: (channel, func) => ipcRenderer.on(channel, (_event, ...args) => func(...args)),
 })
 
+contextBridge.exposeInMainWorld('appShell', {
+    getVersion: () => ipcRenderer.invoke('app:get-version'),
+    setLocale: (locale) => ipcRenderer.send('app:set-locale', locale),
+})
+
 contextBridge.exposeInMainWorld('db', {
     account: {
         list: () => ipcRenderer.invoke('db:account:list'),

@@ -306,4 +306,9 @@ interface Window {
             date: string
         }) => Promise<FxQuoteResult>
     }
+
+    appShell: {
+        getVersion: () => Promise<string>
+        setLocale: (locale: 'fr' | 'en') => void
+    }
 }

@@ -7,8 +7,11 @@ const {registerRecurringHandlers} = require('./ipc/registerRecurringHandlers')
 const {registerFileHandlers} = require('./ipc/registerFileHandlers')
 const {registerFxHandlers} = require('./ipc/registerFxHandlers')
 const {disconnectPrisma} = require('./db')
+const {getMenuMessages, normalizeMenuLocale} = require('./menuI18n')
 
 updateElectronApp()
+
+let currentMenuLocale = normalizeMenuLocale(app.getLocale())
 
 function getActiveWindow() {
     return BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0] || null
@@ -20,8 +23,9 @@ function sendMenuCommand(command) {
     win.webContents.send('app:menu-command', command)
 }
 
-function buildAppMenu() {
+function buildAppMenu(locale = currentMenuLocale) {
     const isMac = process.platform === 'darwin'
+    const m = getMenuMessages(locale)
 
     const template = [
         ...(isMac
@@ -31,7 +35,7 @@ function buildAppMenu() {
                     {role: 'about'},
                     {type: 'separator'},
                     {
-                        label: 'Preferences…',
+                        label: m.app.preferences,
                         accelerator: 'CmdOrCtrl+,',
                         click: () => sendMenuCommand('open-settings'),
                     },
@@ -47,72 +51,72 @@ function buildAppMenu() {
             }]
             : []),
         {
-            label: 'File',
+            label: m.menu.file,
             submenu: [
                 {
-                    label: 'New Transaction',
+                    label: m.items.newTransaction,
                     accelerator: 'CmdOrCtrl+N',
                     click: () => sendMenuCommand('create-transaction'),
                 },
                 {
-                    label: 'New Account',
+                    label: m.items.newAccount,
                     accelerator: 'CmdOrCtrl+Shift+A',
                     click: () => sendMenuCommand('create-account'),
                 },
                 {
-                    label: 'New Category',
+                    label: m.items.newCategory,
                     accelerator: 'CmdOrCtrl+Shift+C',
                     click: () => sendMenuCommand('create-category'),
                 },
                 {
-                    label: 'Open Budgets',
+                    label: m.items.openBudgets,
                     accelerator: 'CmdOrCtrl+B',
                     click: () => sendMenuCommand('open-budgets'),
                 },
                 {
-                    label: 'Open Recurring',
+                    label: m.items.openRecurring,
                     click: () => sendMenuCommand('open-recurring'),
                 },
                 {
-                    label: 'Generate Due Recurring Transactions',
+                    label: m.items.generateDueRecurring,
                     click: () => sendMenuCommand('generate-due-recurring'),
                 },
                 {type: 'separator'},
                 {
-                    label: 'Open Reports',
+                    label: m.items.openReports,
                     accelerator: 'CmdOrCtrl+R',
                     click: () => sendMenuCommand('open-reports'),
                 },
                 {
-                    label: 'Export Period Report',
+                    label: m.items.exportPeriodReport,
                     accelerator: 'CmdOrCtrl+Shift+R',
                     click: () => sendMenuCommand('export-period-report'),
                 },
                 {type: 'separator'},
                 {
-                    label: 'Import CSV',
+                    label: m.items.importCsv,
                     accelerator: 'CmdOrCtrl+I',
                     click: () => sendMenuCommand('import-csv'),
                 },
                 {
-                    label: 'Export CSV',
+                    label: m.items.exportCsv,
                     accelerator: 'CmdOrCtrl+E',
                     click: () => sendMenuCommand('export-csv'),
                 },
                 {type: 'separator'},
                 {
-                    label: 'Export JSON Backup',
+                    label: m.items.exportJsonBackup,
                     accelerator: 'CmdOrCtrl+Shift+E',
                     click: () => sendMenuCommand('export-json'),
                 },
                 {
-                    label: 'Restore JSON Backup',
+                    label: m.items.restoreJsonBackup,
                     accelerator: 'CmdOrCtrl+Shift+I',
                     click: () => sendMenuCommand('restore-json'),
                 },
                 {type: 'separator'},
                 {
-                    label: 'Refresh Data',
+                    label: m.items.refreshData,
                     accelerator: 'F5',
                     click: () => sendMenuCommand('refresh-data'),
                 },
@@ -121,7 +125,7 @@ function buildAppMenu() {
             ],
         },
         {
-            label: 'Edit',
+            label: m.menu.edit,
             submenu: [
                 {role: 'undo'},
                 {role: 'redo'},
@@ -143,22 +147,22 @@ function buildAppMenu() {
             ],
         },
         {
-            label: 'View',
+            label: m.menu.view,
             submenu: [
                 {
-                    label: 'Open Budgets',
+                    label: m.items.openBudgets,
                     click: () => sendMenuCommand('open-budgets'),
                 },
                 {
-                    label: 'Open Recurring',
+                    label: m.items.openRecurring,
                     click: () => sendMenuCommand('open-recurring'),
                 },
                 {
-                    label: 'Open Reports',
+                    label: m.items.openReports,
                     click: () => sendMenuCommand('open-reports'),
                 },
                 {
-                    label: 'Toggle Theme',
+                    label: m.items.toggleTheme,
                     accelerator: 'CmdOrCtrl+D',
                     click: () => sendMenuCommand('toggle-theme'),
                 },
@@ -169,35 +173,35 @@ function buildAppMenu() {
             ],
         },
         {
-            label: 'Settings',
+            label: m.menu.settings,
             submenu: [
                 {
-                    label: 'Preferences…',
+                    label: m.app.preferences,
                     accelerator: isMac ? undefined : 'CmdOrCtrl+,',
                     click: () => sendMenuCommand('open-settings'),
                 },
                 {type: 'separator'},
                 {
-                    label: 'Light Theme',
+                    label: m.items.lightTheme,
                     click: () => sendMenuCommand('set-theme-light'),
                 },
                 {
-                    label: 'Dark Theme',
+                    label: m.items.darkTheme,
                     click: () => sendMenuCommand('set-theme-dark'),
                 },
                 {type: 'separator'},
                 {
-                    label: 'Français',
+                    label: m.items.french,
                     click: () => sendMenuCommand('set-locale-fr'),
                 },
                 {
-                    label: 'English',
+                    label: m.items.english,
                     click: () => sendMenuCommand('set-locale-en'),
                 },
             ],
         },
         {
-            label: 'Window',
+            label: m.menu.window,
             submenu: isMac
                 ? [
                     {role: 'minimize'},
@@ -222,6 +226,7 @@ const createWindow = () => {
         height: 900,
         minWidth: 1150,
         minHeight: 760,
+        icon: path.join(__dirname, '..', 'assets', 'icons', 'app.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
         },
@@ -233,13 +238,19 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
     ipcMain.handle('ping', () => 'pong')
+    ipcMain.handle('app:get-version', () => app.getVersion())
+    ipcMain.on('app:set-locale', (_event, locale) => {
+        currentMenuLocale = normalizeMenuLocale(locale)
+        Menu.setApplicationMenu(buildAppMenu(currentMenuLocale))
+    })
+
     registerDbHandlers()
     registerBudgetHandlers()
     registerRecurringHandlers()
     registerFileHandlers()
     registerFxHandlers()
 
-    Menu.setApplicationMenu(buildAppMenu())
+    Menu.setApplicationMenu(buildAppMenu(currentMenuLocale))
     createWindow()
 
     app.on('activate', () => {
