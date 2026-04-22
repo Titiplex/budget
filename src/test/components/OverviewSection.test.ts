@@ -1,7 +1,8 @@
 import {mount} from '@vue/test-utils'
-import {describe, expect, it} from 'vitest'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import OverviewSection from '../../components/OverviewSection.vue'
 import type {Transaction} from '../../types/budget'
+import {i18n} from '../../i18n'
 
 function makeTransaction(overrides: Partial<Transaction>): Transaction {
     return {
@@ -30,6 +31,17 @@ function makeTransaction(overrides: Partial<Transaction>): Transaction {
 }
 
 describe('OverviewSection', () => {
+    let previousLocale: string
+
+    beforeEach(() => {
+        previousLocale = i18n.global.locale.value
+        i18n.global.locale.value = 'fr'
+    })
+
+    afterEach(() => {
+        i18n.global.locale.value = previousLocale
+    })
+
     it('renders transfer rows with a readable route and internal transfer label', () => {
         const wrapper = mount(OverviewSection, {
             props: {
@@ -41,10 +53,13 @@ describe('OverviewSection', () => {
                 recurringPreview: [],
                 recurringProjection: null,
             },
+            global: {
+                plugins: [i18n],
+            },
         })
 
         expect(wrapper.text()).toContain('Main → Savings')
-        expect(wrapper.text()).toContain('Transfert interne')
-        expect(wrapper.text()).toContain('Sortie liée')
+        expect(wrapper.text()).toContain(i18n.global.t('transfer.internal'))
+        expect(wrapper.text()).toContain(i18n.global.t('transfer.directionOut'))
     })
 })

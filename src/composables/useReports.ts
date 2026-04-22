@@ -14,7 +14,7 @@ import type {
     Transaction,
 } from '../types/budget'
 import {tr} from '../i18n'
-import {accountTypeLabel, formatDate, formatMoney} from '../utils/budgetFormat'
+import {formatDate, formatMoney} from '../utils/budgetFormat'
 import {buildPreviousPeriod, buildReportComparison, summarizeTransactions, withinRange} from '../utils/reportComparison'
 import {addUtcDays, toDateOnly, toUtcDate} from '../utils/date'
 
@@ -184,7 +184,7 @@ export function useReports(options: UseReportsOptions) {
                     name: tx.category?.name || tr('reports.noCategory'),
                     transactionCount: 1,
                     total: Math.abs(tx.amount),
-                    kind: tx.category?.kind || tx.kind,
+                    kind: tx.kind,
                 })
             }
         }
