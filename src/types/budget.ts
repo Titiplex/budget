@@ -172,6 +172,7 @@ export interface DeleteState {
     type: EntityType
     id: number
     label: string
+    heading: string
     message: string
 }
 

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import type {ExpenseBreakdownItem, MonthlyPoint, RecurringForecastOccurrence, Transaction} from '../types/budget'
-import {formatDate, formatMoney, kindLabel} from '../utils/budgetFormat'
+import {amountClass, formatDate, formatMoney, kindLabel, kindPillClass} from '../utils/budgetFormat'
+import {transferAccountHint, transferAmountHint, transferDirectionLabel, transferRoute} from '../utils/transferDisplay'
 
 const props = defineProps<{
   recentTransactions: Transaction[]
@@ -39,6 +40,19 @@ const maxTrendValue = computed(() =>
 function barHeight(value: number, max: number) {
   if (max <= 0) return 12
   return Math.max(12, Math.round((value / max) * 140))
+}
+
+function accountLabel(transaction: Transaction) {
+  if (transaction.kind !== 'TRANSFER') {
+    return transaction.account?.name || '—'
+  }
+
+  return transferRoute(transaction) || transaction.account?.name || '—'
+}
+
+function categoryLabel(transaction: Transaction) {
+  if (transaction.kind === 'TRANSFER') return 'Transfert interne'
+  return transaction.category?.name || '—'
 }
 </script>
 
@@ -245,7 +259,7 @@ function barHeight(value: number, max: number) {
       </div>
 
       <div v-if="recentTransactions.length" class="overflow-x-auto">
-        <table class="w-full min-w-[860px]">
+        <table class="w-full min-w-[980px]">
           <thead>
           <tr class="table-head">
             <th class="table-cell-head text-left">Libellé</th>
@@ -264,10 +278,16 @@ function barHeight(value: number, max: number) {
               :key="transaction.id"
               class="table-row"
           >
-            <td class="table-cell">
-              <div>
+            <td class="table-cell align-top">
+              <div class="space-y-1">
                 <p class="font-semibold text-slate-800 dark:text-slate-100">
                   {{ transaction.label }}
+                </p>
+                <p
+                    v-if="transaction.kind === 'TRANSFER' && transferRoute(transaction)"
+                    class="text-xs font-medium text-sky-600 dark:text-sky-300"
+                >
+                  {{ transferRoute(transaction) }}
                 </p>
                 <p
                     v-if="transaction.note"
@@ -278,29 +298,67 @@ function barHeight(value: number, max: number) {
               </div>
             </td>
 
-            <td class="table-cell">
-                <span class="kind-pill" :class="`kind-pill-${transaction.kind.toLowerCase()}`">
-                  {{ kindLabel(transaction.kind) }}
+            <td class="table-cell align-top">
+              <div class="flex flex-col items-start gap-2">
+                  <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+                        :class="kindPillClass(transaction.kind)">
+                    {{ kindLabel(transaction.kind) }}
+                  </span>
+
+                <span
+                    v-if="transaction.kind === 'TRANSFER'"
+                    class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-300"
+                >
+                    {{ transferDirectionLabel(transaction) }}
+                  </span>
+              </div>
+            </td>
+
+            <td class="table-cell align-top">
+              <div class="space-y-1">
+                <p class="font-medium text-slate-800 dark:text-slate-100">
+                  {{ accountLabel(transaction) }}
+                </p>
+                <p
+                    v-if="transaction.kind === 'TRANSFER' && transferAccountHint(transaction)"
+                    class="text-xs text-slate-500 dark:text-slate-400"
+                >
+                  {{ transferAccountHint(transaction) }}
+                </p>
+              </div>
+            </td>
+
+            <td class="table-cell align-top">
+                <span
+                    v-if="transaction.kind === 'TRANSFER'"
+                    class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-300"
+                >
+                  {{ categoryLabel(transaction) }}
+                </span>
+              <span v-else>
+                  {{ categoryLabel(transaction) }}
                 </span>
             </td>
 
-            <td class="table-cell">
-              {{ transaction.account?.name || '—' }}
-            </td>
-
-            <td class="table-cell">
-              {{ transaction.category?.name || '—' }}
-            </td>
-
-            <td class="table-cell">
+            <td class="table-cell align-top">
               {{ formatDate(transaction.date) }}
             </td>
 
-            <td class="table-cell text-right font-semibold">
-              {{ formatMoney(transaction.amount, transaction.account?.currency || summaryCurrency) }}
+            <td class="table-cell align-top text-right">
+              <div class="space-y-1">
+                <p class="font-semibold" :class="amountClass(transaction.kind)">
+                  {{ formatMoney(Math.abs(transaction.amount), transaction.account?.currency || summaryCurrency) }}
+                </p>
+                <p
+                    v-if="transaction.kind === 'TRANSFER' && transferAmountHint(transaction)"
+                    class="text-xs text-slate-500 dark:text-slate-400"
+                >
+                  {{ transferAmountHint(transaction) }}
+                </p>
+              </div>
             </td>
 
-            <td class="table-cell">
+            <td class="table-cell align-top">
               <div class="row-actions">
                 <button class="mini-action-btn" @click="emit('edit-transaction', transaction)">
                   Modifier

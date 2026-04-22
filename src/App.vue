@@ -527,6 +527,7 @@ onMounted(async () => {
         :busy="budget.deleteDialog.busy"
         :type="budget.deleteDialog.type"
         :label="budget.deleteDialog.label"
+        :heading="budget.deleteDialog.heading"
         :message="budget.deleteDialog.message"
         @close="budget.closeDeleteDialog"
         @confirm="budget.confirmDelete"

@@ -19,6 +19,7 @@ import type {
 } from '../types/budget'
 import {currentLocaleCode, tr} from '../i18n'
 import {kindLabel} from '../utils/budgetFormat'
+import {collapseTransferTransactions} from '../utils/transferDisplay'
 
 export function useBudgetData(
     showNotice: (type: 'success' | 'error', text: string) => void,
@@ -60,6 +61,7 @@ export function useBudgetData(
         type: 'transaction',
         id: 0,
         label: '',
+        heading: '',
         message: '',
     })
 
@@ -116,6 +118,16 @@ export function useBudgetData(
 
     function normalizedCurrency(value: string | null | undefined) {
         return (value || '').trim().toUpperCase()
+    }
+
+    function deleteDialogHeading(type: EntityType, entity: Transaction | AccountSummary | CategorySummary | Account | Category) {
+        if (type === 'account') return 'Supprimer le compte'
+        if (type === 'category') return 'Supprimer la catégorie'
+
+        const transaction = entity as Transaction
+        return transaction.kind === 'TRANSFER'
+            ? 'Supprimer le transfert interne'
+            : 'Supprimer la transaction'
     }
 
     function collapseTransferTransactions(list: Transaction[]) {
@@ -306,6 +318,7 @@ export function useBudgetData(
         deleteDialog.type = type
         deleteDialog.id = entity.id
         deleteDialog.label = 'label' in entity ? entity.label : entity.name
+        deleteDialog.heading = deleteDialogHeading(type, entity)
         deleteDialog.open = true
         deleteDialog.busy = false
 
@@ -332,19 +345,22 @@ export function useBudgetData(
         }
 
         const transaction = entity as Transaction
-
-        if (transaction.kind === 'TRANSFER') {
-            deleteDialog.message = 'Supprimer ce transfert interne supprimera aussi le mouvement lié dans l’autre compte.'
-            return
-        }
-
-        deleteDialog.message = tr('deleteDialog.transactionSimple')
+        deleteDialog.message = transaction.kind === 'TRANSFER'
+            ? 'Supprimer ce transfert interne supprimera aussi le mouvement lié dans l’autre compte.'
+            : tr('deleteDialog.transactionSimple')
     }
 
     function requestDeleteCurrentForm() {
         if (!editingTarget.value) return
 
         if (editingTarget.value.type === 'transaction') {
+            const currentTransaction = transactions.value.find((entry) => entry.id === editingTarget.value?.id)
+
+            if (currentTransaction) {
+                openDeleteDialog('transaction', currentTransaction)
+                return
+            }
+
             openDeleteDialog('transaction', {
                 id: editingTarget.value.id,
                 label: transactionForm.label,
@@ -389,6 +405,7 @@ export function useBudgetData(
         deleteDialog.busy = false
         deleteDialog.id = 0
         deleteDialog.label = ''
+        deleteDialog.heading = ''
         deleteDialog.message = ''
         deleteDialog.type = 'transaction'
     }
