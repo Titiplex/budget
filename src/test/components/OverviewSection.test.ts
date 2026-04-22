@@ -35,7 +35,7 @@ describe('OverviewSection', () => {
     let previousLocale: WritableComputedRef<"fr" | "en", "fr" | "en">
 
     beforeEach(() => {
-        previousLocale.value = i18n.global.locale.value
+        previousLocale = i18n.global.locale
         i18n.global.locale.value = 'fr'
     })
 
