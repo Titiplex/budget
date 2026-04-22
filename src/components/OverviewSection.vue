@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed} from 'vue'
+import {useI18n} from 'vue-i18n'
 import type {ExpenseBreakdownItem, MonthlyPoint, RecurringForecastOccurrence, Transaction} from '../types/budget'
 import {amountClass, formatDate, formatMoney, kindLabel, kindPillClass} from '../utils/budgetFormat'
 import {transferAccountHint, transferAmountHint, transferDirectionLabel, transferRoute} from '../utils/transferDisplay'
@@ -30,6 +31,8 @@ const emit = defineEmits<{
   (e: 'create-category'): void
 }>()
 
+const {t} = useI18n()
+
 const maxTrendValue = computed(() =>
     Math.max(
         1,
@@ -51,7 +54,7 @@ function accountLabel(transaction: Transaction) {
 }
 
 function categoryLabel(transaction: Transaction) {
-  if (transaction.kind === 'TRANSFER') return 'Transfert interne'
+  if (transaction.kind === 'TRANSFER') return t('transfer.internal')
   return transaction.category?.name || '—'
 }
 </script>
@@ -62,11 +65,11 @@ function categoryLabel(transaction: Transaction) {
       <section class="panel xl:col-span-7">
         <div class="panel-header">
           <div>
-            <p class="panel-eyebrow">Cashflow trend</p>
-            <h2 class="panel-title">Derniers mois</h2>
+            <p class="panel-eyebrow">{{ t('overview.cashflowTrend') }}</p>
+            <h2 class="panel-title">{{ t('overview.lastMonths') }}</h2>
           </div>
           <button class="ghost-btn" @click="emit('open-transactions')">
-            Voir les transactions
+            {{ t('overview.viewTransactions') }}
           </button>
         </div>
 
@@ -81,12 +84,12 @@ function categoryLabel(transaction: Transaction) {
                 <div
                     class="chart-bar chart-bar-income"
                     :style="{ height: `${barHeight(point.income, maxTrendValue)}px` }"
-                    :title="`Revenus: ${formatMoney(point.income, summaryCurrency)}`"
+                    :title="`${t('analytics.income')}: ${formatMoney(point.income, summaryCurrency)}`"
                 />
                 <div
                     class="chart-bar chart-bar-expense"
                     :style="{ height: `${barHeight(point.expense, maxTrendValue)}px` }"
-                    :title="`Dépenses: ${formatMoney(point.expense, summaryCurrency)}`"
+                    :title="`${t('analytics.expense')}: ${formatMoney(point.expense, summaryCurrency)}`"
                 />
               </div>
 
@@ -105,8 +108,8 @@ function categoryLabel(transaction: Transaction) {
       <section class="panel xl:col-span-5">
         <div class="panel-header">
           <div>
-            <p class="panel-eyebrow">Expense split</p>
-            <h2 class="panel-title">Postes majeurs</h2>
+            <p class="panel-eyebrow">{{ t('overview.expenseSplit') }}</p>
+            <h2 class="panel-title">{{ t('overview.topExpenseItems') }}</h2>
           </div>
         </div>
 
@@ -143,7 +146,7 @@ function categoryLabel(transaction: Transaction) {
         </div>
 
         <div v-else class="empty-state">
-          Aucune dépense catégorisée pour le moment.
+          {{ t('overview.noCategorizedExpenseYet') }}
         </div>
       </section>
     </div>
@@ -152,41 +155,41 @@ function categoryLabel(transaction: Transaction) {
       <section class="panel xl:col-span-5">
         <div class="panel-header">
           <div>
-            <p class="panel-eyebrow">Récurrences</p>
-            <h2 class="panel-title">Projection rapide</h2>
+            <p class="panel-eyebrow">{{ t('recurring.sectionName') }}</p>
+            <h2 class="panel-title">{{ t('overview.quickProjection') }}</h2>
           </div>
         </div>
 
         <div class="space-y-3 px-6 pb-6">
           <div class="mini-card">
-            <p class="mini-label">Charges mensuelles récurrentes</p>
+            <p class="mini-label">{{ t('overview.recurringMonthlyExpenses') }}</p>
             <p class="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
               {{ formatMoney(recurringProjection.monthlyExpenseCommitment, summaryCurrency) }}
             </p>
           </div>
 
           <div class="mini-card">
-            <p class="mini-label">Revenus mensuels récurrents</p>
+            <p class="mini-label">{{ t('overview.recurringMonthlyIncome') }}</p>
             <p class="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
               {{ formatMoney(recurringProjection.monthlyIncomeCommitment, summaryCurrency) }}
             </p>
           </div>
 
           <div class="mini-card">
-            <p class="mini-label">Net mensuel récurrent</p>
+            <p class="mini-label">{{ t('overview.recurringMonthlyNet') }}</p>
             <p class="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
               {{ formatMoney(recurringProjection.netMonthlyCommitment, summaryCurrency) }}
             </p>
           </div>
 
           <div class="mini-card">
-            <p class="mini-label">Impact sur 30 jours</p>
+            <p class="mini-label">{{ t('overview.impact30Days') }}</p>
             <p class="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
               {{ formatMoney(recurringProjection.next30DaysNet, summaryCurrency) }}
             </p>
             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              revenus: {{ formatMoney(recurringProjection.next30DaysIncome, summaryCurrency) }}
-              · dépenses: {{ formatMoney(recurringProjection.next30DaysExpense, summaryCurrency) }}
+              {{ t('analytics.income') }}: {{ formatMoney(recurringProjection.next30DaysIncome, summaryCurrency) }}
+              · {{ t('analytics.expense') }}: {{ formatMoney(recurringProjection.next30DaysExpense, summaryCurrency) }}
             </p>
           </div>
         </div>
@@ -195,8 +198,8 @@ function categoryLabel(transaction: Transaction) {
       <section class="panel xl:col-span-7">
         <div class="panel-header">
           <div>
-            <p class="panel-eyebrow">À venir</p>
-            <h2 class="panel-title">Prochaines occurrences récurrentes</h2>
+            <p class="panel-eyebrow">{{ t('overview.upcoming') }}</p>
+            <h2 class="panel-title">{{ t('overview.nextRecurringOccurrences') }}</h2>
           </div>
         </div>
 
@@ -204,11 +207,11 @@ function categoryLabel(transaction: Transaction) {
           <table class="w-full min-w-[720px]">
             <thead>
             <tr class="table-head">
-              <th class="table-cell-head text-left">Date</th>
-              <th class="table-cell-head text-left">Libellé</th>
-              <th class="table-cell-head text-left">Compte</th>
-              <th class="table-cell-head text-left">Catégorie</th>
-              <th class="table-cell-head text-right">Montant</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.date') }}</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.label') }}</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.account') }}</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.category') }}</th>
+              <th class="table-cell-head text-right">{{ t('forms.fields.amount') }}</th>
             </tr>
             </thead>
             <tbody>
@@ -233,7 +236,7 @@ function categoryLabel(transaction: Transaction) {
         </div>
 
         <div v-else class="empty-state">
-          Aucune occurrence récurrente à venir.
+          {{ t('overview.noUpcomingRecurring') }}
         </div>
       </section>
     </div>
@@ -241,19 +244,19 @@ function categoryLabel(transaction: Transaction) {
     <section class="panel">
       <div class="panel-header">
         <div>
-          <p class="panel-eyebrow">Recent activity</p>
-          <h2 class="panel-title">Derniers mouvements</h2>
+          <p class="panel-eyebrow">{{ t('overview.recentActivity') }}</p>
+          <h2 class="panel-title">{{ t('overview.latestTransactionsLabel') }}</h2>
         </div>
 
         <div class="flex gap-2">
           <button class="ghost-btn" @click="emit('create-account')">
-            Nouveau compte
+            {{ t('accounts.addAccount') }}
           </button>
           <button class="ghost-btn" @click="emit('create-category')">
-            Nouvelle catégorie
+            {{ t('categories.addCategory') }}
           </button>
           <button class="primary-btn" @click="emit('create-transaction')">
-            Nouvelle transaction
+            {{ t('forms.titles.createTransaction') }}
           </button>
         </div>
       </div>
@@ -262,13 +265,13 @@ function categoryLabel(transaction: Transaction) {
         <table class="w-full min-w-[980px]">
           <thead>
           <tr class="table-head">
-            <th class="table-cell-head text-left">Libellé</th>
-            <th class="table-cell-head text-left">Type</th>
-            <th class="table-cell-head text-left">Compte</th>
-            <th class="table-cell-head text-left">Catégorie</th>
-            <th class="table-cell-head text-left">Date</th>
-            <th class="table-cell-head text-right">Montant</th>
-            <th class="table-cell-head text-right">Actions</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.label') }}</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.type') }}</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.account') }}</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.category') }}</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.date') }}</th>
+            <th class="table-cell-head text-right">{{ t('forms.fields.amount') }}</th>
+            <th class="table-cell-head text-right">{{ t('overview.quickActions') }}</th>
           </tr>
           </thead>
 
@@ -361,10 +364,10 @@ function categoryLabel(transaction: Transaction) {
             <td class="table-cell align-top">
               <div class="row-actions">
                 <button class="mini-action-btn" @click="emit('edit-transaction', transaction)">
-                  Modifier
+                  {{ t('common.update') }}
                 </button>
                 <button class="mini-danger-btn" @click="emit('delete-transaction', transaction)">
-                  Supprimer
+                  {{ t('common.delete') }}
                 </button>
               </div>
             </td>
@@ -374,7 +377,7 @@ function categoryLabel(transaction: Transaction) {
       </div>
 
       <div v-else class="empty-state">
-        Aucune transaction enregistrée pour le moment.
+        {{ t('overview.noTransactions') }}
       </div>
     </section>
   </section>

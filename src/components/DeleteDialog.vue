@@ -32,6 +32,12 @@ const toneClass = computed(() => {
 
   return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300'
 })
+
+const toneLabel = computed(() => {
+  return props.type === 'transaction'
+      ? t('deleteDialog.sensitiveAction')
+      : t('deleteDialog.permanentDeletion')
+})
 </script>
 
 <template>
@@ -53,14 +59,14 @@ const toneClass = computed(() => {
 
         <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold"
               :class="toneClass">
-          {{ type === 'transaction' ? 'Action sensible' : 'Suppression définitive' }}
+          {{ toneLabel }}
         </span>
       </div>
 
       <div
           class="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40">
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-          Élément concerné
+          {{ t('deleteDialog.affectedItem') }}
         </p>
         <p class="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
           {{ label }}

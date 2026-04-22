@@ -19,7 +19,6 @@ import type {
 } from '../types/budget'
 import {currentLocaleCode, tr} from '../i18n'
 import {kindLabel} from '../utils/budgetFormat'
-import {collapseTransferTransactions} from '../utils/transferDisplay'
 
 export function useBudgetData(
     showNotice: (type: 'success' | 'error', text: string) => void,
@@ -111,7 +110,7 @@ export function useBudgetData(
     function parsePositive(value: string | number, fieldLabel: string) {
         const parsed = Number(value)
         if (!Number.isFinite(parsed) || parsed <= 0) {
-            throw new Error(`${fieldLabel} doit être un nombre strictement positif.`)
+            throw new Error(tr('notices.strictlyPositiveField', {field: fieldLabel}))
         }
         return parsed
     }
@@ -121,13 +120,13 @@ export function useBudgetData(
     }
 
     function deleteDialogHeading(type: EntityType, entity: Transaction | AccountSummary | CategorySummary | Account | Category) {
-        if (type === 'account') return 'Supprimer le compte'
-        if (type === 'category') return 'Supprimer la catégorie'
+        if (type === 'account') return tr('deleteDialog.deleteAccount')
+        if (type === 'category') return tr('deleteDialog.deleteCategory')
 
         const transaction = entity as Transaction
         return transaction.kind === 'TRANSFER'
-            ? 'Supprimer le transfert interne'
-            : 'Supprimer la transaction'
+            ? tr('deleteDialog.deleteTransfer')
+            : tr('deleteDialog.deleteTransaction')
     }
 
     function collapseTransferTransactions(list: Transaction[]) {
@@ -346,7 +345,7 @@ export function useBudgetData(
 
         const transaction = entity as Transaction
         deleteDialog.message = transaction.kind === 'TRANSFER'
-            ? 'Supprimer ce transfert interne supprimera aussi le mouvement lié dans l’autre compte.'
+            ? tr('deleteDialog.transferCascade')
             : tr('deleteDialog.transactionSimple')
     }
 
@@ -575,18 +574,18 @@ export function useBudgetData(
 
     async function quoteTransactionFx() {
         if (!transactionForm.accountId) {
-            showNotice('error', 'Il faut sélectionner un compte avant de convertir.')
+            showNotice('error', tr('notices.accountRequiredBeforeFx'))
             return
         }
 
         if (transactionForm.kind === 'TRANSFER' && !transactionForm.transferTargetAccountId) {
-            showNotice('error', 'Il faut sélectionner un compte destination avant de convertir.')
+            showNotice('error', tr('notices.transferTargetRequiredBeforeFx'))
             return
         }
 
         const sourceCurrency = transactionSourceCurrency.value
         const targetCurrency = transactionTargetCurrency.value
-        const sourceAmount = parsePositive(transactionForm.amount, 'Le montant saisi')
+        const sourceAmount = parsePositive(transactionForm.amount, tr('forms.fields.enteredAmount'))
 
         fxBusy.value = true
         try {
@@ -641,12 +640,12 @@ export function useBudgetData(
 
         if (transactionForm.kind === 'TRANSFER') {
             if (!transactionForm.transferTargetAccountId) {
-                showNotice('error', 'Il faut sélectionner un compte destination.')
+                showNotice('error', tr('notices.transferTargetRequired'))
                 return
             }
 
             if (transactionForm.transferTargetAccountId === transactionForm.accountId) {
-                showNotice('error', 'Le compte source et le compte destination doivent être différents.')
+                showNotice('error', tr('notices.transferAccountsMustDiffer'))
                 return
             }
         }
@@ -684,7 +683,9 @@ export function useBudgetData(
                 } else {
                     bookedAmount = parsePositive(
                         transactionForm.accountAmount,
-                        transactionForm.kind === 'TRANSFER' ? 'Le montant crédité' : 'Le montant comptabilisé',
+                        transactionForm.kind === 'TRANSFER'
+                            ? tr('forms.fields.creditedAmountPlain')
+                            : tr('forms.fields.accountAmountPlain'),
                     )
                     conversionMode = 'MANUAL'
                     exchangeRate = bookedAmount / sourceAmount
@@ -985,15 +986,15 @@ export function useBudgetData(
     const panelDescription = computed(() => {
         if (createTab.value === 'transaction' && transactionForm.kind === 'TRANSFER') {
             return panelMode.value === 'create'
-                ? 'Crée un vrai transfert interne entre deux comptes, avec aperçu du débit, du crédit et de la conversion éventuelle.'
-                : 'Modifie ce transfert interne : les deux mouvements liés seront mis à jour ensemble.'
+                ? tr('forms.descriptions.transferCreate')
+                : tr('forms.descriptions.transferEdit')
         }
 
         if (panelMode.value === 'create') {
-            return 'Crée rapidement des transactions, comptes ou catégories, y compris en devise étrangère.'
+            return tr('forms.descriptions.createExtended')
         }
 
-        return 'Édite les données existantes, puis enregistre ou supprime si nécessaire.'
+        return tr('forms.descriptions.edit')
     })
 
     const panelSubmitLabel = computed(() => {

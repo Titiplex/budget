@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {useI18n} from 'vue-i18n'
 import type {
   ReportAccountRow,
   ReportAccountTypeRow,
@@ -10,7 +11,7 @@ import type {
   ReportSummary,
   ReportWeekdayRow,
 } from '../types/budget'
-import {accountTypeLabel, formatDate, formatMoney} from '../utils/budgetFormat'
+import {accountTypeLabel, formatDate, formatMoney, kindLabel} from '../utils/budgetFormat'
 
 defineProps<{
   preset: ReportPreset
@@ -33,14 +34,24 @@ const emit = defineEmits<{
   (e: 'export-report'): void
 }>()
 
+const {t} = useI18n()
+
+function categoryNatureLabel(kind: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'MIXED') {
+  if (kind === 'MIXED') {
+    return t('reports.mixedNature')
+  }
+
+  return kindLabel(kind)
+}
+
 function deltaText(value: number, suffix = '') {
-  if (value === 0) return `stable${suffix}`
+  if (value === 0) return t('reports.stable') + suffix
   return `${value > 0 ? '+' : ''}${value.toFixed(1)}${suffix}`
 }
 
 function percentText(value: number | null) {
-  if (value == null) return 'base précédente nulle'
-  if (value === 0) return 'stable'
+  if (value == null) return t('reports.previousBaseZero')
+  if (value === 0) return t('reports.stable')
   return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
 }
 
@@ -56,41 +67,40 @@ function deltaClass(value: number, invert = false) {
     <section class="panel p-6">
       <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p class="soft-kicker">Rapports</p>
+          <p class="soft-kicker">{{ t('reports.sectionName') }}</p>
           <h2 class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-            Rapports de période et analyses avancées
+            {{ t('reports.title') }}
           </h2>
           <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            Défini une période, inspecte les finances par type de compte, compte, catégorie et devise, puis exporte un
-            rapport avec comparaison à la période précédente équivalente.
+            {{ t('reports.description') }}
           </p>
         </div>
 
         <div class="flex flex-wrap gap-2">
           <button class="ghost-btn" :class="{ 'tab-btn-active': preset === 'THIS_MONTH' }"
                   @click="emit('set-preset', 'THIS_MONTH')">
-            Ce mois
+            {{ t('reports.presets.thisMonth') }}
           </button>
           <button class="ghost-btn" :class="{ 'tab-btn-active': preset === 'LAST_30_DAYS' }"
                   @click="emit('set-preset', 'LAST_30_DAYS')">
-            30 jours
+            {{ t('reports.presets.last30Days') }}
           </button>
           <button class="ghost-btn" :class="{ 'tab-btn-active': preset === 'THIS_YEAR' }"
                   @click="emit('set-preset', 'THIS_YEAR')">
-            Cette année
+            {{ t('reports.presets.thisYear') }}
           </button>
           <button class="ghost-btn" :class="{ 'tab-btn-active': preset === 'ALL' }" @click="emit('set-preset', 'ALL')">
-            Tout
+            {{ t('reports.presets.all') }}
           </button>
           <button class="primary-btn" @click="emit('export-report')">
-            Exporter le rapport
+            {{ t('reports.exportReport') }}
           </button>
         </div>
       </div>
 
       <div class="mt-5 grid gap-4 md:grid-cols-2">
         <div class="field-block">
-          <label class="field-label">Début</label>
+          <label class="field-label">{{ t('forms.fields.startDate') }}</label>
           <input
               :value="startDate"
               type="date"
@@ -100,7 +110,7 @@ function deltaClass(value: number, invert = false) {
         </div>
 
         <div class="field-block">
-          <label class="field-label">Fin</label>
+          <label class="field-label">{{ t('forms.fields.endDate') }}</label>
           <input
               :value="endDate"
               type="date"
@@ -112,7 +122,7 @@ function deltaClass(value: number, invert = false) {
 
       <div
           class="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
-        Comparaison automatique avec la période précédente équivalente :
+        {{ t('reports.autoComparison') }}
         <strong>{{ formatDate(comparison.previousStartDate) }}</strong>
         →
         <strong>{{ formatDate(comparison.previousEndDate) }}</strong>
@@ -121,35 +131,35 @@ function deltaClass(value: number, invert = false) {
 
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
       <div class="stat-card">
-        <p class="stat-label">Transactions</p>
+        <p class="stat-label">{{ t('reports.summary.transactions') }}</p>
         <p class="stat-value">{{ summary.transactionCount }}</p>
         <p class="stat-hint" :class="deltaClass(comparison.transactionCount.delta)">
-          {{ percentText(comparison.transactionCount.deltaPercent) }} vs période précédente
+          {{ percentText(comparison.transactionCount.deltaPercent) }} {{ t('reports.vsPrevious') }}
         </p>
       </div>
       <div class="stat-card">
-        <p class="stat-label">Revenus</p>
+        <p class="stat-label">{{ t('reports.summary.income') }}</p>
         <p class="stat-value">{{ formatMoney(summary.income) }}</p>
         <p class="stat-hint" :class="deltaClass(comparison.income.delta)">
           {{ percentText(comparison.income.deltaPercent) }}
         </p>
       </div>
       <div class="stat-card">
-        <p class="stat-label">Dépenses</p>
+        <p class="stat-label">{{ t('reports.summary.expense') }}</p>
         <p class="stat-value">{{ formatMoney(summary.expense) }}</p>
         <p class="stat-hint" :class="deltaClass(comparison.expense.delta, true)">
           {{ percentText(comparison.expense.deltaPercent) }}
         </p>
       </div>
       <div class="stat-card">
-        <p class="stat-label">Net / épargne</p>
+        <p class="stat-label">{{ t('reports.summary.netSavings') }}</p>
         <p class="stat-value">{{ formatMoney(summary.net) }}</p>
         <p class="stat-hint" :class="deltaClass(comparison.net.delta)">
-          {{ deltaText(comparison.savingsRate.delta, ' pts') }} de taux d’épargne
+          {{ deltaText(comparison.savingsRate.delta, ` ${t('reports.pointsSuffix')}`) }}
         </p>
       </div>
       <div class="stat-card">
-        <p class="stat-label">Transferts internes</p>
+        <p class="stat-label">{{ t('reports.summary.internalTransfers') }}</p>
         <p class="stat-value">{{ summary.internalTransferCount }}</p>
         <p class="stat-hint" :class="deltaClass(comparison.internalTransferCount.delta, true)">
           {{ percentText(comparison.internalTransferCount.deltaPercent) }}
@@ -161,8 +171,8 @@ function deltaClass(value: number, invert = false) {
       <section class="panel xl:col-span-7">
         <div class="panel-header">
           <div>
-            <p class="panel-eyebrow">Comparaisons</p>
-            <h3 class="panel-title">Période vs période précédente</h3>
+            <p class="panel-eyebrow">{{ t('reports.comparisons') }}</p>
+            <h3 class="panel-title">{{ t('reports.periodVsPrevious') }}</h3>
           </div>
         </div>
 
@@ -170,16 +180,16 @@ function deltaClass(value: number, invert = false) {
           <table class="w-full min-w-[760px]">
             <thead>
             <tr class="table-head">
-              <th class="table-cell-head text-left">Indicateur</th>
-              <th class="table-cell-head text-right">Actuel</th>
-              <th class="table-cell-head text-right">Précédent</th>
-              <th class="table-cell-head text-right">Écart</th>
-              <th class="table-cell-head text-right">Écart %</th>
+              <th class="table-cell-head text-left">{{ t('reports.metric') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.current') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.previous') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.delta') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.deltaPercent') }}</th>
             </tr>
             </thead>
             <tbody>
             <tr class="table-row">
-              <td class="table-cell">Revenus</td>
+              <td class="table-cell">{{ t('reports.summary.income') }}</td>
               <td class="table-cell text-right">{{ formatMoney(comparison.income.current) }}</td>
               <td class="table-cell text-right">{{ formatMoney(comparison.income.previous) }}</td>
               <td class="table-cell text-right" :class="deltaClass(comparison.income.delta)">
@@ -188,7 +198,7 @@ function deltaClass(value: number, invert = false) {
               <td class="table-cell text-right">{{ percentText(comparison.income.deltaPercent) }}</td>
             </tr>
             <tr class="table-row">
-              <td class="table-cell">Dépenses</td>
+              <td class="table-cell">{{ t('reports.summary.expense') }}</td>
               <td class="table-cell text-right">{{ formatMoney(comparison.expense.current) }}</td>
               <td class="table-cell text-right">{{ formatMoney(comparison.expense.previous) }}</td>
               <td class="table-cell text-right" :class="deltaClass(comparison.expense.delta, true)">
@@ -197,7 +207,7 @@ function deltaClass(value: number, invert = false) {
               <td class="table-cell text-right">{{ percentText(comparison.expense.deltaPercent) }}</td>
             </tr>
             <tr class="table-row">
-              <td class="table-cell">Net</td>
+              <td class="table-cell">{{ t('reports.summary.net') }}</td>
               <td class="table-cell text-right">{{ formatMoney(comparison.net.current) }}</td>
               <td class="table-cell text-right">{{ formatMoney(comparison.net.previous) }}</td>
               <td class="table-cell text-right" :class="deltaClass(comparison.net.delta)">
@@ -206,16 +216,16 @@ function deltaClass(value: number, invert = false) {
               <td class="table-cell text-right">{{ percentText(comparison.net.deltaPercent) }}</td>
             </tr>
             <tr class="table-row">
-              <td class="table-cell">Taux d’épargne</td>
+              <td class="table-cell">{{ t('reports.summary.savingsRate') }}</td>
               <td class="table-cell text-right">{{ comparison.savingsRate.current.toFixed(1) }}%</td>
               <td class="table-cell text-right">{{ comparison.savingsRate.previous.toFixed(1) }}%</td>
               <td class="table-cell text-right" :class="deltaClass(comparison.savingsRate.delta)">
-                {{ deltaText(comparison.savingsRate.delta, ' pts') }}
+                {{ deltaText(comparison.savingsRate.delta, ` ${t('reports.pointsSuffix')}`) }}
               </td>
               <td class="table-cell text-right">{{ percentText(comparison.savingsRate.deltaPercent) }}</td>
             </tr>
             <tr class="table-row">
-              <td class="table-cell">Transferts internes</td>
+              <td class="table-cell">{{ t('reports.summary.internalTransfers') }}</td>
               <td class="table-cell text-right">{{ comparison.internalTransferCount.current }}</td>
               <td class="table-cell text-right">{{ comparison.internalTransferCount.previous }}</td>
               <td class="table-cell text-right">{{ comparison.internalTransferCount.delta }}</td>
@@ -229,8 +239,8 @@ function deltaClass(value: number, invert = false) {
       <section class="panel xl:col-span-5">
         <div class="panel-header">
           <div>
-            <p class="panel-eyebrow">Insights</p>
-            <h3 class="panel-title">Points saillants</h3>
+            <p class="panel-eyebrow">{{ t('reports.insights') }}</p>
+            <h3 class="panel-title">{{ t('reports.highlights') }}</h3>
           </div>
         </div>
 
@@ -247,8 +257,8 @@ function deltaClass(value: number, invert = false) {
       <section class="panel xl:col-span-6">
         <div class="panel-header">
           <div>
-            <p class="panel-eyebrow">Types de comptes</p>
-            <h3 class="panel-title">Répartition par type</h3>
+            <p class="panel-eyebrow">{{ t('reports.accountTypes') }}</p>
+            <h3 class="panel-title">{{ t('reports.breakdownByAccountType') }}</h3>
           </div>
         </div>
 
@@ -256,12 +266,12 @@ function deltaClass(value: number, invert = false) {
           <table class="w-full min-w-[760px]">
             <thead>
             <tr class="table-head">
-              <th class="table-cell-head text-left">Type</th>
-              <th class="table-cell-head text-right">Comptes</th>
-              <th class="table-cell-head text-right">Transactions</th>
-              <th class="table-cell-head text-right">Revenus</th>
-              <th class="table-cell-head text-right">Dépenses</th>
-              <th class="table-cell-head text-right">Net</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.type') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.accounts') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.summary.transactions') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.summary.income') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.summary.expense') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.summary.net') }}</th>
             </tr>
             </thead>
             <tbody>
@@ -281,8 +291,8 @@ function deltaClass(value: number, invert = false) {
       <section class="panel xl:col-span-6">
         <div class="panel-header">
           <div>
-            <p class="panel-eyebrow">Comptes</p>
-            <h3 class="panel-title">Performance par compte</h3>
+            <p class="panel-eyebrow">{{ t('reports.accountsSection') }}</p>
+            <h3 class="panel-title">{{ t('reports.accountPerformance') }}</h3>
           </div>
         </div>
 
@@ -290,11 +300,11 @@ function deltaClass(value: number, invert = false) {
           <table class="w-full min-w-[760px]">
             <thead>
             <tr class="table-head">
-              <th class="table-cell-head text-left">Compte</th>
-              <th class="table-cell-head text-left">Type</th>
-              <th class="table-cell-head text-left">Devise</th>
-              <th class="table-cell-head text-right">Tx</th>
-              <th class="table-cell-head text-right">Net</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.account') }}</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.type') }}</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.currency') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.txShort') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.summary.net') }}</th>
             </tr>
             </thead>
             <tbody>
@@ -315,8 +325,8 @@ function deltaClass(value: number, invert = false) {
       <section class="panel xl:col-span-6">
         <div class="panel-header">
           <div>
-            <p class="panel-eyebrow">Catégories</p>
-            <h3 class="panel-title">Top catégories</h3>
+            <p class="panel-eyebrow">{{ t('reports.categories') }}</p>
+            <h3 class="panel-title">{{ t('reports.topCategories') }}</h3>
           </div>
         </div>
 
@@ -324,16 +334,16 @@ function deltaClass(value: number, invert = false) {
           <table class="w-full min-w-[680px]">
             <thead>
             <tr class="table-head">
-              <th class="table-cell-head text-left">Catégorie</th>
-              <th class="table-cell-head text-left">Nature</th>
-              <th class="table-cell-head text-right">Tx</th>
-              <th class="table-cell-head text-right">Total</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.category') }}</th>
+              <th class="table-cell-head text-left">{{ t('reports.nature') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.txShort') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.total') }}</th>
             </tr>
             </thead>
             <tbody>
             <tr v-for="row in categoryRows.slice(0, 12)" :key="`${row.categoryId}-${row.name}`" class="table-row">
               <td class="table-cell">{{ row.name }}</td>
-              <td class="table-cell">{{ row.kind }}</td>
+              <td class="table-cell">{{ categoryNatureLabel(row.kind) }}</td>
               <td class="table-cell text-right">{{ row.transactionCount }}</td>
               <td class="table-cell text-right">{{ formatMoney(row.total) }}</td>
             </tr>
@@ -345,8 +355,8 @@ function deltaClass(value: number, invert = false) {
       <section class="panel xl:col-span-6">
         <div class="panel-header">
           <div>
-            <p class="panel-eyebrow">Devises</p>
-            <h3 class="panel-title">Transactions en devise étrangère</h3>
+            <p class="panel-eyebrow">{{ t('reports.currencies') }}</p>
+            <h3 class="panel-title">{{ t('reports.foreignCurrencyTransactions') }}</h3>
           </div>
         </div>
 
@@ -354,10 +364,10 @@ function deltaClass(value: number, invert = false) {
           <table class="w-full min-w-[680px]">
             <thead>
             <tr class="table-head">
-              <th class="table-cell-head text-left">Devise</th>
-              <th class="table-cell-head text-right">Tx</th>
-              <th class="table-cell-head text-right">Total source</th>
-              <th class="table-cell-head text-right">Total compta</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.currency') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.txShort') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.sourceTotal') }}</th>
+              <th class="table-cell-head text-right">{{ t('reports.bookedTotal') }}</th>
             </tr>
             </thead>
             <tbody>
@@ -372,7 +382,7 @@ function deltaClass(value: number, invert = false) {
         </div>
 
         <div v-else class="empty-state">
-          Aucune transaction multidevise sur cette période.
+          {{ t('reports.noForeignCurrencyTransactions') }}
         </div>
       </section>
     </div>
@@ -380,8 +390,8 @@ function deltaClass(value: number, invert = false) {
     <section class="panel xl:col-span-6">
       <div class="panel-header">
         <div>
-          <p class="panel-eyebrow">Habitudes</p>
-          <h3 class="panel-title">Dépenses par jour de semaine</h3>
+          <p class="panel-eyebrow">{{ t('reports.habits') }}</p>
+          <h3 class="panel-title">{{ t('reports.expenseByWeekday') }}</h3>
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed} from 'vue'
+import {useI18n} from 'vue-i18n'
 import type {
   Account,
   Category,
@@ -69,17 +70,30 @@ const emit = defineEmits<{
   (e: 'submit-template'): void
 }>()
 
-function frequencyLabel(frequency: RecurringFrequency, intervalCount: number) {
-  const base =
-      frequency === 'DAILY'
-          ? 'jour'
-          : frequency === 'WEEKLY'
-              ? 'semaine'
-              : frequency === 'MONTHLY'
-                  ? 'mois'
-                  : 'an'
+const {t} = useI18n()
 
-  return intervalCount === 1 ? `Chaque ${base}` : `Tous les ${intervalCount} ${base}s`
+function frequencyLabel(frequency: RecurringFrequency, intervalCount: number) {
+  if (frequency === 'DAILY') {
+    return intervalCount === 1
+        ? t('recurring.frequency.dailyOnce')
+        : t('recurring.frequency.dailyEvery', {count: intervalCount})
+  }
+
+  if (frequency === 'WEEKLY') {
+    return intervalCount === 1
+        ? t('recurring.frequency.weeklyOnce')
+        : t('recurring.frequency.weeklyEvery', {count: intervalCount})
+  }
+
+  if (frequency === 'MONTHLY') {
+    return intervalCount === 1
+        ? t('recurring.frequency.monthlyOnce')
+        : t('recurring.frequency.monthlyEvery', {count: intervalCount})
+  }
+
+  return intervalCount === 1
+      ? t('recurring.frequency.yearlyOnce')
+      : t('recurring.frequency.yearlyEvery', {count: intervalCount})
 }
 
 function statusPillClass(row: RecurringTemplateRow) {
@@ -96,10 +110,10 @@ function statusPillClass(row: RecurringTemplateRow) {
 }
 
 function statusLabel(row: RecurringTemplateRow) {
-  if (!row.isActive) return 'Inactive'
-  if (row.overdue) return 'En retard'
-  if (row.dueCount > 0) return 'À générer'
-  return 'Planifiée'
+  if (!row.isActive) return t('recurring.status.inactive')
+  if (row.overdue) return t('recurring.status.overdue')
+  if (row.dueCount > 0) return t('recurring.status.due')
+  return t('recurring.status.scheduled')
 }
 
 const selectedAccountCurrency = computed(() => {
@@ -118,36 +132,36 @@ const isForeignCurrency = computed(() => {
   <section class="space-y-6">
     <div class="flex flex-wrap items-center justify-end gap-2">
       <button class="ghost-btn" :disabled="generating" @click="emit('generate-all')">
-        {{ generating ? 'Génération…' : 'Générer toutes les occurrences dues' }}
+        {{ generating ? t('recurring.generating') : t('recurring.generateAll') }}
       </button>
       <button class="primary-btn" @click="emit('open-create')">
-        Ajouter une récurrence
+        {{ t('recurring.addRecurring') }}
       </button>
     </div>
 
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <div class="stat-card">
-        <p class="stat-label">Templates</p>
+        <p class="stat-label">{{ t('recurring.templates') }}</p>
         <p class="stat-value">{{ summary.total }}</p>
-        <p class="stat-hint">Récurrences configurées</p>
+        <p class="stat-hint">{{ t('recurring.templatesHint') }}</p>
       </div>
 
       <div class="stat-card">
-        <p class="stat-label">Engagement mensuel dépenses</p>
+        <p class="stat-label">{{ t('recurring.monthlyExpenseCommitment') }}</p>
         <p class="stat-value">{{ formatMoney(insights.monthlyExpenseCommitment) }}</p>
-        <p class="stat-hint">Charges structurelles estimées</p>
+        <p class="stat-hint">{{ t('recurring.monthlyExpenseCommitmentHint') }}</p>
       </div>
 
       <div class="stat-card">
-        <p class="stat-label">Engagement mensuel revenus</p>
+        <p class="stat-label">{{ t('recurring.monthlyIncomeCommitment') }}</p>
         <p class="stat-value">{{ formatMoney(insights.monthlyIncomeCommitment) }}</p>
-        <p class="stat-hint">Entrées régulières estimées</p>
+        <p class="stat-hint">{{ t('recurring.monthlyIncomeCommitmentHint') }}</p>
       </div>
 
       <div class="stat-card">
-        <p class="stat-label">Net mensuel récurrent</p>
+        <p class="stat-label">{{ t('recurring.monthlyNetCommitment') }}</p>
         <p class="stat-value">{{ formatMoney(insights.netMonthlyCommitment) }}</p>
-        <p class="stat-hint">Projection récurrente</p>
+        <p class="stat-hint">{{ t('recurring.monthlyNetCommitmentHint') }}</p>
       </div>
     </div>
 
@@ -155,8 +169,8 @@ const isForeignCurrency = computed(() => {
       <section class="panel xl:col-span-7">
         <div class="panel-header">
           <div>
-            <p class="panel-eyebrow">Court terme</p>
-            <h3 class="panel-title">Prochaines occurrences sur 30 jours</h3>
+            <p class="panel-eyebrow">{{ t('recurring.shortTerm') }}</p>
+            <h3 class="panel-title">{{ t('recurring.next30DaysOccurrences') }}</h3>
           </div>
         </div>
 
@@ -164,11 +178,11 @@ const isForeignCurrency = computed(() => {
           <table class="w-full min-w-[760px]">
             <thead>
             <tr class="table-head">
-              <th class="table-cell-head text-left">Date</th>
-              <th class="table-cell-head text-left">Libellé</th>
-              <th class="table-cell-head text-left">Compte</th>
-              <th class="table-cell-head text-left">Catégorie</th>
-              <th class="table-cell-head text-right">Montant</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.date') }}</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.label') }}</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.account') }}</th>
+              <th class="table-cell-head text-left">{{ t('forms.fields.category') }}</th>
+              <th class="table-cell-head text-right">{{ t('forms.fields.amount') }}</th>
             </tr>
             </thead>
             <tbody>
@@ -190,42 +204,42 @@ const isForeignCurrency = computed(() => {
         </div>
 
         <div v-else class="empty-state">
-          Aucune occurrence prévue dans les 30 prochains jours.
+          {{ t('recurring.noUpcoming30Days') }}
         </div>
       </section>
 
       <section class="panel xl:col-span-5">
         <div class="panel-header">
           <div>
-            <p class="panel-eyebrow">Projection 30 jours</p>
-            <h3 class="panel-title">Impact attendu</h3>
+            <p class="panel-eyebrow">{{ t('recurring.projection30Days') }}</p>
+            <h3 class="panel-title">{{ t('recurring.expectedImpact') }}</h3>
           </div>
         </div>
 
         <div class="space-y-3 px-6 pb-6">
           <div class="mini-card">
-            <p class="mini-label">Dépenses prévues</p>
+            <p class="mini-label">{{ t('recurring.expectedExpenses') }}</p>
             <p class="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
               {{ formatMoney(insights.next30DaysExpense) }}
             </p>
           </div>
 
           <div class="mini-card">
-            <p class="mini-label">Revenus prévus</p>
+            <p class="mini-label">{{ t('recurring.expectedIncome') }}</p>
             <p class="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
               {{ formatMoney(insights.next30DaysIncome) }}
             </p>
           </div>
 
           <div class="mini-card">
-            <p class="mini-label">Net attendu</p>
+            <p class="mini-label">{{ t('recurring.expectedNet') }}</p>
             <p class="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
               {{ formatMoney(insights.next30DaysNet) }}
             </p>
           </div>
 
           <div class="mini-card">
-            <p class="mini-label">Occurrences à venir</p>
+            <p class="mini-label">{{ t('recurring.upcomingOccurrences') }}</p>
             <p class="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
               {{ insights.upcomingCount }}
             </p>
@@ -237,8 +251,8 @@ const isForeignCurrency = computed(() => {
     <section class="panel">
       <div class="panel-header">
         <div>
-          <p class="panel-eyebrow">Automatisation</p>
-          <h3 class="panel-title">Transactions récurrentes</h3>
+          <p class="panel-eyebrow">{{ t('recurring.automation') }}</p>
+          <h3 class="panel-title">{{ t('recurring.recurringTransactions') }}</h3>
         </div>
       </div>
 
@@ -246,14 +260,14 @@ const isForeignCurrency = computed(() => {
         <table class="w-full min-w-[1180px]">
           <thead>
           <tr class="table-head">
-            <th class="table-cell-head text-left">Libellé</th>
-            <th class="table-cell-head text-left">Montant</th>
-            <th class="table-cell-head text-left">Compte</th>
-            <th class="table-cell-head text-left">Catégorie</th>
-            <th class="table-cell-head text-left">Rythme</th>
-            <th class="table-cell-head text-left">Prochaine occurrence</th>
-            <th class="table-cell-head text-left">Statut</th>
-            <th class="table-cell-head text-right">Actions</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.label') }}</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.amount') }}</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.account') }}</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.category') }}</th>
+            <th class="table-cell-head text-left">{{ t('recurring.frequencyLabel') }}</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.nextOccurrenceDate') }}</th>
+            <th class="table-cell-head text-left">{{ t('budgets.statusLabel') }}</th>
+            <th class="table-cell-head text-right">{{ t('overview.quickActions') }}</th>
           </tr>
           </thead>
           <tbody>
@@ -274,7 +288,7 @@ const isForeignCurrency = computed(() => {
                   {{ formatMoney(row.sourceAmount, row.sourceCurrency) }}
                 </p>
                 <p v-if="row.sourceCurrency !== row.accountCurrency" class="text-xs text-slate-500 dark:text-slate-400">
-                  compte: {{ row.accountCurrency }}
+                  {{ t('recurring.accountCurrency') }}: {{ row.accountCurrency }}
                 </p>
               </div>
             </td>
@@ -295,7 +309,7 @@ const isForeignCurrency = computed(() => {
               <div>
                 <p>{{ formatDate(row.nextOccurrenceDate) }}</p>
                 <p v-if="row.endDate" class="text-xs text-slate-500 dark:text-slate-400">
-                  fin: {{ formatDate(row.endDate) }}
+                  {{ t('forms.fields.endDate') }}: {{ formatDate(row.endDate) }}
                 </p>
               </div>
             </td>
@@ -307,7 +321,7 @@ const isForeignCurrency = computed(() => {
                     {{ statusLabel(row) }}
                   </span>
                 <p v-if="row.dueCount > 0" class="text-xs text-slate-500 dark:text-slate-400">
-                  {{ row.dueCount }} occurrence(s) due(s)
+                  {{ t('recurring.dueOccurrencesCount', {count: row.dueCount}) }}
                 </p>
               </div>
             </td>
@@ -319,13 +333,13 @@ const isForeignCurrency = computed(() => {
                     :disabled="row.dueCount === 0 || generating"
                     @click="emit('generate-template', row.templateId)"
                 >
-                  Générer
+                  {{ t('recurring.generate') }}
                 </button>
                 <button class="mini-action-btn" @click="emit('open-edit', row)">
-                  Modifier
+                  {{ t('common.update') }}
                 </button>
                 <button class="mini-danger-btn" @click="emit('delete-template', row.templateId)">
-                  Supprimer
+                  {{ t('common.delete') }}
                 </button>
               </div>
             </td>
@@ -335,7 +349,7 @@ const isForeignCurrency = computed(() => {
       </div>
 
       <div v-else class="empty-state">
-        Aucune récurrence définie pour le moment.
+        {{ t('recurring.empty') }}
       </div>
     </section>
 
@@ -345,47 +359,47 @@ const isForeignCurrency = computed(() => {
         @click.self="emit('close-dialog')"
     >
       <div class="dialog-card max-w-3xl">
-        <p class="soft-kicker">Récurrences</p>
+        <p class="soft-kicker">{{ t('recurring.sectionName') }}</p>
         <h3 class="dialog-title">
-          {{ editingRecurringId ? 'Modifier la récurrence' : 'Créer une récurrence' }}
+          {{ editingRecurringId ? t('recurring.editRecurring') : t('recurring.createRecurring') }}
         </h3>
         <p class="dialog-text">
-          Configure un template, puis génère les occurrences dues quand tu le souhaites.
+          {{ t('recurring.dialogDescription') }}
         </p>
 
         <form class="mt-6 space-y-5" @submit.prevent="emit('submit-template')">
           <div class="grid gap-4 md:grid-cols-2">
             <label class="field-block md:col-span-2">
-              <span class="field-label">Libellé</span>
+              <span class="field-label">{{ t('forms.fields.label') }}</span>
               <input v-model="recurringForm.label" type="text" class="field-control"
-                     placeholder="Loyer, Spotify, Salaire..."/>
+                     :placeholder="t('recurring.placeholders.label')"/>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Montant source</span>
+              <span class="field-label">{{ t('forms.fields.sourceAmount') }}</span>
               <input v-model="recurringForm.sourceAmount" type="number" min="0" step="0.01" class="field-control"
                      placeholder="0.00"/>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Devise source</span>
+              <span class="field-label">{{ t('forms.fields.sourceCurrency') }}</span>
               <input v-model="recurringForm.sourceCurrency" type="text" maxlength="6" class="field-control"
-                     placeholder="CAD, EUR, USD..."/>
+                     :placeholder="t('recurring.placeholders.sourceCurrency')"/>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Type</span>
+              <span class="field-label">{{ t('forms.fields.type') }}</span>
               <select v-model="recurringForm.kind" class="field-control">
-                <option value="EXPENSE">Dépense</option>
-                <option value="INCOME">Revenu</option>
-                <option value="TRANSFER">Transfert</option>
+                <option value="EXPENSE">{{ kindLabel('EXPENSE') }}</option>
+                <option value="INCOME">{{ kindLabel('INCOME') }}</option>
+                <option value="TRANSFER">{{ kindLabel('TRANSFER') }}</option>
               </select>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Compte</span>
+              <span class="field-label">{{ t('forms.fields.account') }}</span>
               <select v-model="recurringForm.accountId" class="field-control">
-                <option value="">Sélectionner un compte</option>
+                <option value="">{{ t('forms.placeholders.selectAccount') }}</option>
                 <option v-for="account in accounts" :key="account.id" :value="String(account.id)">
                   {{ account.name }} ({{ account.currency }})
                 </option>
@@ -393,40 +407,40 @@ const isForeignCurrency = computed(() => {
             </label>
 
             <label class="field-block">
-              <span class="field-label">Fréquence</span>
+              <span class="field-label">{{ t('forms.fields.frequency') }}</span>
               <select v-model="recurringForm.frequency" class="field-control">
-                <option value="DAILY">Quotidienne</option>
-                <option value="WEEKLY">Hebdomadaire</option>
-                <option value="MONTHLY">Mensuelle</option>
-                <option value="YEARLY">Annuelle</option>
+                <option value="DAILY">{{ t('recurring.frequency.daily') }}</option>
+                <option value="WEEKLY">{{ t('recurring.frequency.weekly') }}</option>
+                <option value="MONTHLY">{{ t('recurring.frequency.monthly') }}</option>
+                <option value="YEARLY">{{ t('recurring.frequency.yearly') }}</option>
               </select>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Intervalle</span>
+              <span class="field-label">{{ t('forms.fields.intervalCount') }}</span>
               <input v-model="recurringForm.intervalCount" type="number" min="1" step="1" class="field-control"
                      placeholder="1"/>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Début</span>
+              <span class="field-label">{{ t('forms.fields.startDate') }}</span>
               <input v-model="recurringForm.startDate" type="date" class="field-control"/>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Prochaine occurrence</span>
+              <span class="field-label">{{ t('forms.fields.nextOccurrenceDate') }}</span>
               <input v-model="recurringForm.nextOccurrenceDate" type="date" class="field-control"/>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Fin</span>
+              <span class="field-label">{{ t('forms.fields.endDate') }}</span>
               <input v-model="recurringForm.endDate" type="date" class="field-control"/>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Catégorie</span>
+              <span class="field-label">{{ t('forms.fields.category') }}</span>
               <select v-model="recurringForm.categoryId" class="field-control">
-                <option value="">Sans catégorie</option>
+                <option value="">{{ t('recurring.noCategory') }}</option>
                 <option v-for="category in categories" :key="category.id" :value="String(category.id)">
                   {{ category.name }}
                 </option>
@@ -434,41 +448,43 @@ const isForeignCurrency = computed(() => {
             </label>
 
             <label class="field-block md:col-span-2">
-              <span class="field-label">Note</span>
+              <span class="field-label">{{ t('forms.fields.note') }}</span>
               <textarea v-model="recurringForm.note" rows="3" class="field-control field-textarea"
-                        placeholder="Optionnel"/>
+                        :placeholder="t('common.optional')"/>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Actif</span>
+              <span class="field-label">{{ t('forms.fields.active') }}</span>
               <select v-model="recurringForm.isActive" class="field-control">
-                <option :value="true">Oui</option>
-                <option :value="false">Non</option>
+                <option :value="true">{{ t('common.yes') }}</option>
+                <option :value="false">{{ t('common.no') }}</option>
               </select>
             </label>
           </div>
 
           <div v-if="recurringForm.accountId" class="mini-card">
-            <p class="mini-label">Devise du compte</p>
+            <p class="mini-label">{{ t('recurring.accountCurrency') }}</p>
             <p class="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
               {{ selectedAccountCurrency }}
             </p>
           </div>
 
           <div v-if="isForeignCurrency" class="mini-card space-y-4">
-            <p class="mini-label">Conversion multidevise</p>
+            <p class="mini-label">{{ t('recurring.multicurrencyConversion') }}</p>
 
             <div class="grid gap-4 md:grid-cols-3">
               <label class="field-block">
-                <span class="field-label">Mode</span>
+                <span class="field-label">{{ t('forms.fields.conversionMode') }}</span>
                 <select v-model="recurringForm.conversionMode" class="field-control">
-                  <option value="AUTOMATIC">Automatique</option>
-                  <option value="MANUAL">Manuel</option>
+                  <option value="AUTOMATIC">{{ t('common.automatic') }}</option>
+                  <option value="MANUAL">{{ t('common.manual') }}</option>
                 </select>
               </label>
 
               <label class="field-block">
-                <span class="field-label">Montant compte ({{ selectedAccountCurrency }})</span>
+                <span class="field-label">{{
+                    t('forms.fields.accountAmount', {currency: selectedAccountCurrency})
+                  }}</span>
                 <input
                     v-model="recurringForm.accountAmount"
                     type="number"
@@ -480,7 +496,7 @@ const isForeignCurrency = computed(() => {
               </label>
 
               <label class="field-block">
-                <span class="field-label">Taux</span>
+                <span class="field-label">{{ t('forms.fields.exchangeRate') }}</span>
                 <input
                     v-model="recurringForm.exchangeRate"
                     type="number"
@@ -493,27 +509,27 @@ const isForeignCurrency = computed(() => {
             </div>
 
             <label class="field-block">
-              <span class="field-label">Source du taux</span>
+              <span class="field-label">{{ t('forms.fields.exchangeProvider') }}</span>
               <input
                   v-model="recurringForm.exchangeProvider"
                   type="text"
                   class="field-control"
                   :readonly="recurringForm.conversionMode === 'AUTOMATIC'"
-                  placeholder="MANUAL / ECB via Frankfurter"
+                  :placeholder="t('recurring.placeholders.exchangeProvider')"
               />
             </label>
 
             <div v-if="recurringForm.conversionMode === 'AUTOMATIC'" class="inline-warning">
-              Le taux sera recalculé à chaque occurrence, à sa date propre.
+              {{ t('recurring.automaticFxNotice') }}
             </div>
           </div>
 
           <div class="form-actions">
             <button type="button" class="ghost-btn" @click="emit('close-dialog')">
-              Annuler
+              {{ t('common.cancel') }}
             </button>
             <button type="submit" class="primary-btn" :disabled="saving">
-              {{ saving ? 'Enregistrement…' : (editingRecurringId ? 'Mettre à jour' : 'Créer') }}
+              {{ saving ? t('common.loading') : (editingRecurringId ? t('common.update') : t('common.create')) }}
             </button>
           </div>
         </form>

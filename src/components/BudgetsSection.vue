@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import {useI18n} from 'vue-i18n'
 import type {BudgetPeriod, BudgetProgressRow, Category} from '../types/budget'
 import {formatDate, formatMoney} from '../utils/budgetFormat'
 
-defineProps<{
+const props = defineProps<{
   categories: Category[]
   rows: BudgetProgressRow[]
   summary: {
@@ -38,6 +39,8 @@ const emit = defineEmits<{
   (e: 'submit-budget'): void
 }>()
 
+const {t} = useI18n()
+
 function statusPillClass(status: BudgetProgressRow['status']) {
   if (status === 'OVER') {
     return 'border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300'
@@ -49,9 +52,15 @@ function statusPillClass(status: BudgetProgressRow['status']) {
 }
 
 function periodLabel(period: BudgetPeriod) {
-  if (period === 'MONTHLY') return 'Mensuel'
-  if (period === 'YEARLY') return 'Annuel'
-  return 'Personnalisé'
+  if (period === 'MONTHLY') return t('budgets.period.monthly')
+  if (period === 'YEARLY') return t('budgets.period.yearly')
+  return t('budgets.period.custom')
+}
+
+function statusLabel(status: BudgetProgressRow['status']) {
+  if (status === 'OVER') return t('budgets.status.over')
+  if (status === 'NEAR') return t('budgets.status.near')
+  return t('budgets.status.under')
 }
 </script>
 
@@ -59,41 +68,43 @@ function periodLabel(period: BudgetPeriod) {
   <section class="space-y-6">
     <div class="flex items-center justify-end">
       <button class="primary-btn" @click="emit('open-create')">
-        Ajouter un budget
+        {{ t('budgets.addBudget') }}
       </button>
     </div>
 
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <div class="stat-card">
-        <p class="stat-label">Budgets actifs</p>
+        <p class="stat-label">{{ t('budgets.activeBudgets') }}</p>
         <p class="stat-value">{{ summary.count }}</p>
-        <p class="stat-hint">Objectifs actuellement suivis</p>
+        <p class="stat-hint">{{ t('budgets.activeBudgetsHint') }}</p>
       </div>
 
       <div class="stat-card">
-        <p class="stat-label">Cible totale</p>
+        <p class="stat-label">{{ t('budgets.totalTarget') }}</p>
         <p class="stat-value">{{ formatMoney(summary.targetAmount) }}</p>
-        <p class="stat-hint">Budget cumulé</p>
+        <p class="stat-hint">{{ t('budgets.totalTargetHint') }}</p>
       </div>
 
       <div class="stat-card">
-        <p class="stat-label">Consommé</p>
+        <p class="stat-label">{{ t('budgets.spent') }}</p>
         <p class="stat-value">{{ formatMoney(summary.spentAmount) }}</p>
-        <p class="stat-hint">Dépenses suivies</p>
+        <p class="stat-hint">{{ t('budgets.spentHint') }}</p>
       </div>
 
       <div class="stat-card">
-        <p class="stat-label">Alertes</p>
-        <p class="stat-value text-xl">{{ summary.overCount }} over · {{ summary.nearCount }} near</p>
-        <p class="stat-hint">Budgets à surveiller</p>
+        <p class="stat-label">{{ t('budgets.alerts') }}</p>
+        <p class="stat-value text-xl">{{
+            t('budgets.alertsValue', {over: summary.overCount, near: summary.nearCount})
+          }}</p>
+        <p class="stat-hint">{{ t('budgets.alertsHint') }}</p>
       </div>
     </div>
 
     <section class="panel">
       <div class="panel-header">
         <div>
-          <p class="panel-eyebrow">Pilotage budgétaire</p>
-          <h3 class="panel-title">Suivi par catégorie</h3>
+          <p class="panel-eyebrow">{{ t('budgets.control') }}</p>
+          <h3 class="panel-title">{{ t('budgets.byCategory') }}</h3>
         </div>
       </div>
 
@@ -101,15 +112,15 @@ function periodLabel(period: BudgetPeriod) {
         <table class="w-full min-w-[1080px]">
           <thead>
           <tr class="table-head">
-            <th class="table-cell-head text-left">Budget</th>
-            <th class="table-cell-head text-left">Catégorie</th>
-            <th class="table-cell-head text-left">Période</th>
-            <th class="table-cell-head text-right">Cible</th>
-            <th class="table-cell-head text-right">Consommé</th>
-            <th class="table-cell-head text-right">Reste</th>
-            <th class="table-cell-head text-right">% utilisé</th>
-            <th class="table-cell-head text-left">Statut</th>
-            <th class="table-cell-head text-right">Actions</th>
+            <th class="table-cell-head text-left">{{ t('budgets.budget') }}</th>
+            <th class="table-cell-head text-left">{{ t('forms.fields.category') }}</th>
+            <th class="table-cell-head text-left">{{ t('budgets.periodLabel') }}</th>
+            <th class="table-cell-head text-right">{{ t('budgets.target') }}</th>
+            <th class="table-cell-head text-right">{{ t('budgets.spent') }}</th>
+            <th class="table-cell-head text-right">{{ t('budgets.remaining') }}</th>
+            <th class="table-cell-head text-right">{{ t('budgets.usedPercent') }}</th>
+            <th class="table-cell-head text-left">{{ t('budgets.statusLabel') }}</th>
+            <th class="table-cell-head text-right">{{ t('overview.quickActions') }}</th>
           </tr>
           </thead>
           <tbody>
@@ -146,13 +157,16 @@ function periodLabel(period: BudgetPeriod) {
             <td class="table-cell">
                 <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
                       :class="statusPillClass(row.status)">
-                  {{ row.status }}
+                  {{ statusLabel(row.status) }}
                 </span>
             </td>
             <td class="table-cell">
               <div class="row-actions">
-                <button class="mini-action-btn" @click="emit('open-edit', row)">Modifier</button>
-                <button class="mini-danger-btn" @click="emit('delete-budget', row.budgetId)">Supprimer</button>
+                <button class="mini-action-btn" @click="emit('open-edit', row)">{{ t('common.update') }}</button>
+                <button class="mini-danger-btn" @click="emit('delete-budget', row.budgetId)">{{
+                    t('common.delete')
+                  }}
+                </button>
               </div>
             </td>
           </tr>
@@ -161,7 +175,7 @@ function periodLabel(period: BudgetPeriod) {
       </div>
 
       <div v-else class="empty-state">
-        Aucun budget défini pour le moment.
+        {{ t('budgets.empty') }}
       </div>
     </section>
 
@@ -171,45 +185,46 @@ function periodLabel(period: BudgetPeriod) {
         @click.self="emit('close-dialog')"
     >
       <div class="dialog-card">
-        <p class="soft-kicker">Budgets</p>
+        <p class="soft-kicker">{{ t('budgets.sectionName') }}</p>
         <h3 class="dialog-title">
-          {{ editingBudgetId ? 'Modifier le budget' : 'Créer un budget' }}
+          {{ editingBudgetId ? t('budgets.editBudget') : t('budgets.createBudget') }}
         </h3>
         <p class="dialog-text">
-          Définis un objectif par catégorie, puis suis la consommation réelle sur sa période.
+          {{ t('budgets.dialogDescription') }}
         </p>
 
         <form class="mt-6 space-y-5" @submit.prevent="emit('submit-budget')">
           <div class="grid gap-4 md:grid-cols-2">
             <label class="field-block md:col-span-2">
-              <span class="field-label">Nom</span>
-              <input v-model="budgetForm.name" type="text" class="field-control" placeholder="Budget alimentation"/>
+              <span class="field-label">{{ t('forms.fields.name') }}</span>
+              <input v-model="budgetForm.name" type="text" class="field-control"
+                     :placeholder="t('budgets.placeholders.name')"/>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Montant cible</span>
+              <span class="field-label">{{ t('budgets.target') }}</span>
               <input v-model="budgetForm.amount" type="number" min="0" step="0.01" class="field-control"
                      placeholder="0.00"/>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Devise</span>
+              <span class="field-label">{{ t('forms.fields.currency') }}</span>
               <input v-model="budgetForm.currency" type="text" maxlength="6" class="field-control" placeholder="CAD"/>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Période</span>
+              <span class="field-label">{{ t('budgets.periodLabel') }}</span>
               <select v-model="budgetForm.period" class="field-control">
-                <option value="MONTHLY">Mensuel</option>
-                <option value="YEARLY">Annuel</option>
-                <option value="CUSTOM">Personnalisé</option>
+                <option value="MONTHLY">{{ t('budgets.period.monthly') }}</option>
+                <option value="YEARLY">{{ t('budgets.period.yearly') }}</option>
+                <option value="CUSTOM">{{ t('budgets.period.custom') }}</option>
               </select>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Catégorie</span>
+              <span class="field-label">{{ t('forms.fields.category') }}</span>
               <select v-model="budgetForm.categoryId" class="field-control">
-                <option value="">Sélectionner une catégorie</option>
+                <option value="">{{ t('budgets.placeholders.selectCategory') }}</option>
                 <option
                     v-for="category in categories.filter((item) => item.kind === 'EXPENSE')"
                     :key="category.id"
@@ -221,12 +236,12 @@ function periodLabel(period: BudgetPeriod) {
             </label>
 
             <label class="field-block">
-              <span class="field-label">Début</span>
+              <span class="field-label">{{ t('forms.fields.startDate') }}</span>
               <input v-model="budgetForm.startDate" type="date" class="field-control"/>
             </label>
 
             <label class="field-block">
-              <span class="field-label">Fin</span>
+              <span class="field-label">{{ t('forms.fields.endDate') }}</span>
               <input
                   v-model="budgetForm.endDate"
                   type="date"
@@ -236,26 +251,26 @@ function periodLabel(period: BudgetPeriod) {
             </label>
 
             <label class="field-block md:col-span-2">
-              <span class="field-label">Note</span>
+              <span class="field-label">{{ t('forms.fields.note') }}</span>
               <textarea v-model="budgetForm.note" rows="3" class="field-control field-textarea"
-                        placeholder="Optionnel"/>
+                        :placeholder="t('common.optional')"/>
             </label>
 
             <label class="field-block md:col-span-2">
-              <span class="field-label">Actif</span>
+              <span class="field-label">{{ t('forms.fields.active') }}</span>
               <select v-model="budgetForm.isActive" class="field-control">
-                <option :value="true">Oui</option>
-                <option :value="false">Non</option>
+                <option :value="true">{{ t('common.yes') }}</option>
+                <option :value="false">{{ t('common.no') }}</option>
               </select>
             </label>
           </div>
 
           <div class="form-actions">
             <button type="button" class="ghost-btn" @click="emit('close-dialog')">
-              Annuler
+              {{ t('common.cancel') }}
             </button>
             <button type="submit" class="primary-btn" :disabled="saving">
-              {{ saving ? 'Enregistrement…' : (editingBudgetId ? 'Mettre à jour' : 'Créer') }}
+              {{ saving ? t('common.loading') : (editingBudgetId ? t('common.update') : t('common.create')) }}
             </button>
           </div>
         </form>

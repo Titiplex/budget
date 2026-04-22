@@ -91,9 +91,9 @@ const navigation = computed(() => [
   {key: 'transactions' as SectionKey, label: t('nav.transactions'), marker: 'TX'},
   {key: 'accounts' as SectionKey, label: t('nav.accounts'), marker: 'AC'},
   {key: 'categories' as SectionKey, label: t('nav.categories'), marker: 'CA'},
-  {key: 'budgets' as SectionKey, label: 'Budgets', marker: 'BG'},
-  {key: 'recurring' as SectionKey, label: 'Récurrences', marker: 'RC'},
-  {key: 'reports' as SectionKey, label: 'Rapports', marker: 'RP'},
+  {key: 'budgets' as SectionKey, label: t('nav.budgets'), marker: 'BG'},
+  {key: 'recurring' as SectionKey, label: t('nav.recurring'), marker: 'RC'},
+  {key: 'reports' as SectionKey, label: t('nav.reports'), marker: 'RP'},
 ])
 
 const sectionMeta = computed<Record<SectionKey, { title: string; description: string }>>(() => ({
@@ -114,16 +114,16 @@ const sectionMeta = computed<Record<SectionKey, { title: string; description: st
     description: t('sections.categories.description'),
   },
   budgets: {
-    title: 'Budgets',
-    description: 'Objectifs par catégorie, suivi de consommation et alertes de dépassement.',
+    title: t('sections.budgets.title'),
+    description: t('sections.budgets.description'),
   },
   recurring: {
-    title: 'Récurrences',
-    description: 'Templates de transactions récurrentes et génération des occurrences dues.',
+    title: t('sections.recurring.title'),
+    description: t('sections.recurring.description'),
   },
   reports: {
-    title: 'Rapports',
-    description: 'Analyses avancées, statistiques multi-objets et export de rapports périodiques.',
+    title: t('sections.reports.title'),
+    description: t('sections.reports.description'),
   },
 }))
 
@@ -135,10 +135,10 @@ const csvPreviewLines = computed(() => {
   if (!summary) return []
 
   return [
-    `Fichier: ${csv.pendingImportPath.value || '—'}`,
-    `Lignes totales: ${summary.totalRows}`,
-    `Lignes valides: ${summary.validRows}`,
-    `Lignes ignorées: ${summary.invalidRows}`,
+    t('importReview.file', {value: csv.pendingImportPath.value || '—'}),
+    t('importReview.totalRows', {value: summary.totalRows}),
+    t('importReview.validRows', {value: summary.validRows}),
+    t('importReview.invalidRows', {value: summary.invalidRows}),
   ]
 })
 
@@ -147,12 +147,12 @@ const restorePreviewLines = computed(() => {
   if (!validation) return []
 
   return [
-    `Fichier: ${jsonBackup.restorePreviewPath.value || '—'}`,
-    `Comptes: ${validation.counts.accounts}`,
-    `Catégories: ${validation.counts.categories}`,
-    `Budgets: ${validation.counts.budgetTargets}`,
-    `Récurrences: ${validation.counts.recurringTemplates}`,
-    `Transactions: ${validation.counts.transactions}`,
+    t('importReview.file', {value: jsonBackup.restorePreviewPath.value || '—'}),
+    t('importReview.accounts', {value: validation.counts.accounts}),
+    t('importReview.categories', {value: validation.counts.categories}),
+    t('importReview.budgets', {value: validation.counts.budgetTargets}),
+    t('importReview.recurring', {value: validation.counts.recurringTemplates}),
+    t('importReview.transactions', {value: validation.counts.transactions}),
   ]
 })
 
@@ -544,22 +544,22 @@ onMounted(async () => {
 
     <ImportReviewDialog
         :open="csv.importPreviewOpen.value"
-        title="CSV import review"
-        subtitle="Import preview"
+        :title="t('importReview.csvTitle')"
+        :subtitle="t('importReview.csvSubtitle')"
         :lines="csvPreviewLines"
         :warnings="csv.importPreviewSummary.value?.warnings || []"
-        confirm-label="Import now"
+        :confirm-label="t('importReview.importNow')"
         @close="csv.closeImportPreview"
         @confirm="csv.confirmImportCurrentCsv"
     />
 
     <ImportReviewDialog
         :open="jsonBackup.restorePreviewOpen.value"
-        title="JSON restore review"
-        subtitle="Restore preview"
+        :title="t('importReview.jsonTitle')"
+        :subtitle="t('importReview.jsonSubtitle')"
         :lines="restorePreviewLines"
         :warnings="jsonBackup.restorePreviewValidation.value?.warnings || []"
-        confirm-label="Restore now"
+        :confirm-label="t('importReview.restoreNow')"
         @close="jsonBackup.closeRestorePreview"
         @confirm="jsonBackup.confirmRestoreBackupJson"
     />

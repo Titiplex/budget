@@ -10,6 +10,12 @@ import {
   kindLabel,
   kindPillClass,
 } from '../utils/budgetFormat'
+import {
+  transferAccountHint,
+  transferAmountHint,
+  transferDirectionLabel,
+  transferRoute,
+} from '../utils/transferDisplay'
 
 const props = defineProps<{
   accounts: Account[]
@@ -35,54 +41,9 @@ const {t} = useI18n()
 
 const displayTransactions = computed(() => props.filteredTransactions)
 
-function transferRoute(transaction: Transaction) {
-  if (transaction.kind !== 'TRANSFER') return null
-
-  const selfAccount = transaction.account?.name || 'Compte'
-  const peerAccount = transaction.transferPeerAccount?.name || 'Compte lié'
-
-  if (transaction.transferDirection === 'IN') {
-    return `${peerAccount} → ${selfAccount}`
-  }
-
-  return `${selfAccount} → ${peerAccount}`
-}
-
-function transferDirectionLabel(transaction: Transaction) {
-  if (transaction.kind !== 'TRANSFER') return null
-  if (transaction.transferDirection === 'IN') return 'Entrée liée'
-  if (transaction.transferDirection === 'OUT') return 'Sortie liée'
-  return 'Mouvement lié'
-}
-
 function transferCategoryLabel(transaction: Transaction) {
-  if (transaction.kind === 'TRANSFER') return 'Transfert interne'
+  if (transaction.kind === 'TRANSFER') return t('transfer.internal')
   return transaction.category?.name || t('common.none')
-}
-
-function transferAmountHint(transaction: Transaction) {
-  if (transaction.kind !== 'TRANSFER') return null
-
-  if (transaction.transferDirection === 'IN' && transaction.sourceCurrency) {
-    const accountCurrency = transaction.account?.currency || ''
-    const sourceCurrency = transaction.sourceCurrency || ''
-
-    if (accountCurrency && sourceCurrency && accountCurrency !== sourceCurrency && transaction.sourceAmount) {
-      return `Origine : ${formatMoney(Math.abs(transaction.sourceAmount), sourceCurrency)}`
-    }
-  }
-
-  if (transaction.transferDirection === 'IN') return 'Crédit interne'
-  if (transaction.transferDirection === 'OUT') return 'Débit interne'
-  return 'Mouvement interne'
-}
-
-function accountSubtitle(transaction: Transaction) {
-  if (transaction.kind !== 'TRANSFER') return null
-  if (transaction.transferDirection === 'IN') {
-    return `depuis ${transaction.transferPeerAccount?.name || 'le compte lié'}`
-  }
-  return `vers ${transaction.transferPeerAccount?.name || 'le compte lié'}`
 }
 </script>
 
@@ -163,7 +124,7 @@ function accountSubtitle(transaction: Transaction) {
 
         <div class="flex items-center gap-2">
           <span class="soft-badge">
-            {{ displayTransactions.length }} ligne(s)
+            {{ t('transactions.lineCount', {count: displayTransactions.length}) }}
           </span>
           <button class="primary-btn" @click="emit('create-transaction')">
             {{ t('common.add') }}
@@ -238,10 +199,10 @@ function accountSubtitle(transaction: Transaction) {
                 </p>
 
                 <p
-                    v-if="accountSubtitle(transaction)"
+                    v-if="transferAccountHint(transaction)"
                     class="text-xs text-slate-500 dark:text-slate-400"
                 >
-                  {{ accountSubtitle(transaction) }}
+                  {{ transferAccountHint(transaction) }}
                 </p>
               </div>
             </td>

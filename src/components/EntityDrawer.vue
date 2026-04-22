@@ -11,6 +11,7 @@ import type {
   TransactionKind,
 } from '../types/budget'
 import {accountTypeLabel, formatMoney, kindLabel} from '../utils/budgetFormat'
+import {useI18n} from 'vue-i18n'
 
 interface AccountFormState {
   name: string
@@ -76,6 +77,8 @@ const emit = defineEmits<{
   (e: 'request-delete'): void
   (e: 'quote-transaction-fx'): void
 }>()
+
+const {t} = useI18n()
 
 const canDeleteCurrent = computed(() => {
   if (props.mode !== 'edit' || !props.editingTarget) return false
@@ -151,7 +154,7 @@ const transferPreview = computed(() => {
     debitLabel: formatMoney(transferDebitAmount.value, sourceCurrency.value || 'CAD'),
     creditLabel: transferCreditedAmount.value
         ? formatMoney(transferCreditedAmount.value, targetCurrency.value || 'CAD')
-        : 'À préciser',
+        : t('transfer.toBeSpecified'),
     sameCurrency: !isForeignCurrency.value,
   }
 })
@@ -159,14 +162,14 @@ const transferPreview = computed(() => {
 const transferModeSummary = computed(() => {
   if (!isTransferMode.value) return null
   if (!selectedAccount.value || !selectedTransferTargetAccount.value) {
-    return 'Choisis un compte source et un compte destination pour générer un vrai transfert interne.'
+    return t('transfer.summarySelectAccounts')
   }
 
   if (!isForeignCurrency.value) {
-    return 'Le transfert créera automatiquement deux mouvements liés dans la même devise.'
+    return t('transfer.summarySameCurrency')
   }
 
-  return 'Le transfert créera deux mouvements liés avec conversion entre les devises source et destination.'
+  return t('transfer.summaryForeignCurrency')
 })
 </script>
 
@@ -183,7 +186,7 @@ const transferModeSummary = computed(() => {
         <div class="flex items-start justify-between gap-4">
           <div>
             <p class="soft-kicker">
-              {{ mode === 'create' ? 'Création' : 'Édition' }}
+              {{ mode === 'create' ? t('forms.modeCreate') : t('forms.modeEdit') }}
             </p>
             <h2 class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
               {{ panelTitle }}
@@ -193,12 +196,12 @@ const transferModeSummary = computed(() => {
             </p>
 
             <span v-if="mode === 'edit' && editingTarget" class="drawer-badge">
-              Mode édition
+              {{ t('forms.editBadge') }}
             </span>
           </div>
 
           <button class="ghost-btn" @click="emit('close')">
-            Fermer
+            {{ t('common.close') }}
           </button>
         </div>
 
@@ -208,21 +211,21 @@ const transferModeSummary = computed(() => {
               :class="{ 'tab-btn-active': currentTab === 'transaction' }"
               @click="emit('set-tab', 'transaction')"
           >
-            Transaction
+            {{ t('entities.singular.transaction') }}
           </button>
           <button
               class="tab-btn"
               :class="{ 'tab-btn-active': currentTab === 'account' }"
               @click="emit('set-tab', 'account')"
           >
-            Compte
+            {{ t('entities.singular.account') }}
           </button>
           <button
               class="tab-btn"
               :class="{ 'tab-btn-active': currentTab === 'category' }"
               @click="emit('set-tab', 'category')"
           >
-            Catégorie
+            {{ t('entities.singular.category') }}
           </button>
         </div>
       </div>
@@ -235,7 +238,9 @@ const transferModeSummary = computed(() => {
         >
           <div class="grid gap-5 md:grid-cols-2">
             <div class="field-block md:col-span-2">
-              <label class="field-label">Libellé</label>
+              <label class="field-label">
+                {{ t('forms.fields.label') }}
+              </label>
               <input
                   v-model="transactionForm.label"
                   type="text"
@@ -245,7 +250,9 @@ const transferModeSummary = computed(() => {
             </div>
 
             <div class="field-block">
-              <label class="field-label">Type</label>
+              <label class="field-label">
+                {{ t('forms.fields.type') }}
+              </label>
               <select v-model="transactionForm.kind" class="field-control">
                 <option
                     v-for="kind in transactionKindOptions"
@@ -258,7 +265,9 @@ const transferModeSummary = computed(() => {
             </div>
 
             <div class="field-block">
-              <label class="field-label">Date</label>
+              <label class="field-label">
+                {{ t('forms.fields.date') }}
+              </label>
               <input
                   v-model="transactionForm.date"
                   type="date"
@@ -275,7 +284,7 @@ const transferModeSummary = computed(() => {
               <div class="flex flex-wrap items-center gap-2">
                 <span
                     class="inline-flex items-center rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-semibold text-sky-700 dark:border-sky-900/60 dark:bg-slate-900 dark:text-sky-300">
-                  Transfert interne
+                  {{ t('transfer.internal') }}
                 </span>
 
                 <span v-if="transferRoute"
@@ -289,7 +298,7 @@ const transferModeSummary = computed(() => {
               </p>
 
               <p class="text-xs text-slate-500 dark:text-slate-400">
-                Ce mouvement n’est pas compté comme un revenu ou une dépense dans les rapports.
+                {{ t('transfer.notCountedInReports') }}
               </p>
             </div>
           </div>
@@ -300,23 +309,29 @@ const transferModeSummary = computed(() => {
                   class="rounded-3xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-950/40">
                 <div class="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <p class="mini-label">Compte source</p>
+                    <p class="mini-label">
+                      {{ t('transfer.sourceAccount') }}
+                    </p>
                     <h3 class="mt-1 text-base font-semibold text-slate-900 dark:text-white">
-                      Sortie
+                      {{ t('transfer.outgoing') }}
                     </h3>
                   </div>
 
                   <span
                       class="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
-                    Débit
+                    {{ t('transfer.debit') }}
                   </span>
                 </div>
 
                 <div class="space-y-4">
                   <label class="field-block">
-                    <span class="field-label">Compte à débiter</span>
+                    <span class="field-label">
+                      {{ t('transfer.accountToDebit') }}
+                    </span>
                     <select v-model="transactionForm.accountId" class="field-control">
-                      <option value="">Sélectionner un compte</option>
+                      <option value="">
+                        {{ t('forms.placeholders.selectAccount') }}
+                      </option>
                       <option
                           v-for="account in accounts"
                           :key="account.id"
@@ -328,7 +343,9 @@ const transferModeSummary = computed(() => {
                   </label>
 
                   <label class="field-block">
-                    <span class="field-label">Montant débité</span>
+                    <span class="field-label">
+                      {{ t('transfer.debitedAmount') }}
+                    </span>
                     <input
                         v-model="transactionForm.amount"
                         type="number"
@@ -340,7 +357,9 @@ const transferModeSummary = computed(() => {
                   </label>
 
                   <label class="field-block">
-                    <span class="field-label">Devise source</span>
+                    <span class="field-label">
+                      {{ t('forms.fields.sourceCurrency') }}
+                    </span>
                     <input
                         :value="sourceCurrency || 'CAD'"
                         type="text"
@@ -355,21 +374,25 @@ const transferModeSummary = computed(() => {
                   class="rounded-3xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-950/40">
                 <div class="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <p class="mini-label">Compte destination</p>
+                    <p class="mini-label">
+                      {{ t('transfer.targetAccount') }}
+                    </p>
                     <h3 class="mt-1 text-base font-semibold text-slate-900 dark:text-white">
-                      Entrée
+                      {{ t('transfer.incoming') }}
                     </h3>
                   </div>
 
                   <span
                       class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
-                    Crédit
+                    {{ t('transfer.credit') }}
                   </span>
                 </div>
 
                 <div class="space-y-4">
                   <label class="field-block">
-                    <span class="field-label">Compte à créditer</span>
+                    <span class="field-label">
+                      {{ t('transfer.accountToCredit') }}
+                    </span>
                     <select v-model="transactionForm.transferTargetAccountId" class="field-control">
                       <option value="">Sélectionner un compte</option>
                       <option
@@ -383,7 +406,9 @@ const transferModeSummary = computed(() => {
                   </label>
 
                   <label class="field-block">
-                    <span class="field-label">Devise destination</span>
+                    <span class="field-label">
+                      {{ t('forms.fields.targetCurrency') }}
+                    </span>
                     <input
                         :value="targetCurrency || 'CAD'"
                         type="text"
@@ -396,11 +421,11 @@ const transferModeSummary = computed(() => {
                       class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
                     <p class="font-medium text-slate-800 dark:text-slate-100">
                       {{
-                        selectedTransferTargetAccount ? selectedTransferTargetAccount.name : 'Choisis un compte destination'
+                        selectedTransferTargetAccount ? selectedTransferTargetAccount.name : t('transfer.chooseTargetAccount')
                       }}
                     </p>
                     <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                      Le mouvement lié sera créé automatiquement.
+                      {{ t('transfer.linkedMovementCreated') }}
                     </p>
                   </div>
                 </div>
@@ -409,19 +434,19 @@ const transferModeSummary = computed(() => {
 
             <div v-if="isForeignCurrency" class="space-y-4">
               <div class="mini-card">
-                <p class="mini-label">Conversion entre devises</p>
+                <p class="mini-label">{{ t('transfer.currencyConversion') }}</p>
 
                 <div class="mt-3 grid gap-4 md:grid-cols-3">
                   <label class="field-block">
-                    <span class="field-label">Mode</span>
+                    <span class="field-label">{{ t('forms.fields.conversionMode') }}</span>
                     <select v-model="transactionForm.conversionMode" class="field-control">
-                      <option value="AUTOMATIC">Automatique</option>
-                      <option value="MANUAL">Manuel</option>
+                      <option value="AUTOMATIC">{{ t('common.automatic') }}</option>
+                      <option value="MANUAL">{{ t('common.manual') }}</option>
                     </select>
                   </label>
 
                   <label class="field-block">
-                    <span class="field-label">Montant crédité ({{ targetCurrency }})</span>
+                    <span class="field-label">{{ t('forms.fields.creditedAmount', {currency: targetCurrency}) }}</span>
                     <input
                         v-model="transactionForm.accountAmount"
                         type="number"
@@ -434,7 +459,7 @@ const transferModeSummary = computed(() => {
                   </label>
 
                   <label class="field-block">
-                    <span class="field-label">Taux mémorisé</span>
+                    <span class="field-label">{{ t('forms.fields.exchangeRate') }}</span>
                     <input
                         v-model="transactionForm.exchangeRate"
                         type="number"
@@ -449,7 +474,7 @@ const transferModeSummary = computed(() => {
 
                 <div class="mt-4 grid gap-4 md:grid-cols-2">
                   <label class="field-block">
-                    <span class="field-label">Source du taux</span>
+                    <span class="field-label">{{ t('forms.fields.exchangeProvider') }}</span>
                     <input
                         v-model="transactionForm.exchangeProvider"
                         type="text"
@@ -460,7 +485,7 @@ const transferModeSummary = computed(() => {
                   </label>
 
                   <label class="field-block">
-                    <span class="field-label">Date du taux</span>
+                    <span class="field-label">{{ t('forms.fields.exchangeDate') }}</span>
                     <input
                         v-model="transactionForm.exchangeDate"
                         type="date"
@@ -476,7 +501,7 @@ const transferModeSummary = computed(() => {
                       :disabled="fxBusy"
                       @click="emit('quote-transaction-fx')"
                   >
-                    {{ fxBusy ? 'Récupération du taux…' : 'Récupérer un taux pour cette date' }}
+                    {{ fxBusy ? t('transfer.fetchingRate') : t('transfer.fetchRateForDate') }}
                   </button>
                 </div>
 
@@ -495,14 +520,14 @@ const transferModeSummary = computed(() => {
             >
               <div class="flex items-center justify-between gap-4">
                 <div>
-                  <p class="mini-label">Aperçu du transfert généré</p>
+                  <p class="mini-label">{{ t('transfer.generatedPreview') }}</p>
                   <h3 class="mt-1 text-base font-semibold text-slate-900 dark:text-white">
-                    {{ transferRoute || 'Transfert interne' }}
+                    {{ transferRoute || t('transfer.internal') }}
                   </h3>
                 </div>
 
                 <span class="soft-badge">
-                  2 mouvements liés
+                  {{ t('transfer.twoLinkedMovements') }}
                 </span>
               </div>
 
@@ -516,7 +541,7 @@ const transferModeSummary = computed(() => {
                     {{ transferPreview.debitLabel }}
                   </p>
                   <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                    depuis {{ transferPreview.sourceAccountName }}
+                    {{ t('transfer.fromAccount', {account: transferPreview.sourceAccountName}) }}
                   </p>
                 </div>
 
@@ -529,7 +554,7 @@ const transferModeSummary = computed(() => {
                     {{ transferPreview.creditLabel }}
                   </p>
                   <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                    vers {{ transferPreview.targetAccountName }}
+                    {{ t('transfer.toAccount', {account: transferPreview.targetAccountName}) }}
                   </p>
                 </div>
               </div>
@@ -537,19 +562,19 @@ const transferModeSummary = computed(() => {
               <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">
                 {{
                   transferPreview.sameCurrency
-                      ? 'Même devise : le montant débité et le montant crédité sont identiques.'
-                      : 'Devises différentes : le mouvement de destination sera mémorisé avec son montant converti et son taux.'
+                      ? t('transfer.sameCurrencyHint')
+                      : t('transfer.foreignCurrencyHint')
                 }}
               </p>
             </div>
 
             <div class="field-block">
-              <label class="field-label">Note</label>
+              <label class="field-label">{{ t('forms.fields.note') }}</label>
               <textarea
                   v-model="transactionForm.note"
                   rows="4"
                   class="field-control field-textarea"
-                  placeholder="Motif du transfert, commentaire interne, contexte..."
+                  placeholder="{{ t('transfer.placeholders.note') }}"
               ></textarea>
             </div>
           </template>
@@ -557,7 +582,7 @@ const transferModeSummary = computed(() => {
           <template v-else>
             <div class="grid gap-5 md:grid-cols-2">
               <div class="field-block">
-                <label class="field-label">Montant saisi</label>
+                <label class="field-label">{{ t('forms.fields.enteredAmount') }}</label>
                 <input
                     v-model="transactionForm.amount"
                     type="number"
@@ -569,7 +594,7 @@ const transferModeSummary = computed(() => {
               </div>
 
               <div class="field-block">
-                <label class="field-label">Devise du montant saisi</label>
+                <label class="field-label">{{ t('forms.fields.enteredCurrency') }}</label>
                 <input
                     v-model="transactionForm.currency"
                     type="text"
@@ -594,9 +619,9 @@ const transferModeSummary = computed(() => {
               </div>
 
               <div class="field-block">
-                <label class="field-label">Catégorie</label>
+                <label class="field-label">{{ t('forms.fields.category') }}</label>
                 <select v-model="transactionForm.categoryId" class="field-control">
-                  <option value="">Aucune</option>
+                  <option value="">{{ t('common.none') }}</option>
                   <option
                       v-for="category in transactionFormCategories"
                       :key="category.id"
@@ -613,14 +638,14 @@ const transferModeSummary = computed(() => {
                     v-model="transactionForm.note"
                     rows="4"
                     class="field-control field-textarea"
-                    placeholder="Détail optionnel"
+                    placeholder="{{ t('forms.placeholders.optionalDetail') }}"
                 ></textarea>
               </div>
             </div>
 
             <div v-if="selectedAccount" class="grid gap-4 md:grid-cols-2">
               <div class="mini-card">
-                <p class="mini-label">Devise du compte</p>
+                <p class="mini-label">{{ t('forms.fields.accountCurrency') }}</p>
                 <p class="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
                   {{ selectedAccountCurrency }}
                 </p>
@@ -629,10 +654,10 @@ const transferModeSummary = computed(() => {
 
             <div v-if="isForeignCurrency" class="space-y-4">
               <div class="mini-card">
-                <p class="mini-label">Conversion</p>
+                <p class="mini-label">{{ t('transfer.currencyConversion') }}</p>
                 <div class="mt-3 grid gap-4 md:grid-cols-3">
                   <label class="field-block">
-                    <span class="field-label">Choix</span>
+                    <span class="field-label">{{ t('forms.fields.conversionMode') }}</span>
                     <select v-model="transactionForm.conversionMode" class="field-control">
                       <option value="AUTOMATIC">Automatique</option>
                       <option value="MANUAL">Manuel</option>
@@ -640,7 +665,7 @@ const transferModeSummary = computed(() => {
                   </label>
 
                   <label class="field-block">
-                    <span class="field-label">Montant comptabilisé ({{ targetCurrency }})</span>
+                    <span class="field-label">{{ t('forms.fields.accountAmount', {currency: targetCurrency}) }}</span>
                     <input
                         v-model="transactionForm.accountAmount"
                         type="number"
@@ -695,7 +720,7 @@ const transferModeSummary = computed(() => {
                       :disabled="fxBusy"
                       @click="emit('quote-transaction-fx')"
                   >
-                    {{ fxBusy ? 'Récupération du taux…' : 'Convertir automatiquement pour cette date' }}
+                    {{ fxBusy ? t('transfer.fetchingRate') : t('transfer.autoConvertForDate') }}
                   </button>
                 </div>
 
@@ -710,12 +735,12 @@ const transferModeSummary = computed(() => {
           </template>
 
           <div v-if="!accounts.length" class="inline-warning">
-            Tu n’as encore aucun compte. Crée d’abord un compte.
+            {{ t('forms.noAccountWarning') }}
           </div>
 
           <div class="form-actions">
             <button type="button" class="ghost-btn" @click="emit('reset-transaction')">
-              Réinitialiser
+              {{ t('common.reset') }}
             </button>
 
             <button
@@ -724,11 +749,11 @@ const transferModeSummary = computed(() => {
                 class="danger-btn"
                 @click="emit('request-delete')"
             >
-              Supprimer
+              {{ t('common.delete') }}
             </button>
 
             <button type="submit" class="primary-btn" :disabled="saving">
-              {{ saving ? 'Enregistrement…' : panelSubmitLabel }}
+              {{ saving ? t('common.loading') : panelSubmitLabel }}
             </button>
           </div>
         </form>
@@ -740,12 +765,12 @@ const transferModeSummary = computed(() => {
         >
           <div class="grid gap-5 md:grid-cols-2">
             <div class="field-block md:col-span-2">
-              <label class="field-label">Nom</label>
+              <label class="field-label">{{ t('forms.fields.name') }}</label>
               <input
                   v-model="accountForm.name"
                   type="text"
                   class="field-control"
-                  placeholder="Compte chèque, carte, cash..."
+                  placeholder="{{ t('forms.placeholders.accountName') }}"
               >
             </div>
 
@@ -763,7 +788,7 @@ const transferModeSummary = computed(() => {
             </div>
 
             <div class="field-block">
-              <label class="field-label">Devise</label>
+              <label class="field-label">{{ t('forms.fields.currency') }}</label>
               <input
                   v-model="accountForm.currency"
                   type="text"
@@ -774,12 +799,12 @@ const transferModeSummary = computed(() => {
             </div>
 
             <div class="field-block md:col-span-2">
-              <label class="field-label">Description</label>
+              <label class="field-label">{{ t('forms.fields.description') }}</label>
               <textarea
                   v-model="accountForm.description"
                   rows="4"
                   class="field-control field-textarea"
-                  placeholder="Optionnel"
+                  placeholder="{{ t('common.optional') }}"
               ></textarea>
             </div>
           </div>
@@ -816,7 +841,7 @@ const transferModeSummary = computed(() => {
                   v-model="categoryForm.name"
                   type="text"
                   class="field-control"
-                  placeholder="Loyer, alimentation, salaire..."
+                  placeholder="{{ t('forms.placeholders.categoryName') }}"
               >
             </div>
 
@@ -834,7 +859,7 @@ const transferModeSummary = computed(() => {
             </div>
 
             <div class="field-block">
-              <label class="field-label">Couleur</label>
+              <label class="field-label">{{ t('forms.fields.color') }}</label>
               <input
                   v-model="categoryForm.color"
                   type="color"

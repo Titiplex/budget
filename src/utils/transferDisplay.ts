@@ -1,4 +1,5 @@
 import type {Transaction} from '../types/budget'
+import {tr} from '../i18n'
 import {formatMoney} from './budgetFormat'
 
 export function collapseTransferTransactions(list: Transaction[]) {
@@ -32,8 +33,8 @@ export function collapseTransferTransactions(list: Transaction[]) {
 export function transferRoute(transaction: Transaction) {
     if (transaction.kind !== 'TRANSFER') return null
 
-    const selfAccount = transaction.account?.name || 'Compte'
-    const peerAccount = transaction.transferPeerAccount?.name || 'Compte lié'
+    const selfAccount = transaction.account?.name || tr('transfer.accountFallback')
+    const peerAccount = transaction.transferPeerAccount?.name || tr('transfer.linkedAccountFallback')
 
     if (transaction.transferDirection === 'IN') {
         return `${peerAccount} → ${selfAccount}`
@@ -44,17 +45,21 @@ export function transferRoute(transaction: Transaction) {
 
 export function transferDirectionLabel(transaction: Transaction) {
     if (transaction.kind !== 'TRANSFER') return null
-    if (transaction.transferDirection === 'IN') return 'Entrée liée'
-    if (transaction.transferDirection === 'OUT') return 'Sortie liée'
-    return 'Mouvement lié'
+    if (transaction.transferDirection === 'IN') return tr('transfer.directionIn')
+    if (transaction.transferDirection === 'OUT') return tr('transfer.directionOut')
+    return tr('transfer.directionLinked')
 }
 
 export function transferAccountHint(transaction: Transaction) {
     if (transaction.kind !== 'TRANSFER') return null
+
+    const peerName = transaction.transferPeerAccount?.name || tr('transfer.linkedAccountFallback')
+
     if (transaction.transferDirection === 'IN') {
-        return `depuis ${transaction.transferPeerAccount?.name || 'le compte lié'}`
+        return tr('transfer.accountHintFrom', {account: peerName})
     }
-    return `vers ${transaction.transferPeerAccount?.name || 'le compte lié'}`
+
+    return tr('transfer.accountHintTo', {account: peerName})
 }
 
 export function transferAmountHint(transaction: Transaction) {
@@ -65,11 +70,13 @@ export function transferAmountHint(transaction: Transaction) {
         const sourceCurrency = transaction.sourceCurrency || ''
 
         if (accountCurrency && sourceCurrency && accountCurrency !== sourceCurrency && transaction.sourceAmount) {
-            return `Origine : ${formatMoney(Math.abs(transaction.sourceAmount), sourceCurrency)}`
+            return tr('transfer.originAmount', {
+                amount: formatMoney(Math.abs(transaction.sourceAmount), sourceCurrency),
+            })
         }
     }
 
-    if (transaction.transferDirection === 'IN') return 'Crédit interne'
-    if (transaction.transferDirection === 'OUT') return 'Débit interne'
-    return 'Mouvement interne'
+    if (transaction.transferDirection === 'IN') return tr('transfer.internalCredit')
+    if (transaction.transferDirection === 'OUT') return tr('transfer.internalDebit')
+    return tr('transfer.internalMovement')
 }
