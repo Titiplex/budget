@@ -118,6 +118,34 @@ export function useBudgetData(
         return (value || '').trim().toUpperCase()
     }
 
+    function collapseTransferTransactions(list: Transaction[]) {
+        const seenGroups = new Set<string>()
+        const grouped = new Map<string, Transaction[]>()
+
+        for (const transaction of list) {
+            if (!transaction.transferGroup) continue
+
+            const bucket = grouped.get(transaction.transferGroup) || []
+            bucket.push(transaction)
+            grouped.set(transaction.transferGroup, bucket)
+        }
+
+        return list.filter((transaction) => {
+            if (!transaction.transferGroup) return true
+            if (seenGroups.has(transaction.transferGroup)) return false
+
+            const group = grouped.get(transaction.transferGroup) || [transaction]
+            const preferred =
+                group.find((entry) => entry.transferDirection === 'OUT')
+                || group[0]
+
+            if (preferred.id !== transaction.id) return false
+
+            seenGroups.add(transaction.transferGroup)
+            return true
+        })
+    }
+
     function resetAccountForm() {
         accountForm.name = ''
         accountForm.type = 'BANK'
@@ -300,6 +328,13 @@ export function useBudgetData(
             deleteDialog.message = count > 0
                 ? tr('deleteDialog.categoryCascade', {count})
                 : tr('deleteDialog.categorySimple')
+            return
+        }
+
+        const transaction = entity as Transaction
+
+        if (transaction.kind === 'TRANSFER') {
+            deleteDialog.message = 'Supprimer ce transfert interne supprimera aussi le mouvement lié dans l’autre compte.'
             return
         }
 
@@ -754,9 +789,10 @@ export function useBudgetData(
     const netFlow = computed(() => totalIncome.value - totalExpense.value)
 
     const recentTransactions = computed(() => {
-        return [...transactions.value]
+        const ordered = [...transactions.value]
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .slice(0, 7)
+
+        return collapseTransferTransactions(ordered).slice(0, 7)
     })
 
     const accountSummaries = computed<AccountSummary[]>(() => {
@@ -869,7 +905,7 @@ export function useBudgetData(
     const filteredTransactions = computed(() => {
         const q = transactionSearch.value.trim().toLowerCase()
 
-        return [...transactions.value]
+        const ordered = [...transactions.value]
             .filter((tx) => {
                 if (transactionKindFilter.value !== 'ALL' && tx.kind !== transactionKindFilter.value) {
                     return false
@@ -906,6 +942,8 @@ export function useBudgetData(
                 return haystack.includes(q)
             })
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+        return collapseTransferTransactions(ordered)
     })
 
     const transactionFormCategories = computed(() => {
@@ -928,6 +966,12 @@ export function useBudgetData(
     })
 
     const panelDescription = computed(() => {
+        if (createTab.value === 'transaction' && transactionForm.kind === 'TRANSFER') {
+            return panelMode.value === 'create'
+                ? 'Crée un vrai transfert interne entre deux comptes, avec aperçu du débit, du crédit et de la conversion éventuelle.'
+                : 'Modifie ce transfert interne : les deux mouvements liés seront mis à jour ensemble.'
+        }
+
         if (panelMode.value === 'create') {
             return 'Crée rapidement des transactions, comptes ou catégories, y compris en devise étrangère.'
         }

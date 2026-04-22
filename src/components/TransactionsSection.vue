@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import type {Account, Category, Transaction, TransactionKind} from '../types/budget'
 import {
@@ -10,7 +11,7 @@ import {
   kindPillClass,
 } from '../utils/budgetFormat'
 
-defineProps<{
+const props = defineProps<{
   accounts: Account[]
   categories: Category[]
   filteredTransactions: Transaction[]
@@ -32,15 +33,56 @@ const emit = defineEmits<{
 
 const {t} = useI18n()
 
-function transferSubtitle(transaction: Transaction) {
-  if (transaction.kind !== 'TRANSFER' || !transaction.transferPeerAccount) return null
-  if (transaction.transferDirection === 'OUT') {
-    return `→ ${transaction.transferPeerAccount.name}`
-  }
+const displayTransactions = computed(() => props.filteredTransactions)
+
+function transferRoute(transaction: Transaction) {
+  if (transaction.kind !== 'TRANSFER') return null
+
+  const selfAccount = transaction.account?.name || 'Compte'
+  const peerAccount = transaction.transferPeerAccount?.name || 'Compte lié'
+
   if (transaction.transferDirection === 'IN') {
-    return `← ${transaction.transferPeerAccount.name}`
+    return `${peerAccount} → ${selfAccount}`
   }
-  return transaction.transferPeerAccount.name
+
+  return `${selfAccount} → ${peerAccount}`
+}
+
+function transferDirectionLabel(transaction: Transaction) {
+  if (transaction.kind !== 'TRANSFER') return null
+  if (transaction.transferDirection === 'IN') return 'Entrée liée'
+  if (transaction.transferDirection === 'OUT') return 'Sortie liée'
+  return 'Mouvement lié'
+}
+
+function transferCategoryLabel(transaction: Transaction) {
+  if (transaction.kind === 'TRANSFER') return 'Transfert interne'
+  return transaction.category?.name || t('common.none')
+}
+
+function transferAmountHint(transaction: Transaction) {
+  if (transaction.kind !== 'TRANSFER') return null
+
+  if (transaction.transferDirection === 'IN' && transaction.sourceCurrency) {
+    const accountCurrency = transaction.account?.currency || ''
+    const sourceCurrency = transaction.sourceCurrency || ''
+
+    if (accountCurrency && sourceCurrency && accountCurrency !== sourceCurrency && transaction.sourceAmount) {
+      return `Origine : ${formatMoney(Math.abs(transaction.sourceAmount), sourceCurrency)}`
+    }
+  }
+
+  if (transaction.transferDirection === 'IN') return 'Crédit interne'
+  if (transaction.transferDirection === 'OUT') return 'Débit interne'
+  return 'Mouvement interne'
+}
+
+function accountSubtitle(transaction: Transaction) {
+  if (transaction.kind !== 'TRANSFER') return null
+  if (transaction.transferDirection === 'IN') {
+    return `depuis ${transaction.transferPeerAccount?.name || 'le compte lié'}`
+  }
+  return `vers ${transaction.transferPeerAccount?.name || 'le compte lié'}`
 }
 </script>
 
@@ -121,7 +163,7 @@ function transferSubtitle(transaction: Transaction) {
 
         <div class="flex items-center gap-2">
           <span class="soft-badge">
-            {{ filteredTransactions.length }} ligne(s)
+            {{ displayTransactions.length }} ligne(s)
           </span>
           <button class="primary-btn" @click="emit('create-transaction')">
             {{ t('common.add') }}
@@ -129,8 +171,8 @@ function transferSubtitle(transaction: Transaction) {
         </div>
       </div>
 
-      <div v-if="filteredTransactions.length" class="overflow-x-auto">
-        <table class="w-full min-w-[1020px]">
+      <div v-if="displayTransactions.length" class="overflow-x-auto">
+        <table class="w-full min-w-[1120px]">
           <thead>
           <tr class="table-head">
             <th class="table-cell-head text-left">{{ t('forms.fields.type') }}</th>
@@ -142,56 +184,102 @@ function transferSubtitle(transaction: Transaction) {
             <th class="table-cell-head text-right">{{ t('overview.quickActions') }}</th>
           </tr>
           </thead>
+
           <tbody>
           <tr
-              v-for="transaction in filteredTransactions"
+              v-for="transaction in displayTransactions"
               :key="transaction.id"
               class="table-row"
           >
-            <td class="table-cell">
-                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
-                      :class="kindPillClass(transaction.kind)">
-                  {{ kindLabel(transaction.kind) }}
-                </span>
+            <td class="table-cell align-top">
+              <div class="flex flex-col items-start gap-2">
+                  <span
+                      class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+                      :class="kindPillClass(transaction.kind)"
+                  >
+                    {{ kindLabel(transaction.kind) }}
+                  </span>
+
+                <span
+                    v-if="transaction.kind === 'TRANSFER'"
+                    class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-300"
+                >
+                    {{ transferDirectionLabel(transaction) }}
+                  </span>
+              </div>
             </td>
 
-            <td class="table-cell">
-              <div>
+            <td class="table-cell align-top">
+              <div class="space-y-1">
                 <p class="font-semibold text-slate-800 dark:text-slate-100">
                   {{ transaction.label }}
                 </p>
-                <p v-if="transaction.kind === 'TRANSFER' && transferSubtitle(transaction)"
-                   class="text-xs text-sky-600 dark:text-sky-300">
-                  {{ transferSubtitle(transaction) }}
+
+                <p
+                    v-if="transaction.kind === 'TRANSFER' && transferRoute(transaction)"
+                    class="text-xs font-medium text-sky-600 dark:text-sky-300"
+                >
+                  {{ transferRoute(transaction) }}
                 </p>
-                <p v-if="transaction.note" class="text-xs text-slate-500 dark:text-slate-400">
+
+                <p
+                    v-if="transaction.note"
+                    class="text-xs text-slate-500 dark:text-slate-400"
+                >
                   {{ transaction.note }}
                 </p>
               </div>
             </td>
 
-            <td class="table-cell">
-              {{ transaction.account?.name || '—' }}
-            </td>
+            <td class="table-cell align-top">
+              <div class="space-y-1">
+                <p class="font-medium text-slate-800 dark:text-slate-100">
+                  {{ transaction.account?.name || '—' }}
+                </p>
 
-            <td class="table-cell">
-              <div class="flex items-center gap-2">
-                <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(transaction.category?.color)"/>
-                <span>{{
-                    transaction.kind === 'TRANSFER' ? 'Interne' : (transaction.category?.name || t('common.none'))
-                  }}</span>
+                <p
+                    v-if="accountSubtitle(transaction)"
+                    class="text-xs text-slate-500 dark:text-slate-400"
+                >
+                  {{ accountSubtitle(transaction) }}
+                </p>
               </div>
             </td>
 
-            <td class="table-cell">
+            <td class="table-cell align-top">
+              <div v-if="transaction.kind === 'TRANSFER'" class="space-y-1">
+                  <span
+                      class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-300">
+                    {{ transferCategoryLabel(transaction) }}
+                  </span>
+              </div>
+
+              <div v-else class="flex items-center gap-2">
+                <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(transaction.category?.color)"/>
+                <span>{{ transferCategoryLabel(transaction) }}</span>
+              </div>
+            </td>
+
+            <td class="table-cell align-top">
               {{ formatDate(transaction.date) }}
             </td>
 
-            <td class="table-cell text-right font-semibold" :class="amountClass(transaction.kind)">
-              {{ formatMoney(Math.abs(transaction.amount), transaction.account?.currency || 'CAD') }}
+            <td class="table-cell align-top text-right">
+              <div class="space-y-1">
+                <p class="font-semibold" :class="amountClass(transaction.kind)">
+                  {{ formatMoney(Math.abs(transaction.amount), transaction.account?.currency || 'CAD') }}
+                </p>
+
+                <p
+                    v-if="transferAmountHint(transaction)"
+                    class="text-xs text-slate-500 dark:text-slate-400"
+                >
+                  {{ transferAmountHint(transaction) }}
+                </p>
+              </div>
             </td>
 
-            <td class="table-cell">
+            <td class="table-cell align-top">
               <div class="row-actions">
                 <button class="mini-action-btn" @click="emit('edit-transaction', transaction)">
                   {{ t('common.update') }}

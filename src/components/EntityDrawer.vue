@@ -10,7 +10,7 @@ import type {
   PanelMode,
   TransactionKind,
 } from '../types/budget'
-import {accountTypeLabel, kindLabel} from '../utils/budgetFormat'
+import {accountTypeLabel, formatMoney, kindLabel} from '../utils/budgetFormat'
 
 interface AccountFormState {
   name: string
@@ -94,7 +94,9 @@ const selectedTransferTargetAccount = computed(() =>
     props.accounts.find((account) => String(account.id) === props.transactionForm.transferTargetAccountId) || null,
 )
 
-const selectedTransferTargetCurrency = computed(() => selectedTransferTargetAccount.value?.currency || selectedAccountCurrency.value)
+const selectedTransferTargetCurrency = computed(() =>
+    selectedTransferTargetAccount.value?.currency || selectedAccountCurrency.value,
+)
 
 const sourceCurrency = computed(() => {
   if (isTransferMode.value) return selectedAccountCurrency.value.trim().toUpperCase()
@@ -108,6 +110,63 @@ const targetCurrency = computed(() => {
 
 const isForeignCurrency = computed(() => {
   return Boolean(sourceCurrency.value && targetCurrency.value && sourceCurrency.value !== targetCurrency.value)
+})
+
+function parsePositive(value: string) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed <= 0) return null
+  return parsed
+}
+
+const transferDebitAmount = computed(() => parsePositive(props.transactionForm.amount))
+
+const transferCreditedAmount = computed(() => {
+  if (!isTransferMode.value) return null
+  if (!isForeignCurrency.value) return transferDebitAmount.value
+
+  const manual = parsePositive(props.transactionForm.accountAmount)
+  if (manual) return manual
+
+  if (props.fxPreview?.convertedAmount && Number.isFinite(props.fxPreview.convertedAmount)) {
+    return props.fxPreview.convertedAmount
+  }
+
+  return null
+})
+
+const transferRoute = computed(() => {
+  if (!isTransferMode.value) return null
+  if (!selectedAccount.value || !selectedTransferTargetAccount.value) return null
+  return `${selectedAccount.value.name} → ${selectedTransferTargetAccount.value.name}`
+})
+
+const transferPreview = computed(() => {
+  if (!isTransferMode.value || !selectedAccount.value || !selectedTransferTargetAccount.value || !transferDebitAmount.value) {
+    return null
+  }
+
+  return {
+    sourceAccountName: selectedAccount.value.name,
+    targetAccountName: selectedTransferTargetAccount.value.name,
+    debitLabel: formatMoney(transferDebitAmount.value, sourceCurrency.value || 'CAD'),
+    creditLabel: transferCreditedAmount.value
+        ? formatMoney(transferCreditedAmount.value, targetCurrency.value || 'CAD')
+        : 'À préciser',
+    sameCurrency: !isForeignCurrency.value,
+  }
+})
+
+const transferModeSummary = computed(() => {
+  if (!isTransferMode.value) return null
+  if (!selectedAccount.value || !selectedTransferTargetAccount.value) {
+    return 'Choisis un compte source et un compte destination pour générer un vrai transfert interne.'
+  }
+
+  if (!isForeignCurrency.value) {
+    return 'Le transfert créera automatiquement deux mouvements liés dans la même devise.'
+  }
+
+  return 'Le transfert créera deux mouvements liés avec conversion entre les devises source et destination.'
 })
 </script>
 
@@ -181,49 +240,7 @@ const isForeignCurrency = computed(() => {
                   v-model="transactionForm.label"
                   type="text"
                   class="field-control"
-                  :placeholder="isTransferMode ? 'Transfert vers épargne, virement interne...' : 'Courses, salaire, abonnement...'"
-              >
-            </div>
-
-            <div class="field-block">
-              <label class="field-label">{{ isTransferMode ? 'Montant débité' : 'Montant saisi' }}</label>
-              <input
-                  v-model="transactionForm.amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  class="field-control"
-                  placeholder="0.00"
-              >
-            </div>
-
-            <div v-if="!isTransferMode" class="field-block">
-              <label class="field-label">Devise du montant saisi</label>
-              <input
-                  v-model="transactionForm.currency"
-                  type="text"
-                  maxlength="6"
-                  class="field-control"
-                  placeholder="USD, EUR, CAD..."
-              >
-            </div>
-
-            <div v-else class="field-block">
-              <label class="field-label">Devise source</label>
-              <input
-                  :value="sourceCurrency || 'CAD'"
-                  type="text"
-                  class="field-control"
-                  readonly
-              >
-            </div>
-
-            <div class="field-block">
-              <label class="field-label">Date</label>
-              <input
-                  v-model="transactionForm.date"
-                  type="date"
-                  class="field-control"
+                  :placeholder="isTransferMode ? 'Virement vers épargne, déplacement de fonds...' : 'Courses, salaire, abonnement...'"
               >
             </div>
 
@@ -241,158 +258,456 @@ const isForeignCurrency = computed(() => {
             </div>
 
             <div class="field-block">
-              <label class="field-label">{{ isTransferMode ? 'Compte source' : 'Compte' }}</label>
-              <select v-model="transactionForm.accountId" class="field-control">
-                <option value="">Sélectionner un compte</option>
-                <option
-                    v-for="account in accounts"
-                    :key="account.id"
-                    :value="String(account.id)"
-                >
-                  {{ account.name }} ({{ account.currency }})
-                </option>
-              </select>
+              <label class="field-label">Date</label>
+              <input
+                  v-model="transactionForm.date"
+                  type="date"
+                  class="field-control"
+              >
+            </div>
+          </div>
+
+          <div
+              v-if="isTransferMode"
+              class="rounded-3xl border border-sky-200 bg-sky-50/80 p-5 dark:border-sky-900/60 dark:bg-sky-950/30"
+          >
+            <div class="flex flex-col gap-3">
+              <div class="flex flex-wrap items-center gap-2">
+                <span
+                    class="inline-flex items-center rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-semibold text-sky-700 dark:border-sky-900/60 dark:bg-slate-900 dark:text-sky-300">
+                  Transfert interne
+                </span>
+
+                <span v-if="transferRoute"
+                      class="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                  {{ transferRoute }}
+                </span>
+              </div>
+
+              <p class="text-sm leading-6 text-slate-600 dark:text-slate-300">
+                {{ transferModeSummary }}
+              </p>
+
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                Ce mouvement n’est pas compté comme un revenu ou une dépense dans les rapports.
+              </p>
+            </div>
+          </div>
+
+          <template v-if="isTransferMode">
+            <div class="grid gap-5 md:grid-cols-2">
+              <div
+                  class="rounded-3xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-950/40">
+                <div class="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p class="mini-label">Compte source</p>
+                    <h3 class="mt-1 text-base font-semibold text-slate-900 dark:text-white">
+                      Sortie
+                    </h3>
+                  </div>
+
+                  <span
+                      class="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
+                    Débit
+                  </span>
+                </div>
+
+                <div class="space-y-4">
+                  <label class="field-block">
+                    <span class="field-label">Compte à débiter</span>
+                    <select v-model="transactionForm.accountId" class="field-control">
+                      <option value="">Sélectionner un compte</option>
+                      <option
+                          v-for="account in accounts"
+                          :key="account.id"
+                          :value="String(account.id)"
+                      >
+                        {{ account.name }} ({{ account.currency }})
+                      </option>
+                    </select>
+                  </label>
+
+                  <label class="field-block">
+                    <span class="field-label">Montant débité</span>
+                    <input
+                        v-model="transactionForm.amount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        class="field-control"
+                        placeholder="0.00"
+                    >
+                  </label>
+
+                  <label class="field-block">
+                    <span class="field-label">Devise source</span>
+                    <input
+                        :value="sourceCurrency || 'CAD'"
+                        type="text"
+                        class="field-control"
+                        readonly
+                    >
+                  </label>
+                </div>
+              </div>
+
+              <div
+                  class="rounded-3xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-950/40">
+                <div class="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p class="mini-label">Compte destination</p>
+                    <h3 class="mt-1 text-base font-semibold text-slate-900 dark:text-white">
+                      Entrée
+                    </h3>
+                  </div>
+
+                  <span
+                      class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    Crédit
+                  </span>
+                </div>
+
+                <div class="space-y-4">
+                  <label class="field-block">
+                    <span class="field-label">Compte à créditer</span>
+                    <select v-model="transactionForm.transferTargetAccountId" class="field-control">
+                      <option value="">Sélectionner un compte</option>
+                      <option
+                          v-for="account in accounts.filter((entry) => String(entry.id) !== transactionForm.accountId)"
+                          :key="account.id"
+                          :value="String(account.id)"
+                      >
+                        {{ account.name }} ({{ account.currency }})
+                      </option>
+                    </select>
+                  </label>
+
+                  <label class="field-block">
+                    <span class="field-label">Devise destination</span>
+                    <input
+                        :value="targetCurrency || 'CAD'"
+                        type="text"
+                        class="field-control"
+                        readonly
+                    >
+                  </label>
+
+                  <div
+                      class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                    <p class="font-medium text-slate-800 dark:text-slate-100">
+                      {{
+                        selectedTransferTargetAccount ? selectedTransferTargetAccount.name : 'Choisis un compte destination'
+                      }}
+                    </p>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      Le mouvement lié sera créé automatiquement.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div v-if="isTransferMode" class="field-block">
-              <label class="field-label">Compte destination</label>
-              <select v-model="transactionForm.transferTargetAccountId" class="field-control">
-                <option value="">Sélectionner un compte</option>
-                <option
-                    v-for="account in accounts.filter((entry) => String(entry.id) !== transactionForm.accountId)"
-                    :key="account.id"
-                    :value="String(account.id)"
-                >
-                  {{ account.name }} ({{ account.currency }})
-                </option>
-              </select>
+            <div v-if="isForeignCurrency" class="space-y-4">
+              <div class="mini-card">
+                <p class="mini-label">Conversion entre devises</p>
+
+                <div class="mt-3 grid gap-4 md:grid-cols-3">
+                  <label class="field-block">
+                    <span class="field-label">Mode</span>
+                    <select v-model="transactionForm.conversionMode" class="field-control">
+                      <option value="AUTOMATIC">Automatique</option>
+                      <option value="MANUAL">Manuel</option>
+                    </select>
+                  </label>
+
+                  <label class="field-block">
+                    <span class="field-label">Montant crédité ({{ targetCurrency }})</span>
+                    <input
+                        v-model="transactionForm.accountAmount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        class="field-control"
+                        placeholder="0.00"
+                        :readonly="transactionForm.conversionMode === 'AUTOMATIC'"
+                    >
+                  </label>
+
+                  <label class="field-block">
+                    <span class="field-label">Taux mémorisé</span>
+                    <input
+                        v-model="transactionForm.exchangeRate"
+                        type="number"
+                        min="0"
+                        step="0.000001"
+                        class="field-control"
+                        placeholder="1.000000"
+                        :readonly="transactionForm.conversionMode === 'AUTOMATIC'"
+                    >
+                  </label>
+                </div>
+
+                <div class="mt-4 grid gap-4 md:grid-cols-2">
+                  <label class="field-block">
+                    <span class="field-label">Source du taux</span>
+                    <input
+                        v-model="transactionForm.exchangeProvider"
+                        type="text"
+                        class="field-control"
+                        placeholder="MANUAL / ECB via Frankfurter"
+                        :readonly="transactionForm.conversionMode === 'AUTOMATIC'"
+                    >
+                  </label>
+
+                  <label class="field-block">
+                    <span class="field-label">Date du taux</span>
+                    <input
+                        v-model="transactionForm.exchangeDate"
+                        type="date"
+                        class="field-control"
+                    >
+                  </label>
+                </div>
+
+                <div v-if="transactionForm.conversionMode === 'AUTOMATIC'" class="mt-4">
+                  <button
+                      type="button"
+                      class="ghost-btn"
+                      :disabled="fxBusy"
+                      @click="emit('quote-transaction-fx')"
+                  >
+                    {{ fxBusy ? 'Récupération du taux…' : 'Récupérer un taux pour cette date' }}
+                  </button>
+                </div>
+
+                <div v-if="fxPreview" class="mt-4 inline-warning">
+                  {{ transactionForm.amount || '0' }} {{ sourceCurrency }}
+                  ≈ {{ fxPreview.convertedAmount.toFixed(2) }} {{ targetCurrency }}
+                  avec un taux de {{ fxPreview.rate.toFixed(6) }}
+                  ({{ fxPreview.provider }}, {{ fxPreview.date }})
+                </div>
+              </div>
             </div>
 
-            <div v-else class="field-block">
-              <label class="field-label">Catégorie</label>
-              <select v-model="transactionForm.categoryId" class="field-control">
-                <option value="">Aucune</option>
-                <option
-                    v-for="category in transactionFormCategories"
-                    :key="category.id"
-                    :value="String(category.id)"
-                >
-                  {{ category.name }}
-                </option>
-              </select>
+            <div
+                v-if="transferPreview"
+                class="rounded-3xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-950/40"
+            >
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <p class="mini-label">Aperçu du transfert généré</p>
+                  <h3 class="mt-1 text-base font-semibold text-slate-900 dark:text-white">
+                    {{ transferRoute || 'Transfert interne' }}
+                  </h3>
+                </div>
+
+                <span class="soft-badge">
+                  2 mouvements liés
+                </span>
+              </div>
+
+              <div class="mt-4 grid gap-4 md:grid-cols-2">
+                <div
+                    class="rounded-2xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900/60 dark:bg-rose-950/30">
+                  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-600 dark:text-rose-300">
+                    Débit
+                  </p>
+                  <p class="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
+                    {{ transferPreview.debitLabel }}
+                  </p>
+                  <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                    depuis {{ transferPreview.sourceAccountName }}
+                  </p>
+                </div>
+
+                <div
+                    class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-600 dark:text-emerald-300">
+                    Crédit
+                  </p>
+                  <p class="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
+                    {{ transferPreview.creditLabel }}
+                  </p>
+                  <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                    vers {{ transferPreview.targetAccountName }}
+                  </p>
+                </div>
+              </div>
+
+              <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">
+                {{
+                  transferPreview.sameCurrency
+                      ? 'Même devise : le montant débité et le montant crédité sont identiques.'
+                      : 'Devises différentes : le mouvement de destination sera mémorisé avec son montant converti et son taux.'
+                }}
+              </p>
             </div>
 
-            <div class="field-block md:col-span-2">
+            <div class="field-block">
               <label class="field-label">Note</label>
               <textarea
                   v-model="transactionForm.note"
                   rows="4"
                   class="field-control field-textarea"
-                  placeholder="Détail optionnel"
+                  placeholder="Motif du transfert, commentaire interne, contexte..."
               ></textarea>
             </div>
-          </div>
+          </template>
 
-          <div v-if="selectedAccount" class="grid gap-4 md:grid-cols-2">
-            <div class="mini-card">
-              <p class="mini-label">{{ isTransferMode ? 'Devise du compte source' : 'Devise du compte' }}</p>
-              <p class="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-                {{ selectedAccountCurrency }}
-              </p>
-            </div>
-
-            <div v-if="isTransferMode && selectedTransferTargetAccount" class="mini-card">
-              <p class="mini-label">Devise du compte destination</p>
-              <p class="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-                {{ selectedTransferTargetCurrency }}
-              </p>
-            </div>
-          </div>
-
-          <div v-if="isForeignCurrency" class="space-y-4">
-            <div class="mini-card">
-              <p class="mini-label">Mode de conversion</p>
-              <div class="mt-3 grid gap-4 md:grid-cols-3">
-                <label class="field-block">
-                  <span class="field-label">Choix</span>
-                  <select v-model="transactionForm.conversionMode" class="field-control">
-                    <option value="AUTOMATIC">Automatique</option>
-                    <option value="MANUAL">Manuel</option>
-                  </select>
-                </label>
-
-                <label class="field-block">
-                  <span class="field-label">
-                    {{
-                      isTransferMode ? `Montant crédité (${targetCurrency})` : `Montant comptabilisé (${targetCurrency})`
-                    }}
-                  </span>
-                  <input
-                      v-model="transactionForm.accountAmount"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      class="field-control"
-                      placeholder="0.00"
-                      :readonly="transactionForm.conversionMode === 'AUTOMATIC'"
-                  >
-                </label>
-
-                <label class="field-block">
-                  <span class="field-label">Taux mémorisé</span>
-                  <input
-                      v-model="transactionForm.exchangeRate"
-                      type="number"
-                      min="0"
-                      step="0.000001"
-                      class="field-control"
-                      placeholder="1.000000"
-                      :readonly="transactionForm.conversionMode === 'AUTOMATIC'"
-                  >
-                </label>
-              </div>
-
-              <div class="mt-4 grid gap-4 md:grid-cols-2">
-                <label class="field-block">
-                  <span class="field-label">Source du taux</span>
-                  <input
-                      v-model="transactionForm.exchangeProvider"
-                      type="text"
-                      class="field-control"
-                      placeholder="MANUAL / ECB via Frankfurter"
-                      :readonly="transactionForm.conversionMode === 'AUTOMATIC'"
-                  >
-                </label>
-
-                <label class="field-block">
-                  <span class="field-label">Date du taux</span>
-                  <input
-                      v-model="transactionForm.exchangeDate"
-                      type="date"
-                      class="field-control"
-                  >
-                </label>
-              </div>
-
-              <div v-if="transactionForm.conversionMode === 'AUTOMATIC'" class="mt-4">
-                <button
-                    type="button"
-                    class="ghost-btn"
-                    :disabled="fxBusy"
-                    @click="emit('quote-transaction-fx')"
+          <template v-else>
+            <div class="grid gap-5 md:grid-cols-2">
+              <div class="field-block">
+                <label class="field-label">Montant saisi</label>
+                <input
+                    v-model="transactionForm.amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    class="field-control"
+                    placeholder="0.00"
                 >
-                  {{ fxBusy ? 'Récupération du taux…' : 'Convertir automatiquement pour cette date' }}
-                </button>
               </div>
 
-              <div v-if="fxPreview" class="mt-4 inline-warning">
-                {{ transactionForm.amount || '0' }} {{ sourceCurrency }}
-                ≈ {{ fxPreview.convertedAmount.toFixed(2) }} {{ targetCurrency }}
-                avec un taux de {{ fxPreview.rate.toFixed(6) }}
-                ({{ fxPreview.provider }}, {{ fxPreview.date }})
+              <div class="field-block">
+                <label class="field-label">Devise du montant saisi</label>
+                <input
+                    v-model="transactionForm.currency"
+                    type="text"
+                    maxlength="6"
+                    class="field-control"
+                    placeholder="USD, EUR, CAD..."
+                >
+              </div>
+
+              <div class="field-block">
+                <label class="field-label">Compte</label>
+                <select v-model="transactionForm.accountId" class="field-control">
+                  <option value="">Sélectionner un compte</option>
+                  <option
+                      v-for="account in accounts"
+                      :key="account.id"
+                      :value="String(account.id)"
+                  >
+                    {{ account.name }} ({{ account.currency }})
+                  </option>
+                </select>
+              </div>
+
+              <div class="field-block">
+                <label class="field-label">Catégorie</label>
+                <select v-model="transactionForm.categoryId" class="field-control">
+                  <option value="">Aucune</option>
+                  <option
+                      v-for="category in transactionFormCategories"
+                      :key="category.id"
+                      :value="String(category.id)"
+                  >
+                    {{ category.name }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="field-block md:col-span-2">
+                <label class="field-label">Note</label>
+                <textarea
+                    v-model="transactionForm.note"
+                    rows="4"
+                    class="field-control field-textarea"
+                    placeholder="Détail optionnel"
+                ></textarea>
               </div>
             </div>
-          </div>
+
+            <div v-if="selectedAccount" class="grid gap-4 md:grid-cols-2">
+              <div class="mini-card">
+                <p class="mini-label">Devise du compte</p>
+                <p class="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                  {{ selectedAccountCurrency }}
+                </p>
+              </div>
+            </div>
+
+            <div v-if="isForeignCurrency" class="space-y-4">
+              <div class="mini-card">
+                <p class="mini-label">Conversion</p>
+                <div class="mt-3 grid gap-4 md:grid-cols-3">
+                  <label class="field-block">
+                    <span class="field-label">Choix</span>
+                    <select v-model="transactionForm.conversionMode" class="field-control">
+                      <option value="AUTOMATIC">Automatique</option>
+                      <option value="MANUAL">Manuel</option>
+                    </select>
+                  </label>
+
+                  <label class="field-block">
+                    <span class="field-label">Montant comptabilisé ({{ targetCurrency }})</span>
+                    <input
+                        v-model="transactionForm.accountAmount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        class="field-control"
+                        placeholder="0.00"
+                        :readonly="transactionForm.conversionMode === 'AUTOMATIC'"
+                    >
+                  </label>
+
+                  <label class="field-block">
+                    <span class="field-label">Taux mémorisé</span>
+                    <input
+                        v-model="transactionForm.exchangeRate"
+                        type="number"
+                        min="0"
+                        step="0.000001"
+                        class="field-control"
+                        placeholder="1.000000"
+                        :readonly="transactionForm.conversionMode === 'AUTOMATIC'"
+                    >
+                  </label>
+                </div>
+
+                <div class="mt-4 grid gap-4 md:grid-cols-2">
+                  <label class="field-block">
+                    <span class="field-label">Source du taux</span>
+                    <input
+                        v-model="transactionForm.exchangeProvider"
+                        type="text"
+                        class="field-control"
+                        placeholder="MANUAL / ECB via Frankfurter"
+                        :readonly="transactionForm.conversionMode === 'AUTOMATIC'"
+                    >
+                  </label>
+
+                  <label class="field-block">
+                    <span class="field-label">Date du taux</span>
+                    <input
+                        v-model="transactionForm.exchangeDate"
+                        type="date"
+                        class="field-control"
+                    >
+                  </label>
+                </div>
+
+                <div v-if="transactionForm.conversionMode === 'AUTOMATIC'" class="mt-4">
+                  <button
+                      type="button"
+                      class="ghost-btn"
+                      :disabled="fxBusy"
+                      @click="emit('quote-transaction-fx')"
+                  >
+                    {{ fxBusy ? 'Récupération du taux…' : 'Convertir automatiquement pour cette date' }}
+                  </button>
+                </div>
+
+                <div v-if="fxPreview" class="mt-4 inline-warning">
+                  {{ transactionForm.amount || '0' }} {{ sourceCurrency }}
+                  ≈ {{ fxPreview.convertedAmount.toFixed(2) }} {{ targetCurrency }}
+                  avec un taux de {{ fxPreview.rate.toFixed(6) }}
+                  ({{ fxPreview.provider }}, {{ fxPreview.date }})
+                </div>
+              </div>
+            </div>
+          </template>
 
           <div v-if="!accounts.length" class="inline-warning">
             Tu n’as encore aucun compte. Crée d’abord un compte.
@@ -417,6 +732,7 @@ const isForeignCurrency = computed(() => {
             </button>
           </div>
         </form>
+
         <form
             v-else-if="currentTab === 'account'"
             class="space-y-5"
