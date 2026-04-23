@@ -15,6 +15,7 @@ module.exports = {
     packagerConfig: {
         asar: true,
         icon: path.join(__dirname, 'assets', 'icons', 'app'),
+        executableName: 'budget',
         ...(process.platform === 'darwin'
             ? {
                 osxSign: {},
@@ -50,11 +51,19 @@ module.exports = {
         },
         {
             name: '@electron-forge/maker-deb',
-            config: {},
+            config: {
+                options: {
+                    bin: 'budget',
+                },
+            },
         },
         {
             name: '@electron-forge/maker-rpm',
-            config: {},
+            config: {
+                options: {
+                    bin: 'budget',
+                },
+            },
         },
     ],
     plugins: [
