@@ -1,13 +1,11 @@
 # Release checklist
 
-## Vérifications techniques
+## Avant le build
 
 - [ ] `npm install`
 - [ ] `npm run prisma:generate`
-- [ ] `npm run db:push`
 - [ ] `npm run test:run`
 - [ ] `npm run typecheck`
-- [ ] `npm run package`
 
 ## Vérifications métier
 
@@ -16,25 +14,36 @@
 - [ ] création d’un revenu
 - [ ] création d’une dépense
 - [ ] création d’un transfert interne
-- [ ] modification d’un transfert interne
-- [ ] suppression d’un transfert interne
-- [ ] budgets visibles et corrects
-- [ ] récurrences générées correctement
-- [ ] rapports corrects sur une période
-- [ ] comparaison période précédente correcte
-- [ ] transferts exclus des revenus / dépenses dans les rapports
+- [ ] création d’un transfert multi-devise
+- [ ] affichage correct des transferts dans Overview
+- [ ] affichage correct des transferts dans Transactions
+- [ ] budgets : statuts UNDER / NEAR / OVER cohérents
+- [ ] récurrences : génération correcte
+- [ ] rapports : transferts exclus des revenus / dépenses
+- [ ] rapports : période vide sans crash
+- [ ] export markdown du rapport
 
 ## Vérifications sauvegarde
 
 - [ ] export JSON
+- [ ] ouverture de la prévisualisation restore JSON
 - [ ] restauration JSON
-- [ ] réouverture app après restauration
+- [ ] fermeture puis réouverture de l’application
 - [ ] données intactes après redémarrage
 
-## Vérifications UI
+## Packaging
 
-- [ ] overview lisible
-- [ ] transactions lisibles
-- [ ] rapports lisibles
-- [ ] états vides propres
-- [ ] pas de texte template restant
+- [ ] `npm run package`
+- [ ] `npm run make`
+- [ ] icône visible dans l’application
+- [ ] icône visible dans l’installateur
+- [ ] installation Windows testée
+- [ ] installation Linux testée
+- [ ] installation macOS testée
+
+## Publication
+
+- [ ] tag Git propre (`v0.9.0`, etc.)
+- [ ] release GitHub créée
+- [ ] artefacts présents
+- [ ] notes de release relues
