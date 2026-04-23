@@ -1,17 +1,46 @@
 const path = require('node:path')
+const fs = require('node:fs')
 const {FusesPlugin} = require('@electron-forge/plugin-fuses')
 const {FuseV1Options, FuseVersion} = require('@electron/fuses')
+
+const certFile = path.join(__dirname, 'cert.pfx')
+const hasWindowsCert = fs.existsSync(certFile)
+
+const hasMacNotarizeApi =
+    Boolean(process.env.APPLE_API_KEY)
+    && Boolean(process.env.APPLE_API_KEY_ID)
+    && Boolean(process.env.APPLE_API_ISSUER)
 
 module.exports = {
     packagerConfig: {
         asar: true,
         icon: path.join(__dirname, 'assets', 'icons', 'app'),
+        ...(process.platform === 'darwin'
+            ? {
+                osxSign: {},
+                ...(hasMacNotarizeApi
+                    ? {
+                        osxNotarize: {
+                            appleApiKey: process.env.APPLE_API_KEY,
+                            appleApiKeyId: process.env.APPLE_API_KEY_ID,
+                            appleApiIssuer: process.env.APPLE_API_ISSUER,
+                        },
+                    }
+                    : {}),
+            }
+            : {}),
     },
     rebuildConfig: {},
     makers: [
         {
             name: '@electron-forge/maker-squirrel',
             config: {
+                ...(hasWindowsCert
+                    ? {
+                        certificateFile: certFile,
+                        certificatePassword: process.env.WIN_CERT_PASSWORD,
+                    }
+                    : {}),
                 setupIcon: path.join(__dirname, 'assets', 'icons', 'app.ico'),
             },
         },
