@@ -1,14 +1,10 @@
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/
 
-function pad2(value: number) {
-    return String(value).padStart(2, '0')
+function isDateOnlyString(value) {
+    return typeof value === 'string' && DATE_ONLY_RE.test(value)
 }
 
-export function isDateOnlyString(value: string) {
-    return DATE_ONLY_RE.test(value)
-}
-
-export function toUtcDate(value: string | Date) {
+function toUtcDate(value) {
     if (value instanceof Date) {
         return new Date(value.getTime())
     }
@@ -20,39 +16,43 @@ export function toUtcDate(value: string | Date) {
     return new Date(value)
 }
 
-export function toDateOnly(value: string | Date) {
-    if (typeof value === 'string' && isDateOnlyString(value)) {
+function requireDate(value, fieldName = 'La date') {
+    const date = toUtcDate(value)
+    if (Number.isNaN(date.getTime())) {
+        throw new Error(`${fieldName} est invalide.`)
+    }
+    return date
+}
+
+function toDateOnly(value) {
+    if (isDateOnlyString(value)) {
         return value
     }
 
-    return toUtcDate(value).toISOString().slice(0, 10)
+    return requireDate(value).toISOString().slice(0, 10)
 }
 
-export function todayDateOnly(now = new Date()) {
-    return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`
-}
-
-export function startOfUtcDay(value: string | Date = new Date()) {
+function startOfUtcDay(value = new Date()) {
     return new Date(`${toDateOnly(value)}T00:00:00.000Z`)
 }
 
-export function endOfUtcDay(value: string | Date = new Date()) {
+function endOfUtcDay(value = new Date()) {
     const end = startOfUtcDay(value)
     end.setUTCHours(23, 59, 59, 999)
     return end
 }
 
-export function addUtcDays(date: Date, days: number) {
+function addUtcDays(date, days) {
     const next = new Date(date.getTime())
     next.setUTCDate(next.getUTCDate() + days)
     return next
 }
 
-export function addUtcWeeks(date: Date, weeks: number) {
+function addUtcWeeks(date, weeks) {
     return addUtcDays(date, weeks * 7)
 }
 
-export function addUtcMonths(date: Date, months: number) {
+function addUtcMonths(date, months) {
     const next = new Date(date.getTime())
     const originalDay = next.getUTCDate()
 
@@ -67,7 +67,7 @@ export function addUtcMonths(date: Date, months: number) {
     return next
 }
 
-export function addUtcYears(date: Date, years: number) {
+function addUtcYears(date, years) {
     const next = new Date(date.getTime())
     const originalMonth = next.getUTCMonth()
     const originalDay = next.getUTCDate()
@@ -82,4 +82,17 @@ export function addUtcYears(date: Date, years: number) {
 
     next.setUTCDate(Math.min(originalDay, lastDayOfTargetMonth))
     return next
+}
+
+module.exports = {
+    isDateOnlyString,
+    toUtcDate,
+    requireDate,
+    toDateOnly,
+    startOfUtcDay,
+    endOfUtcDay,
+    addUtcDays,
+    addUtcWeeks,
+    addUtcMonths,
+    addUtcYears,
 }

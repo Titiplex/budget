@@ -8,7 +8,7 @@ import type {
     Transaction,
 } from '../types/budget'
 import {tr} from '../i18n'
-import {toDateOnly, toUtcDate} from '../utils/date'
+import {todayDateOnly, toDateOnly, toUtcDate} from '../utils/date'
 
 interface UseBudgetTargetsOptions {
     categories: Ref<Category[]>
@@ -62,7 +62,7 @@ export function useBudgetTargets(options: UseBudgetTargetsOptions) {
         name: '',
         amount: '',
         period: 'MONTHLY' as BudgetPeriod,
-        startDate: toDateOnly(new Date()),
+        startDate: todayDateOnly(),
         endDate: '',
         currency: 'CAD',
         isActive: true,
@@ -74,7 +74,7 @@ export function useBudgetTargets(options: UseBudgetTargetsOptions) {
         budgetForm.name = ''
         budgetForm.amount = ''
         budgetForm.period = 'MONTHLY'
-        budgetForm.startDate = toDateOnly(new Date())
+        budgetForm.startDate = todayDateOnly()
         budgetForm.endDate = ''
         budgetForm.currency = 'CAD'
         budgetForm.isActive = true

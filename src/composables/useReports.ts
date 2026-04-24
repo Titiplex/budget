@@ -16,7 +16,7 @@ import type {
 import {tr} from '../i18n'
 import {formatDate, formatMoney} from '../utils/budgetFormat'
 import {buildPreviousPeriod, buildReportComparison, summarizeTransactions, withinRange} from '../utils/reportComparison'
-import {addUtcDays, toDateOnly, toUtcDate} from '../utils/date'
+import {addUtcDays, todayDateOnly, toDateOnly, toUtcDate} from '../utils/date'
 
 interface UseReportsOptions {
     accounts: Ref<Account[]>
@@ -25,44 +25,45 @@ interface UseReportsOptions {
     showNotice: (type: 'success' | 'error', text: string) => void
 }
 
-function startOfMonth(now = new Date()) {
+function startOfMonth(now: string | Date = todayDateOnly()) {
     const current = toUtcDate(now)
     return toDateOnly(new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), 1)))
 }
 
-function startOfYear(now = new Date()) {
+function startOfYear(now: string | Date = todayDateOnly()) {
     const current = toUtcDate(now)
     return toDateOnly(new Date(Date.UTC(current.getUTCFullYear(), 0, 1)))
 }
 
-function minusDays(now: Date, days: number) {
+function minusDays(now: string | Date, days: number) {
     return toDateOnly(addUtcDays(toUtcDate(now), -days))
 }
 
 export function useReports(options: UseReportsOptions) {
-    const today = new Date()
+    const today = todayDateOnly()
     const reportPreset = ref<ReportPreset>('THIS_MONTH')
     const reportStartDate = ref(startOfMonth(today))
-    const reportEndDate = ref(toDateOnly(today))
+    const reportEndDate = ref(today)
 
     function applyPreset(preset: ReportPreset) {
         reportPreset.value = preset
 
         if (preset === 'THIS_MONTH') {
             reportStartDate.value = startOfMonth()
-            reportEndDate.value = toDateOnly(new Date())
+            reportEndDate.value = todayDateOnly()
             return
         }
 
         if (preset === 'LAST_30_DAYS') {
-            reportStartDate.value = minusDays(new Date(), 29)
-            reportEndDate.value = toDateOnly(new Date())
+            const today = todayDateOnly()
+            reportStartDate.value = minusDays(today, 29)
+            reportEndDate.value = today
             return
         }
 
         if (preset === 'THIS_YEAR') {
             reportStartDate.value = startOfYear()
-            reportEndDate.value = toDateOnly(new Date())
+            reportEndDate.value = todayDateOnly()
             return
         }
 
@@ -73,7 +74,7 @@ export function useReports(options: UseReportsOptions) {
             reportStartDate.value = ordered[0] ? toDateOnly(ordered[0].date) : toDateOnly(new Date())
             reportEndDate.value = ordered[ordered.length - 1]
                 ? toDateOnly(ordered[ordered.length - 1].date)
-                : toDateOnly(new Date())
+                : todayDateOnly()
         }
     }
 

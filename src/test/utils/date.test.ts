@@ -34,4 +34,9 @@ describe('date utils', () => {
         expect(startOfUtcDay('2026-04-01').toISOString()).toBe('2026-04-01T00:00:00.000Z')
         expect(endOfUtcDay('2026-04-01').toISOString()).toBe('2026-04-01T23:59:59.999Z')
     })
+
+    it('keeps full ISO timestamps stable when reduced to UTC date-only', () => {
+        expect(toDateOnly('2026-04-01T23:59:59.999Z')).toBe('2026-04-01')
+        expect(toDateOnly('2026-04-01T23:30:00-02:00')).toBe('2026-04-02')
+    })
 })

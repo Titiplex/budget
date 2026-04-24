@@ -53,6 +53,12 @@ describe('recurringForecast utils', () => {
         expect(addRecurringInterval(new Date('2026-04-01'), 'YEARLY', 1).toISOString().slice(0, 10)).toBe('2027-04-01')
     })
 
+    it('clamps month-end recurrences without timezone drift', () => {
+        expect(
+            addRecurringInterval(new Date('2026-01-31T00:00:00.000Z'), 'MONTHLY', 1).toISOString().slice(0, 10),
+        ).toBe('2026-02-28')
+    })
+
     it('estimates monthly equivalents', () => {
         expect(estimateMonthlyEquivalent(makeTemplate({frequency: 'MONTHLY', intervalCount: 1}))).toBe(15)
         expect(estimateMonthlyEquivalent(makeTemplate({

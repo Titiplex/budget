@@ -12,6 +12,7 @@ import {tr} from '../i18n'
 import {entityCollectionLabel, sectionToEntityType} from '../utils/budgetFormat'
 import {parseCsv, readCsvValue, toCsv, type CsvRecord} from '../utils/csv'
 import {summarizeCsvRows, type ImportPreviewSummary} from '../utils/importValidation'
+import {toDateOnly} from '../utils/date'
 
 interface UseCsvImportExportOptions {
     activeSection: Ref<SectionKey>
@@ -68,9 +69,11 @@ export function useCsvImportExport(options: UseCsvImportExportOptions) {
     }
 
     function toDateKey(value: string) {
-        const parsed = new Date(value)
-        if (Number.isNaN(parsed.getTime())) return ''
-        return parsed.toISOString().slice(0, 10)
+        try {
+            return toDateOnly(value)
+        } catch {
+            return ''
+        }
     }
 
     function findAccountByName(list: Account[], name: string) {
