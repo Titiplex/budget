@@ -48,9 +48,20 @@ describe('useJsonBackup smoke', () => {
         }
     })
 
-    it('exports a version 3 backup and opens a valid restore preview', async () => {
+    it('exports a version 4 backup and opens a valid restore preview', async () => {
         const accounts = ref([
-            {id: 1, name: 'Main', type: 'BANK', currency: 'CAD', description: null},
+            {
+                id: 1,
+                name: 'Main',
+                type: 'BANK',
+                currency: 'CAD',
+                description: null,
+                institutionCountry: 'CA',
+                institutionRegion: 'QC',
+                taxReportingType: 'BANK',
+                openedAt: null,
+                closedAt: null,
+            },
         ] as any)
 
         const categories = ref([
@@ -74,6 +85,14 @@ describe('useJsonBackup smoke', () => {
                 kind: 'EXPENSE',
                 date: '2026-04-10',
                 note: null,
+                taxCategory: null,
+                taxSourceCountry: null,
+                taxSourceRegion: null,
+                taxTreatment: 'UNKNOWN',
+                taxWithheldAmount: null,
+                taxWithheldCurrency: null,
+                taxWithheldCountry: null,
+                taxDocumentRef: null,
                 accountId: 1,
                 categoryId: 10,
                 transferGroup: null,
@@ -100,7 +119,9 @@ describe('useJsonBackup smoke', () => {
 
         const exportedContent = saveTextMock.mock.calls[0][0].content
         expect(exportedContent).toContain('"kind": "budget-backup"')
-        expect(exportedContent).toContain('"version": 3')
+        expect(exportedContent).toContain('"version": 4')
+        expect(exportedContent).toContain('"institutionCountry": "CA"')
+        expect(exportedContent).toContain('"taxProfiles": []')
 
         openTextMock.mockResolvedValue({
             canceled: false,
