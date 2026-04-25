@@ -140,4 +140,10 @@ describe('report comparison utils', () => {
         expect(comparison.internalTransferCount.delta).toBe(-2)
         expect(withinRange('2026-04-15T10:00:00.000Z', '2026-04-01', '2026-04-30')).toBe(true)
     })
+
+    it('keeps boundaries inclusive for date-only and ISO timestamps', () => {
+        expect(withinRange('2026-04-01', '2026-04-01', '2026-04-30')).toBe(true)
+        expect(withinRange('2026-04-30T23:59:59.999Z', '2026-04-01', '2026-04-30')).toBe(true)
+        expect(withinRange('2026-05-01T00:00:00.000Z', '2026-04-01', '2026-04-30')).toBe(false)
+    })
 })

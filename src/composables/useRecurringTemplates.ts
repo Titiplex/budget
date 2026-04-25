@@ -15,6 +15,7 @@ import {
     addUtcMonths,
     addUtcWeeks,
     addUtcYears,
+    todayDateOnly,
     endOfUtcDay,
     toDateOnly,
     toUtcDate,
@@ -80,8 +81,8 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
         note: '',
         frequency: 'MONTHLY' as RecurringFrequency,
         intervalCount: '1',
-        startDate: toDateOnly(new Date()),
-        nextOccurrenceDate: toDateOnly(new Date()),
+        startDate: todayDateOnly(),
+        nextOccurrenceDate: todayDateOnly(),
         endDate: '',
         isActive: true,
         accountId: '',
@@ -100,8 +101,8 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
         recurringForm.note = ''
         recurringForm.frequency = 'MONTHLY'
         recurringForm.intervalCount = '1'
-        recurringForm.startDate = toDateOnly(new Date())
-        recurringForm.nextOccurrenceDate = toDateOnly(new Date())
+        recurringForm.startDate = todayDateOnly()
+        recurringForm.nextOccurrenceDate = todayDateOnly()
         recurringForm.endDate = ''
         recurringForm.isActive = true
         recurringForm.accountId = ''
@@ -274,7 +275,7 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
         recurringGenerating.value = true
         try {
             const result = await window.db.recurringTemplate.generateDue({
-                asOfDate: new Date().toISOString(),
+                asOfDate: todayDateOnly(),
                 ...(templateId ? {templateId} : {}),
             })
 
@@ -302,7 +303,8 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
     }
 
     const recurringRows = computed<RecurringTemplateRow[]>(() => {
-        const today = endOfUtcDay(new Date())
+        const todayKey = todayDateOnly()
+        const today = endOfUtcDay(todayKey)
 
         return recurringTemplates.value
             .map((template) => {
@@ -323,7 +325,8 @@ export function useRecurringTemplates(options: UseRecurringTemplatesOptions) {
                     endDate: template.endDate ? toDateOnly(template.endDate) : null,
                     isActive: template.isActive,
                     dueCount,
-                    overdue: dueCount > 0 && toUtcDate(nextOccurrenceDate).getTime() < toUtcDate(toDateOnly(new Date())).getTime(),
+                    overdue: dueCount > 0
+                        && toUtcDate(nextOccurrenceDate).getTime() < toUtcDate(todayKey).getTime(),
                     accountName: template.account?.name || tr('recurring.unknownAccount'),
                     categoryName: template.category?.name || tr('recurring.noCategory'),
                     note: template.note,

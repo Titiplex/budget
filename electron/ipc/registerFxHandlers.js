@@ -1,4 +1,5 @@
 const {ipcMain} = require('electron')
+const {requireDate, toDateOnly} = require('../utils/date')
 
 function normalizeText(value) {
     if (typeof value !== 'string') return null
@@ -18,20 +19,12 @@ function requirePositiveNumber(value, fieldName) {
     return parsed
 }
 
-function requireDate(value) {
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) {
-        throw new Error('La date est invalide.')
-    }
-    return date
-}
-
 function roundCurrency(value) {
     return Math.round(value * 100) / 100
 }
 
 function toIsoDay(date) {
-    return new Date(date).toISOString().slice(0, 10)
+    return toDateOnly(requireDate(date))
 }
 
 async function getHistoricalQuote(data) {

@@ -1,6 +1,7 @@
 const {randomUUID} = require('node:crypto')
 const {ipcMain} = require('electron')
 const {getPrisma} = require('../db')
+const {requireDate} = require('../utils/date')
 
 function normalizeText(value) {
     if (typeof value !== 'string') return null
@@ -34,14 +35,6 @@ function requireId(value, fieldName) {
         throw new Error(`${fieldName} est invalide.`)
     }
     return parsed
-}
-
-function requireDate(value) {
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) {
-        throw new Error('La date est invalide.')
-    }
-    return date
 }
 
 function includeTransactionRelations() {

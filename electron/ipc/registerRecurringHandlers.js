@@ -1,6 +1,14 @@
 const {ipcMain} = require('electron')
 const {getPrisma} = require('../db')
 const {getHistoricalQuote} = require('./registerFxHandlers')
+const {
+    requireDate,
+    addUtcDays,
+    addUtcWeeks,
+    addUtcMonths,
+    addUtcYears,
+    endOfUtcDay,
+} = require('../utils/date')
 
 function normalizeText(value) {
     if (typeof value !== 'string') return null
@@ -36,14 +44,6 @@ function requireId(value, fieldName) {
     return parsed
 }
 
-function requireDate(value, fieldName = 'La date') {
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) {
-        throw new Error(`${fieldName} est invalide.`)
-    }
-    return date
-}
-
 function requireInterval(value) {
     const parsed = Number(value)
     if (!Number.isInteger(parsed) || parsed <= 0) {
@@ -74,25 +74,10 @@ function includeRecurringRelations() {
 }
 
 function addInterval(date, frequency, intervalCount) {
-    const next = new Date(date)
-
-    if (frequency === 'DAILY') {
-        next.setDate(next.getDate() + intervalCount)
-        return next
-    }
-
-    if (frequency === 'WEEKLY') {
-        next.setDate(next.getDate() + 7 * intervalCount)
-        return next
-    }
-
-    if (frequency === 'MONTHLY') {
-        next.setMonth(next.getMonth() + intervalCount)
-        return next
-    }
-
-    next.setFullYear(next.getFullYear() + intervalCount)
-    return next
+    if (frequency === 'DAILY') return addUtcDays(date, intervalCount)
+    if (frequency === 'WEEKLY') return addUtcWeeks(date, intervalCount)
+    if (frequency === 'MONTHLY') return addUtcMonths(date, intervalCount)
+    return addUtcYears(date, intervalCount)
 }
 
 async function buildRecurringPayload(prisma, data) {
@@ -241,7 +226,7 @@ function registerRecurringHandlers() {
     })
 
     ipcMain.handle('db:recurringTemplate:generateDue', async (_event, data) => {
-        const asOfDate = requireDate(data?.asOfDate || new Date(), 'La date de génération')
+        const asOfDate = endOfUtcDay(data?.asOfDate || new Date())
         const templateId = data?.templateId ? requireId(data.templateId, 'Le template') : null
 
         const templates = await prisma.recurringTransactionTemplate.findMany({
@@ -262,8 +247,10 @@ function registerRecurringHandlers() {
         let generatedTransactions = 0
 
         for (const template of templates) {
-            let cursor = new Date(template.nextOccurrenceDate)
-            const templateEndDate = template.endDate ? new Date(template.endDate) : null
+            let cursor = requireDate(template.nextOccurrenceDate, 'La prochaine occurrence')
+            const templateEndDate = template.endDate
+                ? requireDate(template.endDate, 'La date de fin')
+                : null
             let createdForTemplate = 0
             let guard = 0
 

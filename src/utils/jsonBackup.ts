@@ -6,6 +6,7 @@ import type {
     RecurringTransactionTemplate,
     Transaction,
 } from '../types/budget'
+import {toDateOnly} from './date'
 
 export function createBudgetBackupSnapshot(
     accounts: Account[],
@@ -38,8 +39,8 @@ export function createBudgetBackupSnapshot(
                 name: budgetTarget.name,
                 amount: budgetTarget.amount,
                 period: budgetTarget.period,
-                startDate: new Date(budgetTarget.startDate).toISOString(),
-                endDate: budgetTarget.endDate ? new Date(budgetTarget.endDate).toISOString() : null,
+                startDate: toDateOnly(budgetTarget.startDate),
+                endDate: budgetTarget.endDate ? toDateOnly(budgetTarget.endDate) : null,
                 currency: budgetTarget.currency,
                 isActive: budgetTarget.isActive,
                 note: budgetTarget.note,
@@ -58,9 +59,9 @@ export function createBudgetBackupSnapshot(
                 note: template.note,
                 frequency: template.frequency,
                 intervalCount: template.intervalCount,
-                startDate: new Date(template.startDate).toISOString(),
-                nextOccurrenceDate: new Date(template.nextOccurrenceDate).toISOString(),
-                endDate: template.endDate ? new Date(template.endDate).toISOString() : null,
+                startDate: toDateOnly(template.startDate),
+                nextOccurrenceDate: toDateOnly(template.nextOccurrenceDate),
+                endDate: template.endDate ? toDateOnly(template.endDate) : null,
                 isActive: template.isActive,
                 accountId: template.accountId,
                 categoryId: template.categoryId,
@@ -74,9 +75,9 @@ export function createBudgetBackupSnapshot(
                 conversionMode: transaction.conversionMode,
                 exchangeRate: transaction.exchangeRate,
                 exchangeProvider: transaction.exchangeProvider,
-                exchangeDate: transaction.exchangeDate,
+                exchangeDate: transaction.exchangeDate ? toDateOnly(transaction.exchangeDate) : null,
                 kind: transaction.kind,
-                date: new Date(transaction.date).toISOString(),
+                date: toDateOnly(transaction.date),
                 note: transaction.note,
                 accountId: transaction.accountId,
                 categoryId: transaction.categoryId,

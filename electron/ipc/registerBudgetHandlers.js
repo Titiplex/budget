@@ -1,5 +1,6 @@
 const {ipcMain} = require('electron')
 const {getPrisma} = require('../db')
+const {requireDate} = require('../utils/date')
 
 function normalizeText(value) {
     if (typeof value !== 'string') return null
@@ -26,14 +27,6 @@ function requirePositiveNumber(value, fieldName) {
 function requireId(value, fieldName) {
     const parsed = Number(value)
     if (!Number.isInteger(parsed) || parsed <= 0) {
-        throw new Error(`${fieldName} est invalide.`)
-    }
-    return parsed
-}
-
-function requireDate(value, fieldName = 'La date') {
-    const parsed = new Date(value)
-    if (Number.isNaN(parsed.getTime())) {
         throw new Error(`${fieldName} est invalide.`)
     }
     return parsed
