@@ -13,6 +13,11 @@ model Account {
   type                AccountType
   currency            String                         @default("CAD")
   description         String?
+  institutionCountry  String?
+  institutionRegion   String?
+  taxReportingType    AccountTaxReportingType        @default(STANDARD)
+  openedAt            DateTime?
+  closedAt            DateTime?
   createdAt           DateTime                       @default(now())
   updatedAt           DateTime                       @updatedAt
   transactions        Transaction[]
@@ -46,6 +51,14 @@ model Transaction {
   kind             TransactionKind
   date             DateTime
   note             String?
+  taxCategory      TaxIncomeCategory?
+  taxSourceCountry String?
+  taxSourceRegion  String?
+  taxTreatment     TaxTreatment    @default(UNKNOWN)
+  taxWithheldAmount   Float?
+  taxWithheldCurrency String?
+  taxWithheldCountry  String?
+  taxDocumentRef      String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -59,6 +72,18 @@ model Transaction {
   transferDirection     TransferDirection?
   transferPeerAccountId Int?
   transferPeerAccount   Account?           @relation("TransactionTransferPeer", fields: [transferPeerAccountId], references: [id], onDelete: SetNull)
+}
+
+model TaxProfile {
+  id               Int      @id @default(autoincrement())
+  year             Int
+  residenceCountry String
+  residenceRegion  String?
+  currency         String   @default("CAD")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([year, residenceCountry, residenceRegion])
 }
 
 model BudgetTarget {
@@ -114,6 +139,18 @@ enum AccountType {
   OTHER
 }
 
+enum AccountTaxReportingType {
+  STANDARD
+  BANK
+  CASH
+  BROKERAGE
+  CRYPTO
+  LIFE_INSURANCE
+  RETIREMENT
+  LOAN
+  OTHER
+}
+
 enum TransactionKind {
   INCOME
   EXPENSE
@@ -142,4 +179,29 @@ enum RecurringFrequency {
 enum TransferDirection {
   OUT
   IN
+}
+
+enum TaxIncomeCategory {
+  EMPLOYMENT
+  BUSINESS
+  INTEREST
+  DIVIDEND
+  CAPITAL_GAIN
+  RENTAL
+  PENSION
+  BENEFIT
+  GIFT
+  REFUND
+  TRANSFER
+  OTHER
+}
+
+enum TaxTreatment {
+  UNKNOWN
+  NOT_TAXABLE
+  TAXABLE_NO_WITHHOLDING
+  TAX_WITHHELD_AT_SOURCE
+  FOREIGN_TAX_CREDIT_CANDIDATE
+  TREATY_EXEMPT_CANDIDATE
+  REVIEW_REQUIRED
 }
