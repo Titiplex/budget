@@ -133,7 +133,7 @@ function buildTransactionTaxMetadataPayload(data) {
         taxTreatment: normalizeEnum(data?.taxTreatment, taxTreatments, 'UNKNOWN'),
         taxWithheldAmount,
         taxWithheldCurrency: taxWithheldAmount == null
-            ? normalizeCountry(data?.taxWithheldCurrency)
+            ? null
             : normalizeCurrency(data?.taxWithheldCurrency),
         taxWithheldCountry: normalizeCountry(data?.taxWithheldCountry),
         taxDocumentRef: normalizeText(data?.taxDocumentRef),
