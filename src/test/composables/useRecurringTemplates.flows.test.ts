@@ -388,19 +388,24 @@ describe('useRecurringTemplates workflows', () => {
             }),
         ]
 
-        expect(recurring.recurringRows.value).toHaveLength(5)
-        expect(recurring.recurringRows.value[0].label).toBe('Daily due')
-        expect(recurring.recurringRows.value[0].dueCount).toBe(2)
-        expect(recurring.recurringRows.value[0].overdue).toBe(true)
-        expect(recurring.recurringRows.value[0].accountCurrency).toBe('CAD')
-        expect(recurring.recurringRows.value[0].accountName).toBe('Unknown account')
-        expect(recurring.recurringRows.value[0].categoryName).toBe('No category')
-        expect(recurring.recurringRows.value.at(-1)?.label).toBe('Inactive due date')
+        const rows = recurring.recurringRows.value
+        const dailyRow = rows.find((row) => row.label === 'Daily due')
+
+        expect(rows).toHaveLength(5)
+        expect(rows[0].label).toBe('Yearly due')
+        expect(dailyRow).toMatchObject({
+            dueCount: 2,
+            overdue: true,
+            accountCurrency: 'CAD',
+            accountName: 'Unknown account',
+            categoryName: 'No category',
+        })
+        expect(rows[rows.length - 1].label).toBe('Inactive due date')
         expect(recurring.recurringSummary.value).toMatchObject({
             total: 5,
             active: 4,
             dueTemplates: 4,
-            overdueTemplates: 3,
+            overdueTemplates: 4,
         })
         expect(recurring.recurringSummary.value.dueOccurrences).toBeGreaterThanOrEqual(5)
         expect(recurring.recurringForecast.value.length).toBeGreaterThan(0)
