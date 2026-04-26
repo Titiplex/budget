@@ -1,10 +1,14 @@
 import {ref} from 'vue'
-import {describe, expect, it} from 'vitest'
+import {beforeEach, describe, expect, it} from 'vitest'
 import {i18n} from '../../i18n'
 import {useReports} from '../../composables/useReports'
 import {createReportRegressionDataset} from '../fixtures/reportRegressionDataset'
 
 describe('useReports regression dataset', () => {
+    beforeEach(() => {
+        i18n.global.locale.value = 'en'
+    })
+
     function buildReports() {
         const dataset = createReportRegressionDataset()
         const reports = useReports({
@@ -172,7 +176,6 @@ describe('useReports regression dataset', () => {
 
     it('keeps exported markdown deterministic for the selected period', () => {
         const {reports} = buildReports()
-        i18n.global.locale.value = 'en'
 
         expect(reports.reportMarkdown.value).toContain('# Reports')
         expect(reports.reportMarkdown.value).toContain('Current: Apr 1, 2026 → Apr 7, 2026')
