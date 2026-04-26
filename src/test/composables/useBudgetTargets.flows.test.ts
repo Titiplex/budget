@@ -272,7 +272,7 @@ describe('useBudgetTargets workflows', () => {
         const yearly = rows.find((row) => row.name === 'Yearly near')
         const custom = rows.find((row) => row.name === 'Custom under')
 
-        expect(rows.map((row) => row.name)).toEqual(['Inactive over', 'Monthly over', 'Yearly near', 'Custom under'])
+        expect(rows.map((row) => row.name)).toEqual(['Monthly over', 'Yearly near', 'Custom under', 'Inactive over'])
         expect(monthly).toMatchObject({
             startDate: '2026-04-01',
             endDate: '2026-04-30',
