@@ -27,7 +27,10 @@ export function formatMoney(amount: number, currency = 'CAD') {
 
 export function formatDate(value: string) {
     i18n.global.locale.value
-    return new Intl.DateTimeFormat(currentLocaleCode(), {dateStyle: 'medium'}).format(toUtcDate(value))
+    return new Intl.DateTimeFormat(currentLocaleCode(), {
+        dateStyle: 'medium',
+        timeZone: 'UTC',
+    }).format(toUtcDate(value))
 }
 
 export function kindLabel(kind: TransactionKind) {
