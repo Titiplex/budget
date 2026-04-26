@@ -32,7 +32,7 @@ describe('budget format helpers', () => {
         i18n.global.locale.value = 'en'
 
         expect(kindLabel('INCOME')).toBe('Income')
-        expect(accountTypeLabel('BANK')).toBe('Bank account')
+        expect(accountTypeLabel('BANK')).toBe('Bank')
         expect(entityLabel('account')).toBe('account')
         expect(entityCollectionLabel('transaction')).toBe('transactions')
     })
