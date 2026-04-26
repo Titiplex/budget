@@ -28,6 +28,10 @@ function absAmount(value: number | null | undefined) {
     return Math.abs(value ?? 0)
 }
 
+function firstValidationError(validation: BackupValidationResult) {
+    return validation.warnings[0] || tr('notices.jsonInvalid')
+}
+
 export function useJsonBackup(options: UseJsonBackupOptions) {
     const restorePreviewOpen = ref(false)
     const restorePreviewPath = ref<string | null>(null)
@@ -83,6 +87,10 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         for (const account of [...options.accounts.value]) {
             await window.db.account.delete(account.id)
         }
+
+        for (const taxProfile of [...(options.taxProfiles?.value || [])]) {
+            await window.db.taxProfile.delete(taxProfile.id)
+        }
     }
 
     async function beginRestoreBackupJson() {
@@ -98,6 +106,10 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         try {
             const snapshot = parseBudgetBackup(result.content)
             const validation = validateBackupSnapshot(snapshot)
+
+            if (!validation.ok) {
+                throw new Error(firstValidationError(validation))
+            }
 
             restorePreviewSnapshot.value = snapshot
             restorePreviewValidation.value = validation
@@ -118,6 +130,29 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
             && candidate.transferDirection === 'IN'
             && candidate.id !== transaction.id,
         ) || null
+    }
+
+    async function restoreAccountTaxMetadata(createdId: number, account: BudgetBackupSnapshot['data']['accounts'][number]) {
+        await window.db.taxMetadata.updateAccount(createdId, {
+            institutionCountry: account.institutionCountry ?? null,
+            institutionRegion: account.institutionRegion ?? null,
+            taxReportingType: account.taxReportingType ?? 'STANDARD',
+            openedAt: account.openedAt ?? null,
+            closedAt: account.closedAt ?? null,
+        })
+    }
+
+    async function restoreTransactionTaxMetadata(createdId: number, transaction: BudgetBackupTransaction) {
+        await window.db.taxMetadata.updateTransaction(createdId, {
+            taxCategory: transaction.taxCategory ?? null,
+            taxSourceCountry: transaction.taxSourceCountry ?? null,
+            taxSourceRegion: transaction.taxSourceRegion ?? null,
+            taxTreatment: transaction.taxTreatment ?? 'UNKNOWN',
+            taxWithheldAmount: transaction.taxWithheldAmount ?? null,
+            taxWithheldCurrency: transaction.taxWithheldCurrency ?? null,
+            taxWithheldCountry: transaction.taxWithheldCountry ?? null,
+            taxDocumentRef: transaction.taxDocumentRef ?? null,
+        })
     }
 
     async function restoreTransactions(
@@ -152,7 +187,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
 
                 if (mappedTargetAccountId) {
                     const referenceRow = incomingPeer || transaction
-                    await window.db.transaction.create({
+                    const created = await window.db.transaction.create({
                         label: transaction.label,
                         amount: absAmount(referenceRow.amount),
                         sourceAmount: absAmount(transaction.sourceAmount ?? transaction.amount),
@@ -168,6 +203,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
                         categoryId: null,
                         transferTargetAccountId: mappedTargetAccountId,
                     })
+                    await restoreTransactionTaxMetadata(created.id, transaction)
 
                     if (transaction.transferGroup) {
                         restoredTransferGroups.add(transaction.transferGroup)
@@ -176,7 +212,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
                 }
             }
 
-            await window.db.transaction.create({
+            const created = await window.db.transaction.create({
                 label: transaction.label,
                 amount: absAmount(transaction.amount),
                 sourceAmount: transaction.sourceAmount == null ? null : absAmount(transaction.sourceAmount),
@@ -191,6 +227,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
                 accountId: mappedAccountId,
                 categoryId: transaction.kind === 'TRANSFER' ? null : mappedCategoryId,
             })
+            await restoreTransactionTaxMetadata(created.id, transaction)
         }
     }
 
@@ -199,6 +236,11 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
 
         try {
             const snapshot = restorePreviewSnapshot.value
+            const validation = validateBackupSnapshot(snapshot)
+
+            if (!validation.ok) {
+                throw new Error(firstValidationError(validation))
+            }
 
             await replaceAllData()
 
@@ -212,6 +254,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
                     currency: account.currency,
                     description: account.description,
                 })
+                await restoreAccountTaxMetadata(created.id, account)
                 accountIdMap.set(account.id, created.id)
             }
 
@@ -223,6 +266,15 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
                     description: category.description,
                 })
                 categoryIdMap.set(category.id, created.id)
+            }
+
+            for (const taxProfile of snapshot.data.taxProfiles || []) {
+                await window.db.taxProfile.create({
+                    year: taxProfile.year,
+                    residenceCountry: taxProfile.residenceCountry,
+                    residenceRegion: taxProfile.residenceRegion,
+                    currency: taxProfile.currency,
+                })
             }
 
             for (const budgetTarget of snapshot.data.budgetTargets) {
