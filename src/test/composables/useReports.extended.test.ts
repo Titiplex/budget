@@ -143,11 +143,15 @@ describe('useReports extended workflows', () => {
         expect(reports.reportComparison.value.expense.delta).toBe(-565)
         expect(reports.reportComparison.value.net.delta).toBe(1065)
 
+        const groceriesRow = reports.categoryRows.value.find((row) => row.categoryId === 10)
+        const uncategorizedRow = reports.categoryRows.value.find((row) => row.categoryId === null)
+
         expect(reports.accountTypeRows.value.map((row) => row.type)).toEqual(['BANK', 'SAVINGS', 'INVESTMENT'])
         expect(reports.accountTypeRows.value[0]).toMatchObject({type: 'BANK', accountCount: 1, transactionCount: 4, income: 3000, expense: 350, net: 2650})
         expect(reports.accountRows.value[0]).toMatchObject({accountId: 1, transactionCount: 4, income: 3000, expense: 350, net: 2650})
-        expect(reports.categoryRows.value[0]).toMatchObject({categoryId: 10, name: 'Groceries', transactionCount: 3, total: 355, kind: 'EXPENSE'})
-        expect(reports.categoryRows.value[1]).toMatchObject({categoryId: null, name: 'No category', transactionCount: 1, total: 80})
+        expect(reports.categoryRows.value[0]).toMatchObject({categoryId: 11, name: 'Salary', transactionCount: 1, total: 3000, kind: 'INCOME'})
+        expect(groceriesRow).toMatchObject({categoryId: 10, name: 'Groceries', transactionCount: 3, total: 355, kind: 'EXPENSE'})
+        expect(uncategorizedRow).toMatchObject({categoryId: null, name: 'No category', transactionCount: 1, total: 80})
         expect(reports.foreignCurrencyRows.value).toEqual([{currency: 'EUR', transactionCount: 1, sourceTotal: 100, bookedTotal: 150}])
         expect(reports.weekdayRows.value.reduce((sum, row) => sum + row.total, 0)).toBe(435)
         expect(reports.insights.value.map((insight) => insight.title)).toEqual(expect.arrayContaining([
