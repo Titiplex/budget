@@ -90,12 +90,12 @@ describe('transfer display edge cases', () => {
         })
         const linked = makeTransaction({kind: 'TRANSFER', transferDirection: null, transferPeerAccount: null})
 
-        expect(transferDirectionLabel(inbound)).toBe('Incoming transfer')
-        expect(transferDirectionLabel(outbound)).toBe('Outgoing transfer')
-        expect(transferDirectionLabel(linked)).toBe('Linked transfer')
-        expect(transferAccountHint(inbound)).toBe('From Savings')
-        expect(transferAccountHint(outbound)).toBe('To Savings')
-        expect(transferAccountHint(linked)).toBe('To Linked account')
+        expect(transferDirectionLabel(inbound)).toBe('Linked incoming')
+        expect(transferDirectionLabel(outbound)).toBe('Linked outgoing')
+        expect(transferDirectionLabel(linked)).toBe('Linked movement')
+        expect(transferAccountHint(inbound)).toBe('from Savings')
+        expect(transferAccountHint(outbound)).toBe('to Savings')
+        expect(transferAccountHint(linked)).toBe('to Linked account')
     })
 
     it('describes inbound transfer amounts with currency conversion when needed', () => {
@@ -116,9 +116,9 @@ describe('transfer display edge cases', () => {
         const outbound = makeTransaction({kind: 'TRANSFER', transferDirection: 'OUT'})
         const linked = makeTransaction({kind: 'TRANSFER', transferDirection: null})
 
-        expect(transferAmountHint(inboundForeignAmount)).toContain('Original amount')
-        expect(transferAmountHint(inboundSameCurrency)).toBe('Credit in this account')
-        expect(transferAmountHint(outbound)).toBe('Debit from this account')
+        expect(transferAmountHint(inboundForeignAmount)).toContain('Origin:')
+        expect(transferAmountHint(inboundSameCurrency)).toBe('Internal credit')
+        expect(transferAmountHint(outbound)).toBe('Internal debit')
         expect(transferAmountHint(linked)).toBe('Internal movement')
     })
 })
