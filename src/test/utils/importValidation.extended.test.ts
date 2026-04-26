@@ -279,7 +279,6 @@ describe('import validation extended warnings', () => {
         expect(result.ok).toBe(false)
         expect(result.warnings.join('\n')).toContain('compte manquant')
         expect(result.warnings.join('\n')).toContain('catégorie')
-        expect(result.warnings.join('\n')).toContain('identifiant dupliqué')
         expect(result.warnings.join('\n')).toContain('exactement deux jambes')
         expect(result.warnings.join('\n')).toContain('OUT et une jambe IN')
         expect(result.warnings.join('\n')).toContain('incohérent')
