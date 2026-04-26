@@ -1,11 +1,13 @@
 # Release checklist
 
+Voir aussi [`release-flow.md`](release-flow.md) pour le process détaillé.
+
 ## Avant le build
 
-- [ ] `npm install`
-- [ ] `npm run prisma:generate`
-- [ ] `npm run test:run`
-- [ ] `npm run typecheck`
+- [ ] `npm ci` ou `npm install` sur une copie propre
+- [ ] `npm run release:check`
+- [ ] aucun fichier généré inattendu n’est prêt à être commité
+- [ ] version `package.json` cohérente avec le tag prévu
 
 ## Vérifications métier
 
@@ -34,6 +36,10 @@
 ## Packaging
 
 - [ ] `npm run package`
+- [ ] lancement de l’app packagée depuis `out/`
+- [ ] création d’une DB fraîche dans `userData/data/app.db`
+- [ ] fermeture puis réouverture de l’app packagée
+- [ ] les données créées avant fermeture sont toujours présentes
 - [ ] `npm run make`
 - [ ] icône visible dans l’application
 - [ ] icône visible dans l’installateur
@@ -44,6 +50,8 @@
 ## Publication
 
 - [ ] tag Git propre (`v0.9.0`, etc.)
-- [ ] release GitHub créée
+- [ ] `npm run publish`
+- [ ] release GitHub créée en draft
 - [ ] artefacts présents
 - [ ] notes de release relues
+- [ ] draft publiée manuellement seulement après smoke test des artefacts
