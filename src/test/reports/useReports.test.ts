@@ -167,10 +167,10 @@ describe('useReports regression dataset', () => {
             {label: 'Sunday', total: 30.25},
             {label: 'Monday', total: 0},
             {label: 'Tuesday', total: 0},
-            {label: 'Wednesday', total: 900},
-            {label: 'Thursday', total: 120.55},
-            {label: 'Friday', total: 70},
-            {label: 'Saturday', total: 0},
+            {label: 'Wednesday', total: 0},
+            {label: 'Thursday', total: 900},
+            {label: 'Friday', total: 120.55},
+            {label: 'Saturday', total: 70},
         ])
     })
 
