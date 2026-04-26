@@ -29,7 +29,7 @@ coverage
 # nyc test coverage
 .nyc_output
 
-# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
+# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-files)
 .grunt
 
 # Bower dependency directory (https://bower.io/)
@@ -149,3 +149,7 @@ vite.config.ts.timestamp-*
 /src/generated/prisma
 dev.db
 /src/styles/
+
+# Desktop packaging generated files
+/assets/database/*.db
+/assets/database/*.db-*

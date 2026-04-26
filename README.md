@@ -153,22 +153,34 @@ npm run test:run
 npm run typecheck
 ````
 
-## Packaging
+## Packaging et release
+
+Vérifier le flux desktop complet avant de créer des artefacts :
+
+````shell
+npm run release:check
+````
+
+Créer un package local lançable :
 
 ````shell
 npm run package
 ````
 
-Créer les artefacts :
+Créer les artefacts installables :
 
 ````shell
 npm run make
 ````
 
+Le process complet est documenté dans [`docs/release-flow.md`](docs/release-flow.md).
+
 ## Notes base de données
 
 - en dev, la base SQLite est stockée dans ``prisma/dev.db``
-- en build packagé, la base SQLite est stockée dans le répertoire Electron ``userData``
+- en build packagé, un template SQLite est généré dans ``assets/database/app.db`` avant le packaging
+- au premier lancement d’un build packagé, ce template est copié vers ``userData/data/app.db``
+- les lancements suivants réutilisent la base de ``userData`` afin de préserver les données utilisateur
 
 ## Sauvegarde
 

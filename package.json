@@ -23,13 +23,17 @@
     "db:seed": "node prisma/seed.js",
     "check": "npm run prisma:generate && npm run typecheck && npm run test:run",
     "start": "npm run prisma:generate && npm run typecheck && npm run build:vite && electron-forge start",
-    "package": "npm run prisma:generate && npm run typecheck && npm run build:vite && electron-forge package",
-    "make": "npm run prisma:generate && npm run typecheck && npm run build:vite && electron-forge make",
-    "make:artifacts": "npm run check && npm run build:vite && electron-forge make",
-    "publish": "npm run prisma:generate && npm run typecheck && npm run build:vite && electron-forge publish",
+    "package": "npm run prepackage:desktop && electron-forge package",
+    "make": "npm run prepackage:desktop && electron-forge make",
+    "make:artifacts": "npm run release:check && npm run build:vite && electron-forge make",
+    "publish": "npm run prepackage:desktop && electron-forge publish",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "validate:desktop-assets": "node scripts/validate-desktop-assets.js",
+    "build:packaged-db": "node scripts/build-packaged-db.js",
+    "release:check": "npm run check && npm run validate:desktop-assets && npm run build:packaged-db",
+    "prepackage:desktop": "npm run prisma:generate && npm run typecheck && npm run build:vite && npm run validate:desktop-assets && npm run build:packaged-db"
   },
   "dependencies": {
     "@intlify/devtools-types": "^11.3.2",
