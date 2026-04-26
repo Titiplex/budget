@@ -4,12 +4,18 @@ export type EntityType = 'transaction' | 'account' | 'category'
 export type PanelMode = 'create' | 'edit'
 export type TransactionKind = 'INCOME' | 'EXPENSE' | 'TRANSFER'
 export type AccountType = 'CASH' | 'BANK' | 'SAVINGS' | 'CREDIT' | 'INVESTMENT' | 'OTHER'
+export type AccountTaxReportingType = 'STANDARD' | 'BANK' | 'CASH' | 'BROKERAGE' | 'CRYPTO' | 'LIFE_INSURANCE' | 'RETIREMENT' | 'LOAN' | 'OTHER'
 export type ConversionMode = 'NONE' | 'MANUAL' | 'AUTOMATIC'
 export type TransferDirection = 'OUT' | 'IN'
 export type ReportPreset = 'THIS_MONTH' | 'LAST_30_DAYS' | 'THIS_YEAR' | 'ALL' | 'CUSTOM'
 export type BudgetPeriod = 'MONTHLY' | 'YEARLY' | 'CUSTOM'
 export type BudgetStatus = 'UNDER' | 'NEAR' | 'OVER'
 export type RecurringFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+export type TaxIncomeCategory = 'EMPLOYMENT' | 'BUSINESS' | 'INTEREST' | 'DIVIDEND' | 'CAPITAL_GAIN' | 'RENTAL' | 'PENSION' | 'BENEFIT' | 'GIFT' | 'REFUND' | 'TRANSFER' | 'OTHER'
+export type TaxTreatment = 'UNKNOWN' | 'NOT_TAXABLE' | 'TAXABLE_NO_WITHHOLDING' | 'TAX_WITHHELD_AT_SOURCE' | 'FOREIGN_TAX_CREDIT_CANDIDATE' | 'TREATY_EXEMPT_CANDIDATE' | 'REVIEW_REQUIRED'
+export type TaxJurisdiction = 'FR' | 'CA' | 'QC'
+export type TaxReportSeverity = 'info' | 'warning' | 'review'
+export type TaxReportConfidence = 'low' | 'medium' | 'high'
 
 export interface Account {
     id: number
@@ -17,6 +23,11 @@ export interface Account {
     type: AccountType
     currency: string
     description: string | null
+    institutionCountry?: string | null
+    institutionRegion?: string | null
+    taxReportingType?: AccountTaxReportingType
+    openedAt?: string | null
+    closedAt?: string | null
 }
 
 export interface Category {
@@ -40,6 +51,14 @@ export interface Transaction {
     kind: TransactionKind
     date: string
     note: string | null
+    taxCategory?: TaxIncomeCategory | null
+    taxSourceCountry?: string | null
+    taxSourceRegion?: string | null
+    taxTreatment?: TaxTreatment
+    taxWithheldAmount?: number | null
+    taxWithheldCurrency?: string | null
+    taxWithheldCountry?: string | null
+    taxDocumentRef?: string | null
     accountId: number
     categoryId: number | null
     transferGroup?: string | null
@@ -48,6 +67,39 @@ export interface Transaction {
     account?: Account | null
     category?: Category | null
     transferPeerAccount?: Account | null
+}
+
+export interface TaxProfile {
+    id: number
+    year: number
+    residenceCountry: string
+    residenceRegion: string | null
+    currency: string
+}
+
+export interface TaxReportItem {
+    entityType: 'account' | 'transaction' | 'aggregate'
+    entityId?: number
+    label: string
+    amount?: number
+    currency?: string
+    explanation: string
+    suggestedForms: string[]
+    confidence: TaxReportConfidence
+}
+
+export interface TaxReportSection {
+    jurisdiction: TaxJurisdiction
+    title: string
+    severity: TaxReportSeverity
+    items: TaxReportItem[]
+}
+
+export interface TaxReport {
+    profile: TaxProfile
+    generatedAt: string
+    sections: TaxReportSection[]
+    disclaimer: string
 }
 
 export interface BudgetTarget {
@@ -278,6 +330,11 @@ export interface BudgetBackupAccount {
     type: AccountType
     currency: string
     description: string | null
+    institutionCountry?: string | null
+    institutionRegion?: string | null
+    taxReportingType?: AccountTaxReportingType
+    openedAt?: string | null
+    closedAt?: string | null
 }
 
 export interface BudgetBackupCategory {
@@ -335,6 +392,14 @@ export interface BudgetBackupTransaction {
     kind: TransactionKind
     date: string
     note: string | null
+    taxCategory?: TaxIncomeCategory | null
+    taxSourceCountry?: string | null
+    taxSourceRegion?: string | null
+    taxTreatment?: TaxTreatment
+    taxWithheldAmount?: number | null
+    taxWithheldCurrency?: string | null
+    taxWithheldCountry?: string | null
+    taxDocumentRef?: string | null
     accountId: number
     categoryId: number | null
     transferGroup?: string | null
@@ -342,9 +407,17 @@ export interface BudgetBackupTransaction {
     transferPeerAccountId?: number | null
 }
 
+export interface BudgetBackupTaxProfile {
+    id: number
+    year: number
+    residenceCountry: string
+    residenceRegion: string | null
+    currency: string
+}
+
 export interface BudgetBackupSnapshot {
     kind: 'budget-backup'
-    version: 2 | 3
+    version: 2 | 3 | 4
     exportedAt: string
     data: {
         accounts: BudgetBackupAccount[]
@@ -352,5 +425,6 @@ export interface BudgetBackupSnapshot {
         budgetTargets: BudgetBackupBudgetTarget[]
         recurringTemplates: BudgetBackupRecurringTransactionTemplate[]
         transactions: BudgetBackupTransaction[]
+        taxProfiles?: BudgetBackupTaxProfile[]
     }
 }

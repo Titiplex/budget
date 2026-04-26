@@ -12,6 +12,7 @@ import OverviewSection from './components/OverviewSection.vue'
 import RecurringSection from './components/RecurringSection.vue'
 import ReportsSection from './components/ReportsSection.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
+import TaxReportPanel from './components/TaxReportPanel.vue'
 import TransactionsSection from './components/TransactionsSection.vue'
 import {useBudgetData} from './composables/useBudgetData'
 import {useBudgetTargets} from './composables/useBudgetTargets'
@@ -20,10 +21,11 @@ import {useJsonBackup} from './composables/useJsonBackup'
 import {useRecurringTemplates} from './composables/useRecurringTemplates'
 import {useReports} from './composables/useReports'
 import {useSettings} from './composables/useSettings'
-import type {CreateTabKey, ReportPreset, SectionKey} from './types/budget'
+import type {CreateTabKey, ReportPreset, SectionKey, TaxProfile} from './types/budget'
 
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 const appVersion = ref('')
+const taxProfiles = ref<TaxProfile[]>([])
 
 function showNotice(type: 'success' | 'error', text: string) {
   notice.value = {type, text}
@@ -32,6 +34,13 @@ function showNotice(type: 'success' | 'error', text: string) {
       notice.value = null
     }
   }, 3600)
+}
+
+function normalizeError(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+  return t('notices.unknownError')
 }
 
 const {t} = useI18n()
@@ -69,11 +78,20 @@ const reports = useReports({
   showNotice,
 })
 
+async function refreshTaxProfiles() {
+  try {
+    taxProfiles.value = await window.db.taxProfile.list()
+  } catch (error) {
+    showNotice('error', normalizeError(error))
+  }
+}
+
 function refreshEverything() {
   return Promise.all([
     budget.refreshData(),
     budgetTargets.refreshBudgets(),
     recurring.refreshRecurringTemplates(),
+    refreshTaxProfiles(),
   ])
 }
 
@@ -83,6 +101,7 @@ const jsonBackup = useJsonBackup({
   budgetTargets: budgetTargets.budgets,
   recurringTemplates: recurring.recurringTemplates,
   transactions: budget.transactions,
+  taxProfiles,
   refreshAllData: refreshEverything,
   showNotice,
 })
@@ -484,24 +503,35 @@ onMounted(async () => {
               @submit-template="recurring.submitRecurring"
           />
 
-          <ReportsSection
-              v-else
-              :preset="reports.reportPreset.value"
-              :start-date="reports.reportStartDate.value"
-              :end-date="reports.reportEndDate.value"
-              :summary="reports.reportSummary.value"
-              :comparison="reports.reportComparison.value"
-              :account-type-rows="reports.accountTypeRows.value"
-              :account-rows="reports.accountRows.value"
-              :category-rows="reports.categoryRows.value"
-              :foreign-currency-rows="reports.foreignCurrencyRows.value"
-              :weekday-rows="reports.weekdayRows.value"
-              :insights="reports.insights.value"
-              @set-preset="reports.applyPreset($event as ReportPreset)"
-              @update:start-date="reports.reportStartDate.value = $event"
-              @update:end-date="reports.reportEndDate.value = $event"
-              @export-report="reports.exportPeriodReport"
-          />
+          <template v-else>
+            <ReportsSection
+                :preset="reports.reportPreset.value"
+                :start-date="reports.reportStartDate.value"
+                :end-date="reports.reportEndDate.value"
+                :summary="reports.reportSummary.value"
+                :comparison="reports.reportComparison.value"
+                :account-type-rows="reports.accountTypeRows.value"
+                :account-rows="reports.accountRows.value"
+                :category-rows="reports.categoryRows.value"
+                :foreign-currency-rows="reports.foreignCurrencyRows.value"
+                :weekday-rows="reports.weekdayRows.value"
+                :insights="reports.insights.value"
+                @set-preset="reports.applyPreset($event as ReportPreset)"
+                @update:start-date="reports.reportStartDate.value = $event"
+                @update:end-date="reports.reportEndDate.value = $event"
+                @export-report="reports.exportPeriodReport"
+            />
+
+            <div class="mt-6">
+              <TaxReportPanel
+                  :accounts="budget.accounts.value"
+                  :transactions="budget.transactions.value"
+                  :tax-profiles="taxProfiles"
+                  @refresh-tax-profiles="refreshTaxProfiles"
+                  @refresh-data="budget.refreshData"
+              />
+            </div>
+          </template>
         </main>
       </div>
     </div>

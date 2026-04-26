@@ -46,6 +46,16 @@ contextBridge.exposeInMainWorld('db', {
         delete: (id) => ipcRenderer.invoke('db:recurringTemplate:delete', id),
         generateDue: (data) => ipcRenderer.invoke('db:recurringTemplate:generateDue', data),
     },
+    taxProfile: {
+        list: () => ipcRenderer.invoke('db:taxProfile:list'),
+        create: (data) => ipcRenderer.invoke('db:taxProfile:create', data),
+        update: (id, data) => ipcRenderer.invoke('db:taxProfile:update', id, data),
+        delete: (id) => ipcRenderer.invoke('db:taxProfile:delete', id),
+    },
+    taxMetadata: {
+        updateAccount: (id, data) => ipcRenderer.invoke('db:taxMetadata:updateAccount', id, data),
+        updateTransaction: (id, data) => ipcRenderer.invoke('db:taxMetadata:updateTransaction', id, data),
+    },
 })
 
 contextBridge.exposeInMainWorld('file', {

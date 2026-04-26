@@ -7,11 +7,14 @@ declare module '*.vue' {
 }
 
 type AccountTypeDto = 'CASH' | 'BANK' | 'SAVINGS' | 'CREDIT' | 'INVESTMENT' | 'OTHER'
+type AccountTaxReportingTypeDto = 'STANDARD' | 'BANK' | 'CASH' | 'BROKERAGE' | 'CRYPTO' | 'LIFE_INSURANCE' | 'RETIREMENT' | 'LOAN' | 'OTHER'
 type TransactionKindDto = 'INCOME' | 'EXPENSE' | 'TRANSFER'
 type ConversionModeDto = 'NONE' | 'MANUAL' | 'AUTOMATIC'
 type TransferDirectionDto = 'OUT' | 'IN'
 type BudgetPeriodDto = 'MONTHLY' | 'YEARLY' | 'CUSTOM'
 type RecurringFrequencyDto = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+type TaxIncomeCategoryDto = 'EMPLOYMENT' | 'BUSINESS' | 'INTEREST' | 'DIVIDEND' | 'CAPITAL_GAIN' | 'RENTAL' | 'PENSION' | 'BENEFIT' | 'GIFT' | 'REFUND' | 'TRANSFER' | 'OTHER'
+type TaxTreatmentDto = 'UNKNOWN' | 'NOT_TAXABLE' | 'TAXABLE_NO_WITHHOLDING' | 'TAX_WITHHELD_AT_SOURCE' | 'FOREIGN_TAX_CREDIT_CANDIDATE' | 'TREATY_EXEMPT_CANDIDATE' | 'REVIEW_REQUIRED'
 
 interface AccountDto {
     id: number
@@ -19,6 +22,11 @@ interface AccountDto {
     type: AccountTypeDto
     currency: string
     description: string | null
+    institutionCountry: string | null
+    institutionRegion: string | null
+    taxReportingType: AccountTaxReportingTypeDto
+    openedAt: string | null
+    closedAt: string | null
     createdAt: string
     updatedAt: string
 }
@@ -46,6 +54,14 @@ interface TransactionDto {
     kind: TransactionKindDto
     date: string
     note: string | null
+    taxCategory: TaxIncomeCategoryDto | null
+    taxSourceCountry: string | null
+    taxSourceRegion: string | null
+    taxTreatment: TaxTreatmentDto
+    taxWithheldAmount: number | null
+    taxWithheldCurrency: string | null
+    taxWithheldCountry: string | null
+    taxDocumentRef: string | null
     accountId: number
     categoryId: number | null
     transferGroup?: string | null
@@ -56,6 +72,16 @@ interface TransactionDto {
     account?: AccountDto
     category?: CategoryDto | null
     transferPeerAccount?: AccountDto | null
+}
+
+interface TaxProfileDto {
+    id: number
+    year: number
+    residenceCountry: string
+    residenceRegion: string | null
+    currency: string
+    createdAt: string
+    updatedAt: string
 }
 
 interface BudgetTargetDto {
@@ -279,6 +305,43 @@ interface Window {
                 asOfDate?: string
                 templateId?: number
             }) => Promise<RecurringGenerationResult>
+        }
+
+        taxProfile: {
+            list: () => Promise<TaxProfileDto[]>
+            create: (data: {
+                year: number
+                residenceCountry: string
+                residenceRegion?: string | null
+                currency?: string
+            }) => Promise<TaxProfileDto>
+            update: (id: number, data: {
+                year: number
+                residenceCountry: string
+                residenceRegion?: string | null
+                currency?: string
+            }) => Promise<TaxProfileDto>
+            delete: (id: number) => Promise<TaxProfileDto>
+        }
+
+        taxMetadata: {
+            updateAccount: (id: number, data: {
+                institutionCountry?: string | null
+                institutionRegion?: string | null
+                taxReportingType?: AccountTaxReportingTypeDto
+                openedAt?: string | null
+                closedAt?: string | null
+            }) => Promise<AccountDto>
+            updateTransaction: (id: number, data: {
+                taxCategory?: TaxIncomeCategoryDto | null
+                taxSourceCountry?: string | null
+                taxSourceRegion?: string | null
+                taxTreatment?: TaxTreatmentDto
+                taxWithheldAmount?: number | null
+                taxWithheldCurrency?: string | null
+                taxWithheldCountry?: string | null
+                taxDocumentRef?: string | null
+            }) => Promise<TransactionDto>
         }
     }
 

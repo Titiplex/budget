@@ -6,6 +6,7 @@ import type {
     BudgetTarget,
     Category,
     RecurringTransactionTemplate,
+    TaxProfile,
     Transaction,
 } from '../types/budget'
 import {tr} from '../i18n'
@@ -18,6 +19,7 @@ interface UseJsonBackupOptions {
     budgetTargets: Ref<BudgetTarget[]>
     recurringTemplates: Ref<RecurringTransactionTemplate[]>
     transactions: Ref<Transaction[]>
+    taxProfiles?: Ref<TaxProfile[]>
     refreshAllData: () => Promise<unknown>
     showNotice: (type: 'success' | 'error', text: string) => void
 }
@@ -46,6 +48,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
             options.budgetTargets.value,
             options.recurringTemplates.value,
             options.transactions.value,
+            options.taxProfiles?.value || [],
         )
 
         const result = await window.file.saveText({

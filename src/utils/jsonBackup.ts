@@ -4,6 +4,7 @@ import type {
     BudgetTarget,
     Category,
     RecurringTransactionTemplate,
+    TaxProfile,
     Transaction,
 } from '../types/budget'
 import {toDateOnly} from './date'
@@ -14,10 +15,11 @@ export function createBudgetBackupSnapshot(
     budgetTargets: BudgetTarget[],
     recurringTemplates: RecurringTransactionTemplate[],
     transactions: Transaction[],
+    taxProfiles: TaxProfile[] = [],
 ): BudgetBackupSnapshot {
     return {
         kind: 'budget-backup',
-        version: 3,
+        version: 4,
         exportedAt: new Date().toISOString(),
         data: {
             accounts: accounts.map((account) => ({
@@ -26,6 +28,11 @@ export function createBudgetBackupSnapshot(
                 type: account.type,
                 currency: account.currency,
                 description: account.description,
+                institutionCountry: account.institutionCountry ?? null,
+                institutionRegion: account.institutionRegion ?? null,
+                taxReportingType: account.taxReportingType ?? 'STANDARD',
+                openedAt: account.openedAt ? new Date(account.openedAt).toISOString() : null,
+                closedAt: account.closedAt ? new Date(account.closedAt).toISOString() : null,
             })),
             categories: categories.map((category) => ({
                 id: category.id,
@@ -79,11 +86,26 @@ export function createBudgetBackupSnapshot(
                 kind: transaction.kind,
                 date: toDateOnly(transaction.date),
                 note: transaction.note,
+                taxCategory: transaction.taxCategory ?? null,
+                taxSourceCountry: transaction.taxSourceCountry ?? null,
+                taxSourceRegion: transaction.taxSourceRegion ?? null,
+                taxTreatment: transaction.taxTreatment ?? 'UNKNOWN',
+                taxWithheldAmount: transaction.taxWithheldAmount ?? null,
+                taxWithheldCurrency: transaction.taxWithheldCurrency ?? null,
+                taxWithheldCountry: transaction.taxWithheldCountry ?? null,
+                taxDocumentRef: transaction.taxDocumentRef ?? null,
                 accountId: transaction.accountId,
                 categoryId: transaction.categoryId,
                 transferGroup: transaction.transferGroup ?? null,
                 transferDirection: transaction.transferDirection ?? null,
                 transferPeerAccountId: transaction.transferPeerAccountId ?? null,
+            })),
+            taxProfiles: taxProfiles.map((profile) => ({
+                id: profile.id,
+                year: profile.year,
+                residenceCountry: profile.residenceCountry,
+                residenceRegion: profile.residenceRegion,
+                currency: profile.currency,
             })),
         },
     }
@@ -99,13 +121,14 @@ export function parseBudgetBackup(content: string): BudgetBackupSnapshot {
     if (
         !parsed ||
         parsed.kind !== 'budget-backup' ||
-        ![2, 3].includes(parsed.version) ||
+        ![2, 3, 4].includes(parsed.version) ||
         !parsed.data ||
         !Array.isArray(parsed.data.accounts) ||
         !Array.isArray(parsed.data.categories) ||
         !Array.isArray(parsed.data.budgetTargets) ||
         !Array.isArray(parsed.data.recurringTemplates) ||
-        !Array.isArray(parsed.data.transactions)
+        !Array.isArray(parsed.data.transactions) ||
+        (parsed.data.taxProfiles != null && !Array.isArray(parsed.data.taxProfiles))
     ) {
         throw new Error('Le fichier JSON ne correspond pas à un backup budget valide.')
     }
