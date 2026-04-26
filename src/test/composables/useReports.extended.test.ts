@@ -129,7 +129,7 @@ describe('useReports extended workflows', () => {
 
         expect(reports.filteredTransactions.value).toHaveLength(7)
         expect(reports.previousFilteredTransactions.value).toHaveLength(2)
-        expect(reports.comparisonPeriod.value).toEqual({previousStartDate: '2026-03-02', previousEndDate: '2026-03-31'})
+        expect(reports.comparisonPeriod.value).toEqual({previousStartDate: '2026-03-02', previousEndDate: '2026-03-31', daySpan: 30})
         expect(reports.reportSummary.value).toMatchObject({
             transactionCount: 7,
             income: 3000,
