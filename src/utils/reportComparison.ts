@@ -2,7 +2,7 @@ import type {ReportComparisonSummary, ReportMetricComparison, ReportSummary, Tra
 import {addUtcDays, endOfUtcDay, startOfUtcDay, toDateOnly, toUtcDate} from './date'
 
 function round2(value: number) {
-    return Math.round(value * 100) / 100
+    return Math.round((value + 1e-10) * 100) / 100
 }
 
 export function withinRange(date: string, startDate: string, endDate: string) {
