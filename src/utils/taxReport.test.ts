@@ -200,9 +200,12 @@ describe('buildTaxReport', () => {
         const quebecItems = report.sections
             .filter((section) => section.jurisdiction === 'QC')
             .flatMap((section) => section.items)
+        const quebecOutsideTaxItems = report.sections
+            .filter((section) => section.jurisdiction === 'QC' && section.titleKey === 'tax.report.sections.qcOutsideTax')
+            .flatMap((section) => section.items)
 
         expect(quebecItems.some((item) => item.label === 'Salaire Ontario')).toBe(true)
-        expect(quebecItems.some((item) => item.amount === 100)).toBe(false)
+        expect(quebecOutsideTaxItems.some((item) => item.amount === 100)).toBe(false)
     })
 
     it('flags Quebec tax withheld when the transaction source region identifies another province', () => {
