@@ -388,25 +388,34 @@ onMounted(async () => {
             </div>
 
             <div class="flex shrink-0 items-center gap-2">
-              <button
-                  v-if="showCollapsedAnalytics"
-                  class="group inline-flex items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 text-left text-sm font-semibold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/45 dark:text-violet-200 dark:hover:border-violet-800 dark:hover:bg-violet-950/70"
-                  :aria-expanded="analyticsPanelOpen"
-                  @click="analyticsPanelOpen = !analyticsPanelOpen"
+              <Transition
+                  enter-active-class="transition delay-150 duration-300 ease-out"
+                  enter-from-class="translate-x-4 scale-90 opacity-0 blur-[1px]"
+                  enter-to-class="translate-x-0 scale-100 opacity-100 blur-0"
+                  leave-active-class="transition duration-150 ease-in"
+                  leave-from-class="translate-x-0 scale-100 opacity-100"
+                  leave-to-class="translate-x-2 scale-95 opacity-0"
               >
-                <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-violet-600 text-xs font-bold text-white shadow-sm shadow-violet-950/30">
-                  OV
-                </span>
-                <span class="hidden min-w-0 flex-col leading-tight sm:flex">
-                  <span>{{ t('nav.overview') }}</span>
-                  <span class="text-xs font-medium text-violet-500 dark:text-violet-300/80">
-                    {{ compactAnalyticsSummary }} · {{ budget.transactions.value.length }} tx
+                <button
+                    v-if="showCollapsedAnalytics"
+                    class="group inline-flex transform-gpu items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 text-left text-sm font-semibold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/45 dark:text-violet-200 dark:hover:border-violet-800 dark:hover:bg-violet-950/70"
+                    :aria-expanded="analyticsPanelOpen"
+                    @click="analyticsPanelOpen = !analyticsPanelOpen"
+                >
+                  <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-violet-600 text-xs font-bold text-white shadow-sm shadow-violet-950/30">
+                    OV
                   </span>
-                </span>
-                <span class="text-lg transition-transform duration-200" :class="analyticsPanelOpen ? 'rotate-180' : ''">
-                  ⌄
-                </span>
-              </button>
+                  <span class="hidden min-w-0 flex-col leading-tight sm:flex">
+                    <span>{{ t('nav.overview') }}</span>
+                    <span class="text-xs font-medium text-violet-500 dark:text-violet-300/80">
+                      {{ compactAnalyticsSummary }} · {{ budget.transactions.value.length }} tx
+                    </span>
+                  </span>
+                  <span class="text-lg transition-transform duration-200" :class="analyticsPanelOpen ? 'rotate-180' : ''">
+                    ⌄
+                  </span>
+                </button>
+              </Transition>
 
               <button class="ghost-btn" @click="settings.openSettings">
                 {{ t('common.settings') }}
@@ -459,22 +468,32 @@ onMounted(async () => {
             </div>
           </div>
 
-          <AnalyticsToolbar
-              v-if="showExpandedAnalytics"
-              :loading="budget.loading.value"
-              :summary-currency="budget.summaryCurrency.value"
-              :net-flow="budget.netFlow.value"
-              :total-income="budget.totalIncome.value"
-              :total-expense="budget.totalExpense.value"
-              :transaction-count="budget.transactions.value.length"
-              :account-count="budget.accounts.value.length"
-              :category-count="budget.categories.value.length"
-              :current-csv-entity="csv.currentCsvEntity.value"
-              @refresh="refreshEverything"
-              @create-transaction="budget.openCreatePanel('transaction')"
-              @create-account="budget.openCreatePanel('account')"
-              @create-category="budget.openCreatePanel('category')"
-          />
+          <Transition
+              enter-active-class="transition duration-300 ease-out"
+              enter-from-class="-translate-y-4 scale-[0.98] opacity-0"
+              enter-to-class="translate-y-0 scale-100 opacity-100"
+              leave-active-class="transition duration-300 ease-in"
+              leave-from-class="translate-x-0 translate-y-0 scale-100 opacity-100 blur-0"
+              leave-to-class="pointer-events-none -translate-y-16 translate-x-[18%] scale-[0.72] opacity-0 blur-[1px]"
+          >
+            <div v-if="showExpandedAnalytics" class="origin-top-right transform-gpu">
+              <AnalyticsToolbar
+                  :loading="budget.loading.value"
+                  :summary-currency="budget.summaryCurrency.value"
+                  :net-flow="budget.netFlow.value"
+                  :total-income="budget.totalIncome.value"
+                  :total-expense="budget.totalExpense.value"
+                  :transaction-count="budget.transactions.value.length"
+                  :account-count="budget.accounts.value.length"
+                  :category-count="budget.categories.value.length"
+                  :current-csv-entity="csv.currentCsvEntity.value"
+                  @refresh="refreshEverything"
+                  @create-transaction="budget.openCreatePanel('transaction')"
+                  @create-account="budget.openCreatePanel('account')"
+                  @create-category="budget.openCreatePanel('category')"
+              />
+            </div>
+          </Transition>
 
           <OverviewSection
               v-if="budget.activeSection.value === 'overview'"
