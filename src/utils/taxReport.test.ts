@@ -166,7 +166,29 @@ describe('buildTaxReport', () => {
             .flatMap((section) => section.items)
 
         expect(quebecItems.some((item) => item.label === 'Salaire Ontario')).toBe(true)
-        expect(quebecItems.some((item) => item.amount === 100 && item.currency === 'CAD')).toBe(true)
+        expect(quebecItems.some((item) => item.amount === 100)).toBe(false)
+    })
+
+    it('flags Quebec tax withheld when the transaction source region identifies another province', () => {
+        const income = transaction({
+            id: 42,
+            label: 'Retenue Ontario',
+            amount: 2000,
+            sourceAmount: null,
+            sourceCurrency: null,
+            taxSourceCountry: 'CA',
+            taxSourceRegion: 'ON',
+            taxWithheldAmount: 100,
+            taxWithheldCurrency: null,
+            taxWithheldCountry: 'CA',
+        })
+
+        const report = buildTaxReport(quebecProfile, [], [income])
+        const quebecItems = report.sections
+            .filter((section) => section.jurisdiction === 'QC')
+            .flatMap((section) => section.items)
+
+        expect(quebecItems.some((item) => item.label === 'Retenue Ontario' && item.amount === 100 && item.currency === 'EUR')).toBe(true)
     })
 
     it('skips Quebec rules for Canadian residents outside Quebec and unsupported countries', () => {
