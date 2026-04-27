@@ -13,7 +13,7 @@ export type BudgetStatus = 'UNDER' | 'NEAR' | 'OVER'
 export type RecurringFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
 export type TaxIncomeCategory = 'EMPLOYMENT' | 'BUSINESS' | 'INTEREST' | 'DIVIDEND' | 'CAPITAL_GAIN' | 'RENTAL' | 'PENSION' | 'BENEFIT' | 'GIFT' | 'REFUND' | 'TRANSFER' | 'OTHER'
 export type TaxTreatment = 'UNKNOWN' | 'NOT_TAXABLE' | 'TAXABLE_NO_WITHHOLDING' | 'TAX_WITHHELD_AT_SOURCE' | 'FOREIGN_TAX_CREDIT_CANDIDATE' | 'TREATY_EXEMPT_CANDIDATE' | 'REVIEW_REQUIRED'
-export type TaxJurisdiction = 'FR' | 'CA' | 'QC'
+export type TaxJurisdiction = 'FR' | 'CA' | 'QC' | (string & {})
 export type TaxReportSeverity = 'info' | 'warning' | 'review'
 export type TaxReportConfidence = 'low' | 'medium' | 'high'
 
@@ -84,6 +84,8 @@ export interface TaxReportItem {
     amount?: number
     currency?: string
     explanation: string
+    explanationKey?: string
+    explanationValues?: Record<string, string | number | null | undefined>
     suggestedForms: string[]
     confidence: TaxReportConfidence
 }
@@ -91,6 +93,7 @@ export interface TaxReportItem {
 export interface TaxReportSection {
     jurisdiction: TaxJurisdiction
     title: string
+    titleKey?: string
     severity: TaxReportSeverity
     items: TaxReportItem[]
 }
