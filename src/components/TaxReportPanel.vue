@@ -1,16 +1,26 @@
 <script setup lang="ts">
 import {computed, reactive, ref, watch} from 'vue'
+import {useI18n} from 'vue-i18n'
 import type {
   Account,
   AccountTaxReportingType,
   TaxIncomeCategory,
   TaxProfile,
+  TaxReportItem,
+  TaxReportSection,
   TaxTreatment,
   Transaction,
 } from '../types/budget'
 import {formatMoney} from '../utils/budgetFormat'
 import {toDateOnly} from '../utils/date'
-import {buildTaxReport, taxReportToMarkdown} from '../utils/taxReport'
+import {
+  buildTaxReport,
+  getApplicableTaxRuleSets,
+  getTaxResidenceOption,
+  SUPPORTED_TAX_RESIDENCES,
+  taxReportToMarkdown,
+  taxResidenceKey,
+} from '../utils/taxReport'
 
 const props = defineProps<{
   accounts: Account[]
@@ -23,6 +33,8 @@ const emit = defineEmits<{
   (e: 'refresh-data'): void
 }>()
 
+const {t} = useI18n()
+
 const selectedTaxProfileId = ref('')
 const savingProfile = ref(false)
 const savingAccountId = ref<number | null>(null)
@@ -33,8 +45,7 @@ const currentYear = new Date().getFullYear()
 
 const taxProfileForm = reactive({
   year: String(currentYear),
-  residenceCountry: 'CA',
-  residenceRegion: 'QC',
+  residenceKey: 'CA-QC',
   currency: 'CAD',
 })
 
@@ -93,6 +104,23 @@ const taxTreatments: TaxTreatment[] = [
   'REVIEW_REQUIRED',
 ]
 
+const residenceOptions = computed(() => SUPPORTED_TAX_RESIDENCES.map((option) => ({
+  ...option,
+  key: taxResidenceKey(option.country, option.region),
+  label: t(option.labelKey),
+})))
+
+const selectedResidenceOption = computed(() =>
+    residenceOptions.value.find((option) => option.key === taxProfileForm.residenceKey) || residenceOptions.value[0],
+)
+
+watch(() => taxProfileForm.residenceKey, () => {
+  const option = selectedResidenceOption.value
+  if (option?.currency) {
+    taxProfileForm.currency = option.currency
+  }
+})
+
 function showNotice(type: 'success' | 'error', text: string) {
   notice.value = {type, text}
   window.setTimeout(() => {
@@ -113,6 +141,44 @@ function normalizeOptionalCode(value: string) {
 
 function toDateInput(value: string | null | undefined) {
   return value ? toDateOnly(value) : ''
+}
+
+function optionLabel(scope: 'accountTaxType' | 'incomeCategory' | 'treatment', value: string) {
+  return t(`tax.options.${scope}.${value}`)
+}
+
+function sectionTitle(section: TaxReportSection) {
+  return section.titleKey ? t(section.titleKey) : section.title
+}
+
+function itemExplanation(item: TaxReportItem) {
+  return item.explanationKey ? t(item.explanationKey, item.explanationValues ?? {}) : item.explanation
+}
+
+function severityLabel(value: TaxReportSection['severity']) {
+  return t(`tax.severity.${value}`)
+}
+
+function confidenceLabel(value: TaxReportItem['confidence']) {
+  return t(`tax.confidence.${value}`)
+}
+
+function jurisdictionLabel(jurisdiction: string) {
+  const ruleSet = getApplicableTaxRuleSets(selectedTaxProfile.value || {
+    id: 0,
+    year: currentYear,
+    residenceCountry: jurisdiction,
+    residenceRegion: null,
+    currency: taxProfileForm.currency,
+  }).find((candidate) => candidate.jurisdiction === jurisdiction)
+
+  return ruleSet ? t(ruleSet.labelKey) : jurisdiction
+}
+
+function residenceLabel(profile: TaxProfile) {
+  const option = getTaxResidenceOption(profile.residenceCountry, profile.residenceRegion)
+  if (option) return t(option.labelKey)
+  return `${profile.residenceCountry}${profile.residenceRegion ? `-${profile.residenceRegion}` : ''}`
 }
 
 function hydrateAccountForms() {
@@ -159,6 +225,8 @@ const taxReport = computed(() => selectedTaxProfile.value
     : null,
 )
 
+const reportItemCount = computed(() => taxReport.value?.sections.reduce((sum, section) => sum + section.items.length, 0) ?? 0)
+
 const incomeTransactionsForSelectedYear = computed(() => {
   const profile = selectedTaxProfile.value
   if (!profile) return props.transactions.filter((transaction) => transaction.kind === 'INCOME').slice(0, 20)
@@ -174,12 +242,13 @@ const incomeTransactionsForSelectedYear = computed(() => {
 async function submitTaxProfile() {
   const year = Number(taxProfileForm.year)
   if (!Number.isInteger(year) || year < 1900 || year > 2200) {
-    showNotice('error', "L'année fiscale est invalide.")
+    showNotice('error', t('tax.errors.invalidYear'))
     return
   }
 
-  if (!normalizeCode(taxProfileForm.residenceCountry)) {
-    showNotice('error', 'Le pays de résidence fiscale est obligatoire.')
+  const residence = selectedResidenceOption.value
+  if (!residence?.country) {
+    showNotice('error', t('tax.errors.missingResidence'))
     return
   }
 
@@ -187,15 +256,15 @@ async function submitTaxProfile() {
   try {
     const created = await window.db.taxProfile.create({
       year,
-      residenceCountry: normalizeCode(taxProfileForm.residenceCountry),
-      residenceRegion: normalizeOptionalCode(taxProfileForm.residenceRegion),
-      currency: normalizeCode(taxProfileForm.currency) || 'CAD',
+      residenceCountry: residence.country,
+      residenceRegion: residence.region,
+      currency: normalizeCode(taxProfileForm.currency) || residence.currency,
     })
     selectedTaxProfileId.value = String(created.id)
     emit('refresh-tax-profiles')
-    showNotice('success', 'Profil fiscal créé.')
+    showNotice('success', t('tax.success.profileCreated'))
   } catch (error) {
-    showNotice('error', error instanceof Error ? error.message : 'Création du profil fiscal impossible.')
+    showNotice('error', error instanceof Error ? error.message : t('tax.errors.profileCreateFailed'))
   } finally {
     savingProfile.value = false
   }
@@ -215,9 +284,9 @@ async function saveAccountTaxMetadata(account: Account) {
       closedAt: form.closedAt || null,
     })
     emit('refresh-data')
-    showNotice('success', `Métadonnées fiscales enregistrées pour ${account.name}.`)
+    showNotice('success', t('tax.success.accountSaved', {name: account.name}))
   } catch (error) {
-    showNotice('error', error instanceof Error ? error.message : 'Sauvegarde impossible.')
+    showNotice('error', error instanceof Error ? error.message : t('tax.errors.saveFailed'))
   } finally {
     savingAccountId.value = null
   }
@@ -229,7 +298,7 @@ async function saveTransactionTaxMetadata(transaction: Transaction) {
 
   const withheldAmount = form.taxWithheldAmount.trim() ? Number(form.taxWithheldAmount) : null
   if (withheldAmount != null && (!Number.isFinite(withheldAmount) || withheldAmount < 0)) {
-    showNotice('error', "Le montant d'impôt retenu est invalide.")
+    showNotice('error', t('tax.errors.invalidWithheldAmount'))
     return
   }
 
@@ -246,9 +315,9 @@ async function saveTransactionTaxMetadata(transaction: Transaction) {
       taxDocumentRef: form.taxDocumentRef.trim() || null,
     })
     emit('refresh-data')
-    showNotice('success', `Métadonnées fiscales enregistrées pour ${transaction.label}.`)
+    showNotice('success', t('tax.success.transactionSaved', {label: transaction.label}))
   } catch (error) {
-    showNotice('error', error instanceof Error ? error.message : 'Sauvegarde impossible.')
+    showNotice('error', error instanceof Error ? error.message : t('tax.errors.saveFailed'))
   } finally {
     savingTransactionId.value = null
   }
@@ -256,20 +325,20 @@ async function saveTransactionTaxMetadata(transaction: Transaction) {
 
 async function exportTaxReport() {
   if (!taxReport.value) {
-    showNotice('error', 'Crée ou sélectionne un profil fiscal avant export.')
+    showNotice('error', t('tax.errors.profileRequiredForExport'))
     return
   }
 
   const profile = taxReport.value.profile
   const result = await window.file.saveText({
-    title: 'Exporter le rapport fiscal',
+    title: t('tax.exportDialogTitle'),
     defaultPath: `budget-tax-report-${profile.year}-${profile.residenceCountry}${profile.residenceRegion ? `-${profile.residenceRegion}` : ''}.md`,
     content: taxReportToMarkdown(taxReport.value),
     filters: [{name: 'Markdown', extensions: ['md']}],
   })
 
   if (!result?.canceled) {
-    showNotice('success', 'Rapport fiscal exporté.')
+    showNotice('success', t('tax.success.exported'))
   }
 }
 </script>
@@ -278,17 +347,17 @@ async function exportTaxReport() {
   <section class="panel p-6">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div>
-        <p class="soft-kicker">Fiscalité</p>
+        <p class="soft-kicker">{{ t('tax.kicker') }}</p>
         <h3 class="mt-2 text-xl font-bold text-slate-900 dark:text-white">
-          Rapport déclaratif France / Canada / Québec
+          {{ t('tax.title') }}
         </h3>
         <p class="mt-2 max-w-3xl text-sm text-slate-500 dark:text-slate-400">
-          Ce module ne calcule pas l'impôt final. Il identifie les comptes, revenus, retenues à la source et formulaires à vérifier.
+          {{ t('tax.description') }}
         </p>
       </div>
 
       <button class="primary-btn" :disabled="!taxReport" @click="exportTaxReport">
-        Export fiscal Markdown
+        {{ t('tax.exportMarkdown') }}
       </button>
     </div>
 
@@ -298,67 +367,63 @@ async function exportTaxReport() {
 
     <div class="mt-6 grid gap-5 xl:grid-cols-12">
       <section class="mini-card xl:col-span-5">
-        <p class="mini-label">Profil fiscal annuel</p>
+        <p class="mini-label">{{ t('tax.profile.title') }}</p>
 
         <div v-if="taxProfiles.length" class="mt-4 field-block">
-          <label class="field-label">Profil utilisé pour le rapport</label>
+          <label class="field-label">{{ t('tax.profile.reportProfile') }}</label>
           <select v-model="selectedTaxProfileId" class="field-control">
             <option v-for="profile in taxProfiles" :key="profile.id" :value="String(profile.id)">
-              {{ profile.year }} · {{ profile.residenceCountry }}{{ profile.residenceRegion ? `-${profile.residenceRegion}` : '' }} · {{ profile.currency }}
+              {{ profile.year }} · {{ residenceLabel(profile) }} · {{ profile.currency }}
             </option>
           </select>
         </div>
 
         <form class="mt-5 grid gap-4 md:grid-cols-2" @submit.prevent="submitTaxProfile">
           <label class="field-block">
-            <span class="field-label">Année</span>
+            <span class="field-label">{{ t('tax.profile.year') }}</span>
             <input v-model="taxProfileForm.year" type="number" min="1900" max="2200" class="field-control">
           </label>
 
           <label class="field-block">
-            <span class="field-label">Devise</span>
+            <span class="field-label">{{ t('tax.profile.currency') }}</span>
             <input v-model="taxProfileForm.currency" type="text" maxlength="6" class="field-control" placeholder="CAD">
           </label>
 
-          <label class="field-block">
-            <span class="field-label">Pays résidence</span>
-            <select v-model="taxProfileForm.residenceCountry" class="field-control">
-              <option value="FR">France</option>
-              <option value="CA">Canada</option>
+          <label class="field-block md:col-span-2">
+            <span class="field-label">{{ t('tax.profile.residence') }}</span>
+            <select v-model="taxProfileForm.residenceKey" class="field-control">
+              <option v-for="option in residenceOptions" :key="option.key" :value="option.key">
+                {{ option.label }}
+              </option>
             </select>
-          </label>
-
-          <label class="field-block">
-            <span class="field-label">Région / province</span>
-            <input v-model="taxProfileForm.residenceRegion" type="text" maxlength="12" class="field-control" placeholder="QC">
           </label>
 
           <div class="md:col-span-2">
             <button class="ghost-btn" type="submit" :disabled="savingProfile">
-              {{ savingProfile ? 'Création…' : 'Créer le profil fiscal' }}
+              {{ savingProfile ? t('tax.profile.creating') : t('tax.profile.create') }}
             </button>
           </div>
         </form>
       </section>
 
       <section class="mini-card xl:col-span-7">
-        <p class="mini-label">Synthèse</p>
+        <p class="mini-label">{{ t('tax.summary.title') }}</p>
 
         <div v-if="taxReport" class="mt-4 grid gap-3 md:grid-cols-3">
           <div class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-            <p class="text-xs text-slate-500 dark:text-slate-400">Sections</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ t('tax.summary.sections') }}</p>
             <p class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{{ taxReport.sections.length }}</p>
           </div>
           <div class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-            <p class="text-xs text-slate-500 dark:text-slate-400">Éléments à revoir</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ t('tax.summary.itemsToReview') }}</p>
             <p class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-              {{ taxReport.sections.reduce((sum, section) => sum + section.items.length, 0) }}
+              {{ reportItemCount }}
             </p>
           </div>
           <div class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-            <p class="text-xs text-slate-500 dark:text-slate-400">Résidence</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ t('tax.summary.residence') }}</p>
             <p class="mt-2 text-lg font-bold text-slate-900 dark:text-white">
-              {{ taxReport.profile.residenceCountry }}{{ taxReport.profile.residenceRegion ? `-${taxReport.profile.residenceRegion}` : '' }}
+              {{ residenceLabel(taxReport.profile) }}
             </p>
           </div>
         </div>
@@ -371,31 +436,31 @@ async function exportTaxReport() {
           >
             <div class="flex flex-wrap items-center justify-between gap-2">
               <h4 class="font-semibold text-slate-900 dark:text-white">
-                [{{ section.jurisdiction }}] {{ section.title }}
+                [{{ jurisdictionLabel(section.jurisdiction) }}] {{ sectionTitle(section) }}
               </h4>
-              <span class="soft-badge">{{ section.severity }}</span>
+              <span class="soft-badge">{{ severityLabel(section.severity) }}</span>
             </div>
             <ul class="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
-              <li v-for="item in section.items" :key="`${item.entityType}-${item.entityId}-${item.label}`">
-                <strong>{{ item.label }}</strong>
-                <span v-if="item.amount != null"> · {{ formatMoney(item.amount, item.currency || taxReport.profile.currency) }}</span>
+              <li v-for="entry in section.items" :key="`${entry.entityType}-${entry.entityId}-${entry.label}`">
+                <strong>{{ entry.label }}</strong>
+                <span v-if="entry.amount != null"> · {{ formatMoney(entry.amount, entry.currency || taxReport.profile.currency) }}</span>
                 <br>
-                {{ item.explanation }}
+                {{ itemExplanation(entry) }}
                 <br>
                 <span class="text-xs text-slate-500 dark:text-slate-400">
-                  À vérifier : {{ item.suggestedForms.join(', ') }} · confiance {{ item.confidence }}
+                  {{ t('tax.report.verify') }} {{ entry.suggestedForms.join(', ') }} · {{ t('tax.report.confidence') }} {{ confidenceLabel(entry.confidence) }}
                 </span>
               </li>
             </ul>
           </div>
 
           <div v-if="!taxReport.sections.length" class="empty-state">
-            Aucun signal fiscal détecté avec les règles configurées.
+            {{ t('tax.report.noSignal') }}
           </div>
         </div>
 
         <div v-else class="mt-4 empty-state">
-          Crée un profil fiscal pour générer le rapport.
+          {{ t('tax.report.createProfileFirst') }}
         </div>
       </section>
     </div>
@@ -403,8 +468,8 @@ async function exportTaxReport() {
     <section class="mt-6">
       <div class="panel-header !px-0">
         <div>
-          <p class="panel-eyebrow">Comptes</p>
-          <h4 class="panel-title">Pays, province et nature fiscale</h4>
+          <p class="panel-eyebrow">{{ t('tax.accounts.eyebrow') }}</p>
+          <h4 class="panel-title">{{ t('tax.accounts.title') }}</h4>
         </div>
       </div>
 
@@ -412,30 +477,30 @@ async function exportTaxReport() {
         <table class="w-full min-w-[960px]">
           <thead>
           <tr class="table-head">
-            <th class="table-cell-head text-left">Compte</th>
-            <th class="table-cell-head text-left">Pays</th>
-            <th class="table-cell-head text-left">Région</th>
-            <th class="table-cell-head text-left">Nature fiscale</th>
-            <th class="table-cell-head text-left">Ouverture</th>
-            <th class="table-cell-head text-left">Fermeture</th>
-            <th class="table-cell-head text-right">Action</th>
+            <th class="table-cell-head text-left">{{ t('tax.accounts.account') }}</th>
+            <th class="table-cell-head text-left">{{ t('tax.accounts.country') }}</th>
+            <th class="table-cell-head text-left">{{ t('tax.accounts.region') }}</th>
+            <th class="table-cell-head text-left">{{ t('tax.accounts.taxNature') }}</th>
+            <th class="table-cell-head text-left">{{ t('tax.accounts.openedAt') }}</th>
+            <th class="table-cell-head text-left">{{ t('tax.accounts.closedAt') }}</th>
+            <th class="table-cell-head text-right">{{ t('tax.accounts.action') }}</th>
           </tr>
           </thead>
           <tbody>
           <tr v-for="account in accounts" :key="account.id" class="table-row">
             <td class="table-cell font-medium">{{ account.name }}</td>
-            <td class="table-cell"><input v-model="accountForms[account.id].institutionCountry" class="field-control" maxlength="12" placeholder="FR / CA / US"></td>
-            <td class="table-cell"><input v-model="accountForms[account.id].institutionRegion" class="field-control" maxlength="12" placeholder="QC"></td>
+            <td class="table-cell"><input v-model="accountForms[account.id].institutionCountry" class="field-control" maxlength="12" :placeholder="t('tax.placeholders.country')"></td>
+            <td class="table-cell"><input v-model="accountForms[account.id].institutionRegion" class="field-control" maxlength="12" :placeholder="t('tax.placeholders.region')"></td>
             <td class="table-cell">
               <select v-model="accountForms[account.id].taxReportingType" class="field-control">
-                <option v-for="type in accountTaxReportingTypes" :key="type" :value="type">{{ type }}</option>
+                <option v-for="type in accountTaxReportingTypes" :key="type" :value="type">{{ optionLabel('accountTaxType', type) }}</option>
               </select>
             </td>
             <td class="table-cell"><input v-model="accountForms[account.id].openedAt" type="date" class="field-control"></td>
             <td class="table-cell"><input v-model="accountForms[account.id].closedAt" type="date" class="field-control"></td>
             <td class="table-cell text-right">
               <button class="ghost-btn" :disabled="savingAccountId === account.id" @click="saveAccountTaxMetadata(account)">
-                {{ savingAccountId === account.id ? '...' : 'Sauver' }}
+                {{ savingAccountId === account.id ? '...' : t('common.save') }}
               </button>
             </td>
           </tr>
@@ -447,8 +512,8 @@ async function exportTaxReport() {
     <section class="mt-6">
       <div class="panel-header !px-0">
         <div>
-          <p class="panel-eyebrow">Rentrées d'argent</p>
-          <h4 class="panel-title">Source, retenue à la source et justificatifs</h4>
+          <p class="panel-eyebrow">{{ t('tax.income.eyebrow') }}</p>
+          <h4 class="panel-title">{{ t('tax.income.title') }}</h4>
         </div>
       </div>
 
@@ -456,16 +521,16 @@ async function exportTaxReport() {
         <table class="w-full min-w-[1180px]">
           <thead>
           <tr class="table-head">
-            <th class="table-cell-head text-left">Transaction</th>
-            <th class="table-cell-head text-left">Catégorie fiscale</th>
-            <th class="table-cell-head text-left">Pays source</th>
-            <th class="table-cell-head text-left">Région source</th>
-            <th class="table-cell-head text-left">Traitement</th>
-            <th class="table-cell-head text-left">Impôt retenu</th>
-            <th class="table-cell-head text-left">Devise</th>
-            <th class="table-cell-head text-left">Pays retenue</th>
-            <th class="table-cell-head text-left">Doc</th>
-            <th class="table-cell-head text-right">Action</th>
+            <th class="table-cell-head text-left">{{ t('tax.income.transaction') }}</th>
+            <th class="table-cell-head text-left">{{ t('tax.income.category') }}</th>
+            <th class="table-cell-head text-left">{{ t('tax.income.sourceCountry') }}</th>
+            <th class="table-cell-head text-left">{{ t('tax.income.sourceRegion') }}</th>
+            <th class="table-cell-head text-left">{{ t('tax.income.treatment') }}</th>
+            <th class="table-cell-head text-left">{{ t('tax.income.withheldAmount') }}</th>
+            <th class="table-cell-head text-left">{{ t('tax.income.currency') }}</th>
+            <th class="table-cell-head text-left">{{ t('tax.income.withheldCountry') }}</th>
+            <th class="table-cell-head text-left">{{ t('tax.income.document') }}</th>
+            <th class="table-cell-head text-right">{{ t('tax.income.action') }}</th>
           </tr>
           </thead>
           <tbody>
@@ -477,23 +542,23 @@ async function exportTaxReport() {
             <td class="table-cell">
               <select v-model="transactionForms[transaction.id].taxCategory" class="field-control">
                 <option value="">—</option>
-                <option v-for="category in taxIncomeCategories" :key="category" :value="category">{{ category }}</option>
+                <option v-for="category in taxIncomeCategories" :key="category" :value="category">{{ optionLabel('incomeCategory', category) }}</option>
               </select>
             </td>
-            <td class="table-cell"><input v-model="transactionForms[transaction.id].taxSourceCountry" class="field-control" maxlength="12" placeholder="FR / CA / US"></td>
-            <td class="table-cell"><input v-model="transactionForms[transaction.id].taxSourceRegion" class="field-control" maxlength="12" placeholder="QC"></td>
+            <td class="table-cell"><input v-model="transactionForms[transaction.id].taxSourceCountry" class="field-control" maxlength="12" :placeholder="t('tax.placeholders.country')"></td>
+            <td class="table-cell"><input v-model="transactionForms[transaction.id].taxSourceRegion" class="field-control" maxlength="12" :placeholder="t('tax.placeholders.region')"></td>
             <td class="table-cell">
               <select v-model="transactionForms[transaction.id].taxTreatment" class="field-control">
-                <option v-for="treatment in taxTreatments" :key="treatment" :value="treatment">{{ treatment }}</option>
+                <option v-for="treatment in taxTreatments" :key="treatment" :value="treatment">{{ optionLabel('treatment', treatment) }}</option>
               </select>
             </td>
             <td class="table-cell"><input v-model="transactionForms[transaction.id].taxWithheldAmount" type="number" min="0" step="0.01" class="field-control" placeholder="0.00"></td>
             <td class="table-cell"><input v-model="transactionForms[transaction.id].taxWithheldCurrency" class="field-control" maxlength="6" placeholder="CAD"></td>
-            <td class="table-cell"><input v-model="transactionForms[transaction.id].taxWithheldCountry" class="field-control" maxlength="12" placeholder="CA"></td>
-            <td class="table-cell"><input v-model="transactionForms[transaction.id].taxDocumentRef" class="field-control" placeholder="T4/RL-1/IFU..."></td>
+            <td class="table-cell"><input v-model="transactionForms[transaction.id].taxWithheldCountry" class="field-control" maxlength="12" :placeholder="t('tax.placeholders.withheldCountry')"></td>
+            <td class="table-cell"><input v-model="transactionForms[transaction.id].taxDocumentRef" class="field-control" :placeholder="t('tax.placeholders.document')"></td>
             <td class="table-cell text-right">
               <button class="ghost-btn" :disabled="savingTransactionId === transaction.id" @click="saveTransactionTaxMetadata(transaction)">
-                {{ savingTransactionId === transaction.id ? '...' : 'Sauver' }}
+                {{ savingTransactionId === transaction.id ? '...' : t('common.save') }}
               </button>
             </td>
           </tr>
@@ -502,7 +567,7 @@ async function exportTaxReport() {
       </div>
 
       <div v-else class="empty-state">
-        Aucune rentrée d'argent pour l'année fiscale sélectionnée.
+        {{ t('tax.income.empty') }}
       </div>
     </section>
   </section>
