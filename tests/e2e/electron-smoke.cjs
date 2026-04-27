@@ -138,9 +138,9 @@ async function runSmokeTest() {
     })
 
     const electron = spawn(electronPath, [
-        repoRoot,
         `--remote-debugging-port=${remoteDebuggingPort}`,
         '--no-sandbox',
+        repoRoot,
     ], {
         cwd: repoRoot,
         stdio: ['ignore', 'pipe', 'pipe'],
