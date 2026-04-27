@@ -1,6 +1,8 @@
 import {createI18n} from 'vue-i18n'
 import en from './locales/en'
 import fr from './locales/fr'
+import taxEn from './locales/tax.en'
+import taxFr from './locales/tax.fr'
 
 export type SupportedLocale = 'fr' | 'en'
 
@@ -35,8 +37,14 @@ export const i18n = createI18n({
     locale: resolveInitialLocale(),
     fallbackLocale: 'en',
     messages: {
-        fr,
-        en,
+        fr: {
+            ...fr,
+            tax: taxFr,
+        },
+        en: {
+            ...en,
+            tax: taxEn,
+        },
     },
 })
 
