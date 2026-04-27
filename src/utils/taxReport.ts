@@ -130,6 +130,11 @@ function transactionSourceRegion(transaction: Transaction) {
     return normalizeCode(transaction.taxSourceRegion) || normalizeCode(transaction.account?.institutionRegion)
 }
 
+function regionSuffix(value: string | null | undefined) {
+    const region = normalizeCode(value)
+    return region ? `-${region}` : ''
+}
+
 function isForeignCountry(country: string | null | undefined, residenceCountry: string) {
     const normalized = normalizeCode(country)
     return Boolean(normalized && normalized !== normalizeCode(residenceCountry))
@@ -429,21 +434,24 @@ function quebecRules(context: TaxRuleContext) {
             const region = transactionSourceRegion(transaction)
             return isForeignCountry(country, 'CA') || (country === 'CA' && Boolean(region && region !== 'QC'))
         })
-        .map((transaction) => item({
-            entityType: 'transaction',
-            entityId: transaction.id,
-            label: transaction.label,
-            amount: amountOf(transaction),
-            currency: currencyOf(transaction),
-            explanation: `Revenu gagné hors Québec détecté (${transactionSourceCountry(transaction) || 'pays inconnu'}${transactionSourceRegion(transaction) ? `-${transactionSourceRegion(transaction)}` : ''}). À vérifier dans la déclaration Québec.`,
-            explanationKey: 'tax.report.items.quebecOutsideIncome',
-            explanationValues: {
-                country: transactionSourceCountry(transaction) || '—',
-                region: transactionSourceRegion(transaction) || null,
-            },
-            suggestedForms: ['TP-1', 'Annexe E'],
-            confidence: transaction.taxSourceCountry || transaction.taxSourceRegion ? 'high' : 'medium',
-        }))
+        .map((transaction) => {
+            const sourceRegion = transactionSourceRegion(transaction)
+            return item({
+                entityType: 'transaction',
+                entityId: transaction.id,
+                label: transaction.label,
+                amount: amountOf(transaction),
+                currency: currencyOf(transaction),
+                explanation: `Revenu gagné hors Québec détecté (${transactionSourceCountry(transaction) || 'pays inconnu'}${regionSuffix(sourceRegion)}). À vérifier dans la déclaration Québec.`,
+                explanationKey: 'tax.report.items.quebecOutsideIncome',
+                explanationValues: {
+                    country: transactionSourceCountry(transaction) || '—',
+                    region: regionSuffix(sourceRegion),
+                },
+                suggestedForms: ['TP-1', 'Annexe E'],
+                confidence: transaction.taxSourceCountry || transaction.taxSourceRegion ? 'high' : 'medium',
+            })
+        })
 
     const outsideQuebecTaxWithheld = incomeTransactions
         .filter((transaction) => {
