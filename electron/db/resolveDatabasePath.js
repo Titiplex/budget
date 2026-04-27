@@ -54,9 +54,23 @@ function shouldSeedPackagedDatabase(dbPath) {
     return fs.statSync(dbPath).size === 0
 }
 
+function resolveExplicitDatabasePath(options = {}) {
+    const explicitPath = options.explicitDatabasePath || process.env.BUDGET_DATABASE_PATH
+    if (!explicitPath) return null
+
+    const dbPath = path.resolve(explicitPath)
+    ensureParentDir(dbPath)
+    return dbPath
+}
+
 function resolveDatabasePathForApp(appApi, options = {}) {
     if (!appApi) {
         throw new Error('An Electron app-like object is required to resolve the database path.')
+    }
+
+    const explicitDatabasePath = resolveExplicitDatabasePath(options)
+    if (explicitDatabasePath) {
+        return explicitDatabasePath
     }
 
     if (!appApi.isPackaged) {

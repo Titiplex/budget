@@ -29,6 +29,7 @@
     "publish": "npm run prepackage:desktop && electron-forge publish",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:e2e": "npm run prisma:generate && npm run build:vite && node tests/e2e/electron-smoke.cjs",
     "test:coverage": "vitest run --coverage",
     "validate:desktop-assets": "node scripts/validate-desktop-assets.js",
     "build:packaged-db": "node scripts/build-packaged-db.js",
