@@ -8,6 +8,26 @@ export type SupportedLocale = 'fr' | 'en'
 
 const LOCALE_STORAGE_KEY = 'budget-locale'
 
+const frMessages = {
+    ...fr,
+    common: {
+        ...fr.common,
+        export: 'Exporter',
+        import: 'Importer',
+    },
+    tax: taxFr,
+}
+
+const enMessages = {
+    ...en,
+    common: {
+        ...en.common,
+        export: 'Export',
+        import: 'Import',
+    },
+    tax: taxEn,
+}
+
 export function normalizeLocale(value?: string | null): SupportedLocale {
     const normalized = (value || '').toLowerCase()
     return normalized.startsWith('fr') ? 'fr' : 'en'
@@ -37,14 +57,8 @@ export const i18n = createI18n({
     locale: resolveInitialLocale(),
     fallbackLocale: 'en',
     messages: {
-        fr: {
-            ...fr,
-            tax: taxFr,
-        },
-        en: {
-            ...en,
-            tax: taxEn,
-        },
+        fr: frMessages,
+        en: enMessages,
     },
 })
 
