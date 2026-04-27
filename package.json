@@ -1,8 +1,8 @@
 {
   "name": "budget",
   "productName": "Budget",
-  "version": "0.9.0",
-  "description": "Application desktop locale-first pour gérer comptes, transactions, budgets, récurrences, rapports et sauvegardes JSON.",
+  "version": "1.0.0",
+  "description": "Local-first desktop application to manage accounts, transactions, budgets, recurrences, reports et JSON saves.",
   "main": "electron/main.js",
   "type": "commonjs",
   "author": "Titiplex",
