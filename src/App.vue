@@ -363,7 +363,8 @@ onMounted(async () => {
       <div class="flex min-w-0 flex-1 flex-col">
         <header
             class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
-          <div class="relative mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+          <div
+              class="relative mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
             <div class="flex min-w-0 items-center gap-3">
               <button
                   class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white lg:hidden"
@@ -402,7 +403,8 @@ onMounted(async () => {
                     :aria-expanded="analyticsPanelOpen"
                     @click="analyticsPanelOpen = !analyticsPanelOpen"
                 >
-                  <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-violet-600 text-xs font-bold text-white shadow-sm shadow-violet-950/30">
+                  <span
+                      class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-violet-600 text-xs font-bold text-white shadow-sm shadow-violet-950/30">
                     OV
                   </span>
                   <span class="hidden min-w-0 flex-col leading-tight sm:flex">
@@ -411,7 +413,8 @@ onMounted(async () => {
                       {{ compactAnalyticsSummary }} · {{ budget.transactions.value.length }} tx
                     </span>
                   </span>
-                  <span class="text-lg transition-transform duration-200" :class="analyticsPanelOpen ? 'rotate-180' : ''">
+                  <span class="text-lg transition-transform duration-200"
+                        :class="analyticsPanelOpen ? 'rotate-180' : ''">
                     ⌄
                   </span>
                 </button>

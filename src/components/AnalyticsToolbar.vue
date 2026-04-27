@@ -39,7 +39,7 @@ const {t} = useI18n()
     >
       <div :class="compact ? 'max-w-none' : 'max-w-3xl'">
         <p class="soft-kicker">
-          {{ t('settings.title') }} + i18n
+          {{ t('settings.title') }}
         </p>
         <h2
             class="mt-2 font-bold tracking-tight text-slate-900 dark:text-white"
@@ -114,13 +114,15 @@ const {t} = useI18n()
         class="grid items-center"
         :class="compact ? 'mt-4 gap-2 sm:grid-cols-3' : 'mt-6 gap-2 sm:grid-cols-3'"
     >
-      <button class="quick-panel-action" :class="compact ? '!rounded-2xl !py-2.5' : ''" @click="emit('create-transaction')">
+      <button class="quick-panel-action" :class="compact ? '!rounded-2xl !py-2.5' : ''"
+              @click="emit('create-transaction')">
         {{ t('forms.titles.createTransaction') }}
       </button>
       <button class="quick-panel-action" :class="compact ? '!rounded-2xl !py-2.5' : ''" @click="emit('create-account')">
         {{ t('forms.titles.createAccount') }}
       </button>
-      <button class="quick-panel-action" :class="compact ? '!rounded-2xl !py-2.5' : ''" @click="emit('create-category')">
+      <button class="quick-panel-action" :class="compact ? '!rounded-2xl !py-2.5' : ''"
+              @click="emit('create-category')">
         {{ t('forms.titles.createCategory') }}
       </button>
     </div>
