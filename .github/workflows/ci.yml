@@ -33,3 +33,11 @@ jobs:
 
       - name: Run tests
         run: npm run test:run
+
+      - name: Install desktop E2E system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+
+      - name: Run desktop E2E smoke test
+        run: xvfb-run --auto-servernum npm run test:e2e
