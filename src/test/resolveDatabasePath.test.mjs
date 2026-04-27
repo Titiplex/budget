@@ -35,12 +35,37 @@ function fakeApp({isPackaged, userDataPath, appPath}) {
 }
 
 afterEach(() => {
+    delete process.env.BUDGET_DATABASE_PATH
+
     while (tempDirs.length > 0) {
         fs.rmSync(tempDirs.pop(), {recursive: true, force: true})
     }
 })
 
 describe('resolveDatabasePathForApp', () => {
+    it('uses an explicit database path before development or packaged defaults', () => {
+        const repoRoot = makeTempDir()
+        const explicitRoot = makeTempDir()
+        const explicitDatabasePath = path.join(explicitRoot, 'nested', 'e2e.db')
+        const app = fakeApp({isPackaged: false})
+
+        const dbPath = resolveDatabasePathForApp(app, {repoRoot, explicitDatabasePath})
+
+        expect(dbPath).toBe(explicitDatabasePath)
+        expect(fs.existsSync(path.dirname(dbPath))).toBe(true)
+    })
+
+    it('uses BUDGET_DATABASE_PATH when present', () => {
+        const explicitRoot = makeTempDir()
+        process.env.BUDGET_DATABASE_PATH = path.join(explicitRoot, 'env', 'test.db')
+        const app = fakeApp({isPackaged: false})
+
+        const dbPath = resolveDatabasePathForApp(app)
+
+        expect(dbPath).toBe(process.env.BUDGET_DATABASE_PATH)
+        expect(fs.existsSync(path.dirname(dbPath))).toBe(true)
+    })
+
     it('uses prisma/dev.db inside the repository in development', () => {
         const repoRoot = makeTempDir()
         const app = fakeApp({isPackaged: false})
