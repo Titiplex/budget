@@ -574,7 +574,7 @@ const transferModeSummary = computed(() => {
                   v-model="transactionForm.note"
                   rows="4"
                   class="field-control field-textarea"
-                  placeholder="{{ t('transfer.placeholders.note') }}"
+                  :placeholder="t('transfer.placeholders.note')"
               ></textarea>
             </div>
           </template>
@@ -638,7 +638,7 @@ const transferModeSummary = computed(() => {
                     v-model="transactionForm.note"
                     rows="4"
                     class="field-control field-textarea"
-                    placeholder="{{ t('forms.placeholders.optionalDetail') }}"
+                    :placeholder="t('forms.placeholders.optionalDetail')"
                 ></textarea>
               </div>
             </div>
@@ -770,7 +770,7 @@ const transferModeSummary = computed(() => {
                   v-model="accountForm.name"
                   type="text"
                   class="field-control"
-                  placeholder="{{ t('forms.placeholders.accountName') }}"
+                  :placeholder="t('forms.placeholders.accountName')"
               >
             </div>
 
@@ -804,7 +804,7 @@ const transferModeSummary = computed(() => {
                   v-model="accountForm.description"
                   rows="4"
                   class="field-control field-textarea"
-                  placeholder="{{ t('common.optional') }}"
+                  :placeholder="t('common.optional')"
               ></textarea>
             </div>
           </div>
@@ -841,7 +841,7 @@ const transferModeSummary = computed(() => {
                   v-model="categoryForm.name"
                   type="text"
                   class="field-control"
-                  placeholder="{{ t('forms.placeholders.categoryName') }}"
+                  :placeholder="t('forms.placeholders.categoryName')"
               >
             </div>
 
