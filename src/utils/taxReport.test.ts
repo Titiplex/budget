@@ -1,6 +1,12 @@
 import {describe, expect, it} from 'vitest'
 import type {Account, TaxProfile, Transaction} from '../types/budget'
-import {buildTaxReport, taxReportToMarkdown} from './taxReport'
+import {
+    buildTaxReport,
+    getApplicableTaxRuleSets,
+    getTaxResidenceOption,
+    type TaxJurisdictionRuleSet,
+    taxReportToMarkdown,
+} from './taxReport'
 
 function account(overrides: Partial<Account>): Account {
     return {
@@ -10,6 +16,7 @@ function account(overrides: Partial<Account>): Account {
         currency: 'EUR',
         description: null,
         taxReportingType: 'STANDARD',
+        institutionCountry: 'FR',
         ...overrides,
     }
 }
@@ -30,7 +37,8 @@ function transaction(overrides: Partial<Transaction>): Transaction {
         kind: 'INCOME',
         date: '2026-01-15',
         note: null,
-        taxTreatment: 'UNKNOWN',
+        taxCategory: 'OTHER',
+        taxTreatment: 'TAXABLE_NO_WITHHOLDING',
         accountId: baseAccount.id,
         categoryId: null,
         account: baseAccount,
@@ -56,7 +64,7 @@ const quebecProfile: TaxProfile = {
 }
 
 describe('buildTaxReport', () => {
-    it('flags foreign accounts and foreign income for a French tax profile', () => {
+    it('flags foreign accounts, foreign income and foreign tax credits for a French tax profile', () => {
         const foreignAccount = account({
             id: 10,
             name: 'Courtier Canada',
@@ -73,6 +81,7 @@ describe('buildTaxReport', () => {
             sourceCurrency: 'CAD',
             taxCategory: 'DIVIDEND',
             taxSourceCountry: 'CA',
+            taxTreatment: 'FOREIGN_TAX_CREDIT_CANDIDATE',
             taxWithheldAmount: 15,
             taxWithheldCurrency: 'CAD',
             taxWithheldCountry: 'CA',
@@ -81,15 +90,40 @@ describe('buildTaxReport', () => {
         })
 
         const report = buildTaxReport(franceProfile, [foreignAccount], [income])
+        const allItems = report.sections.flatMap((section) => section.items)
 
-        expect(report.sections.map((section) => section.title)).toEqual([
-            'Comptes étrangers potentiellement déclarables',
-            'Revenus étrangers à vérifier',
-            'Impôt étranger retenu / crédit potentiel',
+        expect(report.sections.some((section) => section.jurisdiction === 'FR' && section.titleKey === 'tax.report.sections.foreignAccounts')).toBe(true)
+        expect(report.sections.some((section) => section.jurisdiction === 'FR' && section.titleKey === 'tax.report.sections.foreignIncome')).toBe(true)
+        expect(report.sections.some((section) => section.jurisdiction === 'FR' && section.titleKey === 'tax.report.sections.foreignTaxCredits')).toBe(true)
+        expect(allItems.some((item) => item.suggestedForms.includes('3916'))).toBe(true)
+        expect(allItems.some((item) => item.suggestedForms.includes('2047'))).toBe(true)
+        expect(allItems.some((item) => item.label === 'Dividendes Canada' && item.amount === 15)).toBe(true)
+    })
+
+    it('adds income treatment sections for taxable, withheld, non-taxable and treaty-candidate income', () => {
+        const report = buildTaxReport(franceProfile, [], [
+            transaction({id: 1, label: 'Freelance', taxTreatment: 'TAXABLE_NO_WITHHOLDING'}),
+            transaction({id: 2, label: 'Salaire', taxTreatment: 'TAX_WITHHELD_AT_SOURCE', taxWithheldAmount: 200, taxWithheldCurrency: 'EUR', taxWithheldCountry: 'FR'}),
+            transaction({id: 3, label: 'Remboursement', taxTreatment: 'NOT_TAXABLE'}),
+            transaction({id: 4, label: 'Convention', taxTreatment: 'TREATY_EXEMPT_CANDIDATE'}),
         ])
-        expect(report.sections[0].items[0].suggestedForms).toContain('3916')
-        expect(report.sections[1].items[0].suggestedForms).toContain('2047')
-        expect(report.sections[2].items[0].amount).toBe(15)
+
+        expect(report.sections.some((section) => section.titleKey === 'tax.report.sections.taxableIncomeNoWithholding')).toBe(true)
+        expect(report.sections.some((section) => section.titleKey === 'tax.report.sections.taxWithheldAtSource')).toBe(true)
+        expect(report.sections.some((section) => section.titleKey === 'tax.report.sections.taxExemptReview')).toBe(true)
+        expect(report.sections.some((section) => section.titleKey === 'tax.report.sections.treatyExemption')).toBe(true)
+    })
+
+    it('flags incomplete account and income tax metadata as low-confidence review items', () => {
+        const report = buildTaxReport(franceProfile, [
+            account({id: 11, name: 'Compte sans pays', institutionCountry: null}),
+        ], [
+            transaction({id: 12, label: 'Revenu incomplet', taxCategory: null, taxTreatment: 'UNKNOWN'}),
+        ])
+
+        expect(report.sections.some((section) => section.titleKey === 'tax.report.sections.missingAccountTaxMetadata')).toBe(true)
+        expect(report.sections.some((section) => section.titleKey === 'tax.report.sections.incomeClassification')).toBe(true)
+        expect(report.sections.flatMap((section) => section.items).some((item) => item.confidence === 'low')).toBe(true)
     })
 
     it('ignores income outside the selected tax year', () => {
@@ -123,6 +157,7 @@ describe('buildTaxReport', () => {
             sourceCurrency: 'USD',
             taxCategory: 'INTEREST',
             taxSourceCountry: 'US',
+            taxTreatment: 'FOREIGN_TAX_CREDIT_CANDIDATE',
             taxWithheldAmount: 12,
             taxWithheldCurrency: 'USD',
             taxWithheldCountry: 'US',
@@ -153,6 +188,7 @@ describe('buildTaxReport', () => {
             sourceCurrency: null,
             taxSourceCountry: null,
             taxSourceRegion: null,
+            taxTreatment: 'TAXABLE_NO_WITHHOLDING',
             taxWithheldAmount: 100,
             taxWithheldCurrency: null,
             taxWithheldCountry: 'CA',
@@ -178,6 +214,7 @@ describe('buildTaxReport', () => {
             sourceCurrency: null,
             taxSourceCountry: 'CA',
             taxSourceRegion: 'ON',
+            taxTreatment: 'TAX_WITHHELD_AT_SOURCE',
             taxWithheldAmount: 100,
             taxWithheldCurrency: null,
             taxWithheldCountry: 'CA',
@@ -214,6 +251,53 @@ describe('buildTaxReport', () => {
         expect(ontarioReport.sections.some((section) => section.jurisdiction === 'CA')).toBe(true)
         expect(ontarioReport.sections.some((section) => section.jurisdiction === 'QC')).toBe(false)
         expect(unknownReport.sections).toEqual([])
+    })
+
+    it('accepts custom jurisdiction rule sets without changing buildTaxReport internals', () => {
+        const customProfile: TaxProfile = {
+            id: 5,
+            year: 2026,
+            residenceCountry: 'US',
+            residenceRegion: 'NY',
+            currency: 'USD',
+        }
+        const customRuleSet: TaxJurisdictionRuleSet = {
+            jurisdiction: 'US-NY',
+            labelKey: 'tax.jurisdictions.US_NY',
+            label: 'New York',
+            appliesTo: (profile) => profile.residenceCountry === 'US' && profile.residenceRegion === 'NY',
+            buildSections: ({incomeTransactions}) => incomeTransactions.length ? [{
+                jurisdiction: 'US-NY',
+                title: 'Custom state income review',
+                titleKey: 'tax.report.sections.customStateIncome',
+                severity: 'review',
+                items: incomeTransactions.map((entry) => ({
+                    entityType: 'transaction',
+                    entityId: entry.id,
+                    label: entry.label,
+                    amount: Math.abs(entry.amount),
+                    currency: entry.sourceCurrency || 'USD',
+                    explanation: 'Custom rule fired.',
+                    suggestedForms: ['CUSTOM-1'],
+                    confidence: 'medium',
+                })),
+            }] : [],
+        }
+
+        const report = buildTaxReport(customProfile, [], [transaction({label: 'US income', sourceCurrency: 'USD'})], [customRuleSet])
+
+        expect(report.sections).toHaveLength(1)
+        expect(report.sections[0].jurisdiction).toBe('US-NY')
+        expect(report.sections[0].items[0].suggestedForms).toEqual(['CUSTOM-1'])
+    })
+})
+
+describe('tax rule registry helpers', () => {
+    it('resolves applicable default rule sets and supported residence options', () => {
+        expect(getApplicableTaxRuleSets(quebecProfile).map((ruleSet) => ruleSet.jurisdiction)).toEqual(['CA', 'QC'])
+        expect(getApplicableTaxRuleSets(franceProfile).map((ruleSet) => ruleSet.jurisdiction)).toEqual(['FR'])
+        expect(getTaxResidenceOption('CA', 'QC')?.labelKey).toBe('tax.residences.CA_QC')
+        expect(getTaxResidenceOption('CA', 'ON')?.labelKey).toBe('tax.residences.CA')
     })
 })
 
