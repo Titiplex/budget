@@ -136,6 +136,63 @@ describe('buildTaxReport', () => {
         expect(report.sections.some((section) => section.jurisdiction === 'QC')).toBe(true)
         expect(report.sections.flatMap((section) => section.items).some((item) => item.suggestedForms.includes('T1135'))).toBe(true)
     })
+
+    it('uses account country and region fallbacks when transaction tax source fields are absent', () => {
+        const ontarioAccount = account({
+            id: 40,
+            name: 'Compte Ontario',
+            currency: 'CAD',
+            institutionCountry: 'CA',
+            institutionRegion: 'ON',
+        })
+        const income = transaction({
+            id: 41,
+            label: 'Salaire Ontario',
+            amount: 2000,
+            sourceAmount: null,
+            sourceCurrency: null,
+            taxSourceCountry: null,
+            taxSourceRegion: null,
+            taxWithheldAmount: 100,
+            taxWithheldCurrency: null,
+            taxWithheldCountry: 'CA',
+            accountId: ontarioAccount.id,
+            account: ontarioAccount,
+        })
+
+        const report = buildTaxReport(quebecProfile, [ontarioAccount], [income])
+        const quebecItems = report.sections
+            .filter((section) => section.jurisdiction === 'QC')
+            .flatMap((section) => section.items)
+
+        expect(quebecItems.some((item) => item.label === 'Salaire Ontario')).toBe(true)
+        expect(quebecItems.some((item) => item.amount === 100 && item.currency === 'CAD')).toBe(true)
+    })
+
+    it('skips Quebec rules for Canadian residents outside Quebec and unsupported countries', () => {
+        const ontarioProfile: TaxProfile = {
+            id: 3,
+            year: 2026,
+            residenceCountry: 'CA',
+            residenceRegion: 'ON',
+            currency: 'CAD',
+        }
+        const unknownProfile: TaxProfile = {
+            id: 4,
+            year: 2026,
+            residenceCountry: 'US',
+            residenceRegion: null,
+            currency: 'USD',
+        }
+        const foreignIncome = transaction({taxSourceCountry: 'US', taxWithheldAmount: 10, taxWithheldCountry: 'US'})
+
+        const ontarioReport = buildTaxReport(ontarioProfile, [], [foreignIncome])
+        const unknownReport = buildTaxReport(unknownProfile, [], [foreignIncome])
+
+        expect(ontarioReport.sections.some((section) => section.jurisdiction === 'CA')).toBe(true)
+        expect(ontarioReport.sections.some((section) => section.jurisdiction === 'QC')).toBe(false)
+        expect(unknownReport.sections).toEqual([])
+    })
 })
 
 describe('taxReportToMarkdown', () => {
@@ -149,5 +206,14 @@ describe('taxReportToMarkdown', () => {
         expect(markdown).toContain('# Rapport fiscal 2026')
         expect(markdown).toContain("aide à l'inventaire fiscal")
         expect(markdown).toContain('Banque Québec')
+    })
+
+    it('serializes an empty report with the no-signal message and regionless residence', () => {
+        const report = buildTaxReport(franceProfile, [], [])
+        const markdown = taxReportToMarkdown(report)
+
+        expect(markdown).toContain('Résidence fiscale : FR')
+        expect(markdown).toContain('Aucun signal fiscal détecté')
+        expect(markdown).not.toContain('Résidence fiscale : FR-')
     })
 })
