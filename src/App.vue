@@ -603,7 +603,7 @@ onMounted(async () => {
 
     <button
         v-if="analyticsPanelOpen"
-        class="fixed inset-0 z-40 cursor-default bg-transparent"
+        class="fixed inset-0 z-10 cursor-default bg-transparent"
         aria-label="Close overview summary"
         @click="analyticsPanelOpen = false"
     />
