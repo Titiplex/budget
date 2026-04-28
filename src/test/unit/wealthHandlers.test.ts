@@ -1,14 +1,14 @@
 import {createRequire} from 'node:module'
 import {describe, expect, it} from 'vitest'
 
-const require = createRequire(import.meta.url)
+const require_ = createRequire(import.meta.url)
 
 const {
     buildAssetPayload,
     buildPortfolioPayload,
     buildLiabilityPayload,
     buildWealthWhere,
-} = require('../../electron/ipc/wealthHandlers')
+} = require_('../../../electron/ipc/wealthHandlers')
 
 describe('wealthHandlers payload builders', () => {
     it('keeps asset net-worth flags and ownership percentage', () => {
