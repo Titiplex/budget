@@ -147,6 +147,8 @@ model Asset {
   currency           String            @default("CAD")
   valuationMode      WealthValuationMode @default(MANUAL)
   currentValue       Float             @default(0)
+  includeInNetWorth Boolean @default(true)
+  ownershipPercent Float @default(100)
   acquisitionValue   Float?
   acquiredAt         DateTime?
   valueAsOf          DateTime?
@@ -178,6 +180,8 @@ model Portfolio {
   taxWrapper         PortfolioTaxWrapper @default(NONE)
   valuationMode      WealthValuationMode @default(MANUAL)
   currentValue       Float               @default(0)
+  includeInNetWorth Boolean @default(true)
+  ownershipPercent Float @default(100)
   cashBalance        Float               @default(0)
   valueAsOf          DateTime?
   note               String?
@@ -254,8 +258,12 @@ model Liability {
   status             WealthRecordStatus  @default(ACTIVE)
   currency           String              @default("CAD")
   currentBalance     Float               @default(0)
+  includeInNetWorth Boolean @default(true)
   initialAmount      Float?
   interestRate       Float?
+  minimumPayment Float?
+  paymentFrequency LiabilityPaymentFrequency?
+  rateType LiabilityRateType @default(UNKNOWN)
   lenderName         String?
   institutionCountry String?
   institutionRegion  String?
@@ -456,4 +464,21 @@ enum NetWorthSnapshotSource {
   MANUAL
   GENERATED
   IMPORTED
+}
+
+
+enum LiabilityPaymentFrequency {
+  MONTHLY
+  BIWEEKLY
+  WEEKLY
+  YEARLY
+  OTHER
+}
+
+
+enum LiabilityRateType {
+  FIXED
+  VARIABLE
+  PROMOTIONAL
+  UNKNOWN
 }

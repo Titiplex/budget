@@ -81,5 +81,5 @@ contextBridge.exposeInMainWorld('wealth', {
   listLiabilities: (filters) => ipcRenderer.invoke('db:liability:list', filters),
   createLiability: (data) => ipcRenderer.invoke('db:liability:create', data),
   updateLiability: (id, data) => ipcRenderer.invoke('db:liability:update', id, data),
-  deleteLiability: (id) => ipcRenderer.invoke('db:liability:delete', id),
+  deleteLiability: (id) => ipcRenderer.invoke('db:liability:delete', id), getOverview: (options) => ipcRenderer.invoke('db:wealth:overview', options), createGeneratedNetWorthSnapshot: (options) => ipcRenderer.invoke('db:netWorthSnapshot:createGenerated', options), listNetWorthSnapshots: (filters) => ipcRenderer.invoke('db:netWorthSnapshot:list', filters),
 })
