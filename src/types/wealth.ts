@@ -535,6 +535,12 @@ export interface WealthRendererApi {
     createNetWorthSnapshot(input: CreateNetWorthSnapshotInput): Promise<NetWorthSnapshot>
 }
 
+declare global {
+    interface Window {
+        wealth: WealthRendererApi
+    }
+}
+
 export const DEFAULT_WEALTH_ASSET_FORM: WealthAssetFormData = {
     name: '',
     type: 'OTHER',
