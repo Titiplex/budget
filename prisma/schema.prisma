@@ -45,28 +45,28 @@ model Category {
 }
 
 model Transaction {
-  id               Int             @id @default(autoincrement())
-  label            String
-  amount           Float
-  sourceAmount     Float?
-  sourceCurrency   String?
-  conversionMode   ConversionMode  @default(NONE)
-  exchangeRate     Float?
-  exchangeProvider String?
-  exchangeDate     DateTime?
-  kind             TransactionKind
-  date             DateTime
-  note             String?
-  taxCategory      TaxIncomeCategory?
-  taxSourceCountry String?
-  taxSourceRegion  String?
-  taxTreatment     TaxTreatment    @default(UNKNOWN)
+  id                  Int                @id @default(autoincrement())
+  label               String
+  amount              Float
+  sourceAmount        Float?
+  sourceCurrency      String?
+  conversionMode      ConversionMode     @default(NONE)
+  exchangeRate        Float?
+  exchangeProvider    String?
+  exchangeDate        DateTime?
+  kind                TransactionKind
+  date                DateTime
+  note                String?
+  taxCategory         TaxIncomeCategory?
+  taxSourceCountry    String?
+  taxSourceRegion     String?
+  taxTreatment        TaxTreatment       @default(UNKNOWN)
   taxWithheldAmount   Float?
   taxWithheldCurrency String?
   taxWithheldCountry  String?
   taxDocumentRef      String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   accountId Int
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -136,19 +136,18 @@ model RecurringTransactionTemplate {
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 }
 
-
 /// Actif patrimonial autonome suivi manuellement hors ledger de transactions budget.
 /// Exemples : immobilier, véhicule, parts privées, objet de collection, réserve cash.
 model Asset {
-  id                 Int               @id @default(autoincrement())
+  id                 Int                 @id @default(autoincrement())
   name               String
   type               WealthAssetType
-  status             WealthRecordStatus @default(ACTIVE)
-  currency           String            @default("CAD")
+  status             WealthRecordStatus  @default(ACTIVE)
+  currency           String              @default("CAD")
   valuationMode      WealthValuationMode @default(MANUAL)
-  currentValue       Float             @default(0)
-  includeInNetWorth Boolean @default(true)
-  ownershipPercent Float @default(100)
+  currentValue       Float               @default(0)
+  includeInNetWorth  Boolean             @default(true)
+  ownershipPercent   Float               @default(100)
   acquisitionValue   Float?
   acquiredAt         DateTime?
   valueAsOf          DateTime?
@@ -156,8 +155,8 @@ model Asset {
   institutionCountry String?
   institutionRegion  String?
   note               String?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   securedLiabilities Liability[]
 
@@ -180,8 +179,8 @@ model Portfolio {
   taxWrapper         PortfolioTaxWrapper @default(NONE)
   valuationMode      WealthValuationMode @default(MANUAL)
   currentValue       Float               @default(0)
-  includeInNetWorth Boolean @default(true)
-  ownershipPercent Float @default(100)
+  includeInNetWorth  Boolean             @default(true)
+  ownershipPercent   Float               @default(100)
   cashBalance        Float               @default(0)
   valueAsOf          DateTime?
   note               String?
@@ -202,21 +201,21 @@ model Portfolio {
 /// Lot/position manuel dans un portefeuille. Suffisant pour un MVP sans API de marché,
 /// tout en gardant la porte ouverte au prix de revient et à l'historique de prix.
 model HoldingLot {
-  id              Int               @id @default(autoincrement())
-  name            String
-  symbol          String?
-  assetClass      HoldingAssetClass
-  quantity        Float             @default(0)
-  currency        String            @default("CAD")
-  unitCost        Float?
-  costBasis       Float?
-  unitPrice       Float?
-  marketValue     Float?
-  openedAt        DateTime?
-  valueAsOf       DateTime?
-  note            String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id          Int               @id @default(autoincrement())
+  name        String
+  symbol      String?
+  assetClass  HoldingAssetClass
+  quantity    Float             @default(0)
+  currency    String            @default("CAD")
+  unitCost    Float?
+  costBasis   Float?
+  unitPrice   Float?
+  marketValue Float?
+  openedAt    DateTime?
+  valueAsOf   DateTime?
+  note        String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   portfolioId Int
   portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
@@ -232,14 +231,14 @@ model HoldingLot {
 /// Point de prix manuel ou importé pour une position. Le MVP n'a besoin que de MANUAL,
 /// mais l'enum permet un futur importeur/API sans remodeler la table.
 model PriceSnapshot {
-  id           Int                 @id @default(autoincrement())
-  unitPrice    Float
-  currency     String              @default("CAD")
-  pricedAt     DateTime
-  source       PriceSnapshotSource @default(MANUAL)
-  note         String?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  id        Int                 @id @default(autoincrement())
+  unitPrice Float
+  currency  String              @default("CAD")
+  pricedAt  DateTime
+  source    PriceSnapshotSource @default(MANUAL)
+  note      String?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
 
   holdingLotId Int
   holdingLot   HoldingLot @relation(fields: [holdingLotId], references: [id], onDelete: Cascade)
@@ -252,18 +251,18 @@ model PriceSnapshot {
 /// Dette/passif suivi dans le domaine patrimoine. Peut être lié optionnellement à un
 /// Account budget pour réconciliation, mais les remboursements restent des Transaction.
 model Liability {
-  id                 Int                 @id @default(autoincrement())
+  id                 Int                        @id @default(autoincrement())
   name               String
   type               LiabilityType
-  status             WealthRecordStatus  @default(ACTIVE)
-  currency           String              @default("CAD")
-  currentBalance     Float               @default(0)
-  includeInNetWorth Boolean @default(true)
+  status             WealthRecordStatus         @default(ACTIVE)
+  currency           String                     @default("CAD")
+  currentBalance     Float                      @default(0)
+  includeInNetWorth  Boolean                    @default(true)
   initialAmount      Float?
   interestRate       Float?
-  minimumPayment Float?
-  paymentFrequency LiabilityPaymentFrequency?
-  rateType LiabilityRateType @default(UNKNOWN)
+  minimumPayment     Float?
+  paymentFrequency   LiabilityPaymentFrequency?
+  rateType           LiabilityRateType          @default(UNKNOWN)
   lenderName         String?
   institutionCountry String?
   institutionRegion  String?
@@ -271,8 +270,8 @@ model Liability {
   dueAt              DateTime?
   balanceAsOf        DateTime?
   note               String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
 
   securedAssetId Int?
   securedAsset   Asset? @relation(fields: [securedAssetId], references: [id], onDelete: SetNull)
@@ -466,7 +465,6 @@ enum NetWorthSnapshotSource {
   IMPORTED
 }
 
-
 enum LiabilityPaymentFrequency {
   MONTHLY
   BIWEEKLY
@@ -474,7 +472,6 @@ enum LiabilityPaymentFrequency {
   YEARLY
   OTHER
 }
-
 
 enum LiabilityRateType {
   FIXED

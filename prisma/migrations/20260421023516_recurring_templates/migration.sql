@@ -1,0 +1,25 @@
+-- CreateTable
+CREATE TABLE "RecurringTransactionTemplate" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "label" TEXT NOT NULL,
+    "sourceAmount" REAL NOT NULL,
+    "sourceCurrency" TEXT NOT NULL,
+    "accountAmount" REAL,
+    "conversionMode" TEXT NOT NULL DEFAULT 'NONE',
+    "exchangeRate" REAL,
+    "exchangeProvider" TEXT,
+    "kind" TEXT NOT NULL,
+    "note" TEXT,
+    "frequency" TEXT NOT NULL,
+    "intervalCount" INTEGER NOT NULL DEFAULT 1,
+    "startDate" DATETIME NOT NULL,
+    "nextOccurrenceDate" DATETIME NOT NULL,
+    "endDate" DATETIME,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "categoryId" INTEGER,
+    CONSTRAINT "RecurringTransactionTemplate_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "Account" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "RecurringTransactionTemplate_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
