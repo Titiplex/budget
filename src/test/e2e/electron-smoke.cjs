@@ -3,7 +3,7 @@ const os = require('node:os')
 const path = require('node:path')
 const {spawn, spawnSync} = require('node:child_process')
 
-const repoRoot = path.resolve(__dirname, '..', '..')
+const repoRoot = path.resolve(__dirname, '..', '..', '..')
 const electronPath = require('electron')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'budget-e2e-'))
 const testDbPath = path.join(tempRoot, 'data', 'e2e.db')
@@ -17,11 +17,12 @@ function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function run(command, args, options = {}) {
-    const result = spawnSync(command, args, {
+function runNodeScript(scriptPath, args, options = {}) {
+    const result = spawnSync(process.execPath, [scriptPath, ...args], {
         cwd: repoRoot,
         stdio: 'inherit',
-        shell: process.platform === 'win32',
+        shell: false,
+        windowsHide: true,
         ...options,
         env: {
             ...process.env,
@@ -29,9 +30,49 @@ function run(command, args, options = {}) {
         },
     })
 
-    if (result.status !== 0) {
-        throw new Error(`${command} ${args.join(' ')} failed with exit code ${result.status}`)
+    if (result.error) {
+        throw new Error(`${path.basename(scriptPath)} ${args.join(' ')} failed to start: ${result.error.message}`)
     }
+
+    if (result.signal) {
+        throw new Error(`${path.basename(scriptPath)} ${args.join(' ')} was terminated by signal ${result.signal}`)
+    }
+
+    if (result.status !== 0) {
+        throw new Error(`${path.basename(scriptPath)} ${args.join(' ')} failed with exit code ${result.status}`)
+    }
+}
+
+function findPrismaCliPath() {
+    const candidates = [
+        path.join(repoRoot, 'node_modules', 'prisma', 'build', 'index.js'),
+        path.join(repoRoot, 'node_modules', 'prisma', 'build', 'public', 'assets', 'index.js'),
+    ]
+
+    for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) {
+            return candidate
+        }
+    }
+
+    throw new Error(
+        'Unable to find local Prisma CLI. Expected node_modules/prisma/build/index.js. Run npm install first.',
+    )
+}
+
+function runPrismaDbPush(databasePath) {
+    const prismaCliPath = findPrismaCliPath()
+    const schemaPath = path.join(repoRoot, 'prisma', 'schema.prisma')
+
+    runNodeScript(
+        prismaCliPath,
+        ['db', 'push', '--skip-generate', '--schema', schemaPath],
+        {
+            env: {
+                DATABASE_URL: sqliteUrl(databasePath),
+            },
+        },
+    )
 }
 
 function assert(condition, message) {
@@ -131,11 +172,7 @@ class CdpClient {
 async function runSmokeTest() {
     fs.mkdirSync(path.dirname(testDbPath), {recursive: true})
 
-    run('npx', ['prisma', 'db', 'push', '--skip-generate'], {
-        env: {
-            DATABASE_URL: sqliteUrl(testDbPath),
-        },
-    })
+    runPrismaDbPush(testDbPath)
 
     const electron = spawn(electronPath, [
         `--remote-debugging-port=${remoteDebuggingPort}`,

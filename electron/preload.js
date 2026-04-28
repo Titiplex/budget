@@ -66,3 +66,24 @@ contextBridge.exposeInMainWorld('file', {
 contextBridge.exposeInMainWorld('fx', {
     quoteHistorical: (options) => ipcRenderer.invoke('fx:quote-historical', options),
 })
+
+contextBridge.exposeInMainWorld('wealth', {
+    listAssets: (filters) => ipcRenderer.invoke('db:asset:list', filters),
+    createAsset: (data) => ipcRenderer.invoke('db:asset:create', data),
+    updateAsset: (id, data) => ipcRenderer.invoke('db:asset:update', id, data),
+    deleteAsset: (id) => ipcRenderer.invoke('db:asset:delete', id),
+
+    listPortfolios: (filters) => ipcRenderer.invoke('db:portfolio:list', filters),
+    createPortfolio: (data) => ipcRenderer.invoke('db:portfolio:create', data),
+    updatePortfolio: (id, data) => ipcRenderer.invoke('db:portfolio:update', id, data),
+    deletePortfolio: (id) => ipcRenderer.invoke('db:portfolio:delete', id),
+
+    listLiabilities: (filters) => ipcRenderer.invoke('db:liability:list', filters),
+    createLiability: (data) => ipcRenderer.invoke('db:liability:create', data),
+    updateLiability: (id, data) => ipcRenderer.invoke('db:liability:update', id, data),
+    deleteLiability: (id) => ipcRenderer.invoke('db:liability:delete', id),
+
+    getOverview: (options) => ipcRenderer.invoke('db:wealth:overview', options),
+    createGeneratedNetWorthSnapshot: (options) => ipcRenderer.invoke('db:netWorthSnapshot:createGenerated', options),
+    listNetWorthSnapshots: (filters) => ipcRenderer.invoke('db:netWorthSnapshot:list', filters),
+})

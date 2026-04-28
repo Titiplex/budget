@@ -14,7 +14,7 @@ export default {
         categories: 'Categories',
         budgets: 'Budgets',
         recurring: 'Recurring',
-        reports: 'Reports',
+        reports: 'Reports', wealth: 'Wealth',
     },
     sections: {
         overview: {

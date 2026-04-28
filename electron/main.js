@@ -7,6 +7,7 @@ const {registerRecurringHandlers} = require('./ipc/registerRecurringHandlers')
 const {registerFileHandlers} = require('./ipc/registerFileHandlers')
 const {registerFxHandlers} = require('./ipc/registerFxHandlers')
 const {registerTaxHandlers} = require('./ipc/registerTaxHandlers')
+const {registerWealthHandlers} = require('./ipc/registerWealthHandlers')
 const {disconnectPrisma} = require('./db')
 const {getMenuMessages, normalizeMenuLocale} = require('./menuI18n')
 
@@ -251,6 +252,7 @@ app.whenReady().then(() => {
     registerFileHandlers()
     registerFxHandlers()
     registerTaxHandlers()
+  registerWealthHandlers()
 
     Menu.setApplicationMenu(buildAppMenu(currentMenuLocale))
     createWindow()

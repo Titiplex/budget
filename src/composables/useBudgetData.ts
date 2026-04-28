@@ -261,7 +261,7 @@ export function useBudgetData(
         transactionForm.exchangeProvider = transaction.exchangeProvider || ''
         transactionForm.exchangeDate = transaction.exchangeDate
             ? toDateOnly(transaction.exchangeDate)
-                        : toDateOnly(transaction.date)
+            : toDateOnly(transaction.date)
         transactionForm.kind = transaction.kind
         transactionForm.date = toDateOnly(transaction.date)
         transactionForm.note = transaction.note || ''
@@ -788,37 +788,73 @@ export function useBudgetData(
     })
 
     const accountSummaries = computed<AccountSummary[]>(() => {
+        const stats = new Map<number, { transactionCount: number; income: number; expense: number }>()
+
+        for (const tx of transactions.value) {
+            const current = stats.get(tx.accountId) ?? {
+                transactionCount: 0,
+                income: 0,
+                expense: 0,
+            }
+
+            current.transactionCount += 1
+
+            if (tx.kind === 'INCOME') {
+                current.income += Math.abs(tx.amount)
+            } else if (tx.kind === 'EXPENSE') {
+                current.expense += Math.abs(tx.amount)
+            }
+
+            stats.set(tx.accountId, current)
+        }
+
         return accounts.value
             .map((account) => {
-                const related = transactions.value.filter((tx) => tx.accountId === account.id)
-                const income = related
-                    .filter((tx) => tx.kind === 'INCOME')
-                    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
-                const expense = related
-                    .filter((tx) => tx.kind === 'EXPENSE')
-                    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+                const accountStats = stats.get(account.id) ?? {
+                    transactionCount: 0,
+                    income: 0,
+                    expense: 0,
+                }
 
                 return {
                     ...account,
-                    transactionCount: related.length,
-                    income,
-                    expense,
-                    net: income - expense,
+                    transactionCount: accountStats.transactionCount,
+                    income: accountStats.income,
+                    expense: accountStats.expense,
+                    net: accountStats.income - accountStats.expense,
                 }
             })
             .sort((a, b) => b.transactionCount - a.transactionCount || b.net - a.net)
     })
 
     const categorySummaries = computed<CategorySummary[]>(() => {
+        const stats = new Map<number, { transactionCount: number; total: number }>()
+
+        for (const tx of transactions.value) {
+            if (tx.categoryId == null) continue
+
+            const current = stats.get(tx.categoryId) ?? {
+                transactionCount: 0,
+                total: 0,
+            }
+
+            current.transactionCount += 1
+            current.total += Math.abs(tx.amount)
+
+            stats.set(tx.categoryId, current)
+        }
+
         return categories.value
             .map((category) => {
-                const related = transactions.value.filter((tx) => tx.categoryId === category.id)
-                const total = related.reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+                const categoryStats = stats.get(category.id) ?? {
+                    transactionCount: 0,
+                    total: 0,
+                }
 
                 return {
                     ...category,
-                    transactionCount: related.length,
-                    total,
+                    transactionCount: categoryStats.transactionCount,
+                    total: categoryStats.total,
                 }
             })
             .sort((a, b) => b.transactionCount - a.transactionCount || b.total - a.total)
