@@ -3,7 +3,7 @@ const os = require('node:os')
 const path = require('node:path')
 const {spawn, spawnSync} = require('node:child_process')
 
-const repoRoot = path.resolve(__dirname, '..', '..')
+const repoRoot = path.resolve(__dirname, '..', '..', '..')
 const electronPath = require('electron')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'budget-e2e-'))
 const testDbPath = path.join(tempRoot, 'data', 'e2e.db')
