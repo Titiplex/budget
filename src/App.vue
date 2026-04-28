@@ -11,6 +11,7 @@ import ImportReviewDialog from './components/ImportReviewDialog.vue'
 import OverviewSection from './components/OverviewSection.vue'
 import RecurringSection from './components/RecurringSection.vue'
 import ReportsSection from './components/ReportsSection.vue'
+import WealthSection from './components/WealthSection.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
 import TaxReportPanel from './components/TaxReportPanel.vue'
 import TransactionsSection from './components/TransactionsSection.vue'
@@ -116,6 +117,7 @@ const navigation = computed(() => [
   {key: 'budgets' as SectionKey, label: t('nav.budgets'), marker: 'BG'},
   {key: 'recurring' as SectionKey, label: t('nav.recurring'), marker: 'RC'},
   {key: 'reports' as SectionKey, label: t('nav.reports'), marker: 'RP'},
+  {key: 'wealth' as SectionKey, label: t('nav.wealth'), marker: 'WL'},
 ])
 
 const sectionMeta = computed<Record<SectionKey, { title: string; description: string }>>(() => ({
@@ -146,6 +148,11 @@ const sectionMeta = computed<Record<SectionKey, { title: string; description: st
   reports: {
     title: t('sections.reports.title'),
     description: t('sections.reports.description'),
+  },
+
+  wealth: {
+    title: t('sections.wealth.title'),
+    description: t('sections.wealth.description'),
   },
 }))
 
@@ -212,8 +219,17 @@ function handleMenuCommand(rawCommand: unknown) {
       budget.selectSection('recurring')
       void recurring.generateDueRecurring()
       break
+    case 'open-wealth':
+
+      budget.selectSection('wealth')
+
+      break
+
+
     case 'open-reports':
+
       budget.selectSection('reports')
+
       break
     case 'export-period-report':
       budget.selectSection('reports')
@@ -590,8 +606,23 @@ onMounted(async () => {
               @submit-template="recurring.submitRecurring"
           />
 
+          <WealthSection
+
+
+            v-else-if="budget.activeSection.value === 'wealth'"
+
+
+            :summary-currency="budget.summaryCurrency.value"
+
+
+          />
+
+
+
           <template v-else>
-            <ReportsSection
+
+
+          <ReportsSection
                 :preset="reports.reportPreset.value"
                 :start-date="reports.reportStartDate.value"
                 :end-date="reports.reportEndDate.value"
