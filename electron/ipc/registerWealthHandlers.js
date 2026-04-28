@@ -1,4 +1,5 @@
 const {ipcMain} = require('electron')
+
 const {getPrisma} = require('../db')
 const {
     createAsset,
@@ -14,7 +15,11 @@ const {
     updateLiability,
     updatePortfolio,
 } = require('./wealthHandlers')
-const {getWealthOverview, createGeneratedNetWorthSnapshot, listNetWorthSnapshots,} = require('./wealthOverviewHandlers')
+const {
+    createGeneratedNetWorthSnapshot,
+    getWealthOverview,
+    listNetWorthSnapshots,
+} = require('./wealthOverviewHandlers')
 
 function registerWealthHandlers(prisma = getPrisma()) {
     ipcMain.handle('db:asset:list', async (_event, filters) => listAssets(prisma, filters))
@@ -31,8 +36,11 @@ function registerWealthHandlers(prisma = getPrisma()) {
     ipcMain.handle('db:liability:create', async (_event, data) => createLiability(prisma, data))
     ipcMain.handle('db:liability:update', async (_event, id, data) => updateLiability(prisma, id, data))
     ipcMain.handle('db:liability:delete', async (_event, id) => deleteLiability(prisma, id))
+
     ipcMain.handle('db:wealth:overview', async (_event, options) => getWealthOverview(prisma, options))
-    ipcMain.handle('db:netWorthSnapshot:createGenerated', async (_event, options) => createGeneratedNetWorthSnapshot(prisma, options))
+    ipcMain.handle('db:netWorthSnapshot:createGenerated', async (_event, options) =>
+        createGeneratedNetWorthSnapshot(prisma, options),
+    )
     ipcMain.handle('db:netWorthSnapshot:list', async (_event, filters) => listNetWorthSnapshots(prisma, filters))
 }
 

@@ -22,6 +22,14 @@ export interface WealthOverviewInput {
   currency?: string | null
 }
 
+export interface WealthCurrencyTotals {
+  totalStandaloneAssets: number
+  totalPortfolios: number
+  totalAssets: number
+  totalLiabilities: number
+  netWorth: number
+}
+
 export interface WealthBreakdownRow {
   key: string
   entityType: 'asset' | 'portfolio' | 'liability'
@@ -47,13 +55,7 @@ export interface WealthOverviewResult {
     portfolioCount: number
     liabilityCount: number
   }
-  totalsByCurrency: Record<string, {
-    totalStandaloneAssets: number
-    totalPortfolios: number
-    totalAssets: number
-    totalLiabilities: number
-    netWorth: number
-  }>
+  totalsByCurrency: Record<string, WealthCurrencyTotals>
   breakdown: WealthBreakdownRow[]
 }
 
@@ -77,7 +79,7 @@ function valueOf(record: WealthValuableRecord, field: 'currentValue' | 'currentB
   return value * ownershipMultiplier(record)
 }
 
-function emptyCurrencyBucket() {
+function emptyCurrencyBucket(): WealthCurrencyTotals {
   return {
     totalStandaloneAssets: 0,
     totalPortfolios: 0,
@@ -102,13 +104,14 @@ export function buildWealthOverview(input: WealthOverviewInput): WealthOverviewR
   const currencies = [...relevantCurrencies].sort()
   const canConsolidate = Boolean(selectedCurrency) || currencies.length <= 1
   const displayCurrency = selectedCurrency || currencies[0] || 'CAD'
-  const totalsByCurrency: WealthOverviewResult['totalsByCurrency'] = {}
+  const totalsByCurrency: Record<string, WealthCurrencyTotals> = {}
   const breakdown: WealthBreakdownRow[] = []
 
   function bucket(currency: string) {
     if (!totalsByCurrency[currency]) {
       totalsByCurrency[currency] = emptyCurrencyBucket()
     }
+
     return totalsByCurrency[currency]
   }
 
@@ -118,6 +121,7 @@ export function buildWealthOverview(input: WealthOverviewInput): WealthOverviewR
 
     const amount = valueOf(asset, 'currentValue')
     const totals = bucket(currency)
+
     totals.totalStandaloneAssets += amount
     totals.totalAssets += amount
 
@@ -139,6 +143,7 @@ export function buildWealthOverview(input: WealthOverviewInput): WealthOverviewR
 
     const amount = valueOf(portfolio, 'currentValue')
     const totals = bucket(currency)
+
     totals.totalPortfolios += amount
     totals.totalAssets += amount
 
@@ -160,6 +165,7 @@ export function buildWealthOverview(input: WealthOverviewInput): WealthOverviewR
 
     const amount = valueOf(liability, 'currentBalance')
     const totals = bucket(currency)
+
     totals.totalLiabilities += amount
 
     breakdown.push({
@@ -178,8 +184,6 @@ export function buildWealthOverview(input: WealthOverviewInput): WealthOverviewR
     totals.netWorth = totals.totalAssets - totals.totalLiabilities
   }
 
-  const consolidated = totalsByCurrency[displayCurrency] || emptyCurrencyBucket()
-
   for (const row of breakdown) {
     const denominator =
       row.entityType === 'liability'
@@ -188,6 +192,8 @@ export function buildWealthOverview(input: WealthOverviewInput): WealthOverviewR
 
     row.percentOfTotal = denominator ? row.amount / denominator : null
   }
+
+  const consolidated = totalsByCurrency[displayCurrency] || emptyCurrencyBucket()
 
   return {
     currency: canConsolidate ? displayCurrency : null,

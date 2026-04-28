@@ -8,25 +8,23 @@ datasource db {
 }
 
 model Account {
-  id                  Int                            @id @default(autoincrement())
-  name                String
-  type                AccountType
-  currency            String                         @default("CAD")
-  description         String?
-  institutionCountry  String?
-  institutionRegion   String?
-  taxReportingType    AccountTaxReportingType        @default(STANDARD)
-  openedAt            DateTime?
-  closedAt            DateTime?
-  createdAt           DateTime                       @default(now())
-  updatedAt           DateTime                       @updatedAt
+  id                 Int                     @id @default(autoincrement())
+  name               String
+  type               AccountType
+  currency           String                  @default("CAD")
+  description        String?
+  institutionCountry String?
+  institutionRegion  String?
+  taxReportingType   AccountTaxReportingType @default(STANDARD)
+  openedAt           DateTime?
+  closedAt           DateTime?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
   transactions        Transaction[]
   recurringTemplates  RecurringTransactionTemplate[]
   transferPeerForRows Transaction[]                  @relation("TransactionTransferPeer")
 
-  // Pont optionnel vers le domaine patrimoine. Les transactions budget restent
-  // la source de vérité du cash-flow; le patrimoine référence un compte uniquement
-  // pour faciliter la réconciliation.
   wealthPortfolio   Portfolio?
   wealthLiabilities Liability[]
 }
@@ -136,8 +134,6 @@ model RecurringTransactionTemplate {
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 }
 
-/// Actif patrimonial autonome suivi manuellement hors ledger de transactions budget.
-/// Exemples : immobilier, véhicule, parts privées, objet de collection, réserve cash.
 model Asset {
   id                 Int                 @id @default(autoincrement())
   name               String
@@ -165,8 +161,6 @@ model Asset {
   @@index([currency])
 }
 
-/// Conteneur d'investissement. Il est volontairement séparé de Account :
-/// Account stocke les flux budget, Portfolio stocke la valorisation patrimoniale.
 model Portfolio {
   id                 Int                 @id @default(autoincrement())
   name               String
@@ -198,8 +192,6 @@ model Portfolio {
   @@index([institutionCountry, institutionRegion])
 }
 
-/// Lot/position manuel dans un portefeuille. Suffisant pour un MVP sans API de marché,
-/// tout en gardant la porte ouverte au prix de revient et à l'historique de prix.
 model HoldingLot {
   id          Int               @id @default(autoincrement())
   name        String
@@ -228,8 +220,6 @@ model HoldingLot {
   @@index([currency])
 }
 
-/// Point de prix manuel ou importé pour une position. Le MVP n'a besoin que de MANUAL,
-/// mais l'enum permet un futur importeur/API sans remodeler la table.
 model PriceSnapshot {
   id        Int                 @id @default(autoincrement())
   unitPrice Float
@@ -248,8 +238,6 @@ model PriceSnapshot {
   @@index([currency])
 }
 
-/// Dette/passif suivi dans le domaine patrimoine. Peut être lié optionnellement à un
-/// Account budget pour réconciliation, mais les remboursements restent des Transaction.
 model Liability {
   id                 Int                        @id @default(autoincrement())
   name               String
@@ -286,8 +274,6 @@ model Liability {
   @@index([accountId])
 }
 
-/// Agrégat persistant à date donnée pour historiser la valeur nette.
-/// Les breakdowns sont des chaînes JSON pour rester simples côté SQLite et auditables.
 model NetWorthSnapshot {
   id                     Int                    @id @default(autoincrement())
   snapshotDate           DateTime

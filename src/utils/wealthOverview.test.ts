@@ -1,5 +1,6 @@
 
 import {describe, expect, it} from 'vitest'
+
 import {buildWealthOverview} from './wealthOverview'
 
 describe('buildWealthOverview', () => {
@@ -30,7 +31,7 @@ describe('buildWealthOverview', () => {
       liabilities: [
         {
           id: 1,
-          name: 'Hypothèque',
+          name: 'HypothÃ¨que',
           type: 'MORTGAGE',
           status: 'ACTIVE',
           currency: 'CAD',
