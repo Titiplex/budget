@@ -1,9 +1,9 @@
 import {createRequire} from 'node:module'
 import {describe, expect, it} from 'vitest'
 
-const require = createRequire(import.meta.url)
+const require_ = createRequire(import.meta.url)
 
-const {buildOverview} = require('../../electron/ipc/wealthOverviewHandlers')
+const {buildOverview} = require_('../../../electron/ipc/wealthOverviewHandlers')
 
 describe('wealthOverviewHandlers buildOverview', () => {
     it('computes CAD net worth using inclusion flags and ownership percentage', () => {
