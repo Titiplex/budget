@@ -1,4 +1,4 @@
-export type SectionKey = 'overview' | 'transactions' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'wealth' | 'reports'
+export type SectionKey = 'overview' | 'transactions' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'wealth' | 'reports' | 'wealth'
 export type CreateTabKey = 'transaction' | 'account' | 'category'
 export type EntityType = 'transaction' | 'account' | 'category'
 export type PanelMode = 'create' | 'edit'

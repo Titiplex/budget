@@ -205,7 +205,7 @@ onMounted(() => {
           <div v-for="portfolio in activePortfolios.slice(0, 5)" :key="portfolio.id" class="rounded-2xl border border-slate-100 p-4 dark:border-slate-800">
             <p class="font-semibold text-slate-900 dark:text-slate-50">{{ portfolio.name }}</p>
             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              {{ PORTFOLIO_TYPE_LABELS[portfolio.type] ?? portfolio.type }} · {{ portfolio.baseCurrency }}
+              {{ PORTFOLIO_TYPE_LABELS[portfolio.type] ?? portfolio.type }} · {{ portfolio.currency }}
             </p>
           </div>
           <p v-if="activePortfolios.length === 0" class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500 dark:bg-slate-900 dark:text-slate-400">Aucun portefeuille enregistré.</p>
