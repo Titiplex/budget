@@ -30,7 +30,7 @@ const {t} = useI18n()
 
 <template>
   <section
-      class="panel overflow-hidden transition-all duration-300 ease-out"
+      class="panel overflow-hidden transition-colors duration-150 ease-out [contain:layout_paint]"
       :class="compact ? 'p-4 shadow-2xl shadow-slate-950/20 dark:bg-slate-900/95' : 'mb-6 p-6'"
   >
     <div

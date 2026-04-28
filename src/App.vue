@@ -29,6 +29,7 @@ const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 const appVersion = ref('')
 const taxProfiles = ref<TaxProfile[]>([])
 const analyticsPanelOpen = ref(false)
+const analyticsChromeReady = ref(false)
 
 function showNotice(type: 'success' | 'error', text: string) {
   notice.value = {type, text}
@@ -280,11 +281,19 @@ watch(() => budget.activeSection.value, () => {
 onMounted(async () => {
   settings.initSettings()
   window.versions.on('app:menu-command', handleMenuCommand)
+
   if (window.appShell) {
     appVersion.value = await window.appShell.getVersion()
   }
+
   await refreshEverything()
   reports.applyPreset('THIS_MONTH')
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      analyticsChromeReady.value = true
+    })
+  })
 })
 </script>
 
@@ -406,16 +415,17 @@ onMounted(async () => {
 
             <div class="flex shrink-0 items-center gap-2">
               <Transition
-                  enter-active-class="transition delay-150 duration-300 ease-out"
-                  enter-from-class="translate-x-4 scale-90 opacity-0 blur-[1px]"
-                  enter-to-class="translate-x-0 scale-100 opacity-100 blur-0"
-                  leave-active-class="transition duration-150 ease-in"
-                  leave-from-class="translate-x-0 scale-100 opacity-100"
-                  leave-to-class="translate-x-2 scale-95 opacity-0"
+                  :css="analyticsChromeReady"
+                  enter-active-class="transition duration-150 ease-out motion-reduce:transition-none"
+                  enter-from-class="translate-x-1 opacity-0"
+                  enter-to-class="translate-x-0 opacity-100"
+                  leave-active-class="transition-opacity duration-75 ease-out motion-reduce:transition-none"
+                  leave-from-class="opacity-100"
+                  leave-to-class="opacity-0"
               >
                 <button
                     v-if="showCollapsedAnalytics"
-                    class="group inline-flex transform-gpu items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 text-left text-sm font-semibold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/45 dark:text-violet-200 dark:hover:border-violet-800 dark:hover:bg-violet-950/70"
+                    class="group inline-flex will-change-transform items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 text-left text-sm font-semibold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/45 dark:text-violet-200 dark:hover:border-violet-800 dark:hover:bg-violet-950/70"
                     :aria-expanded="analyticsPanelOpen"
                     @click="analyticsPanelOpen = !analyticsPanelOpen"
                 >
@@ -488,12 +498,13 @@ onMounted(async () => {
           </div>
 
           <Transition
-              enter-active-class="transition duration-300 ease-out"
-              enter-from-class="-translate-y-4 scale-[0.98] opacity-0"
-              enter-to-class="translate-y-0 scale-100 opacity-100"
-              leave-active-class="transition duration-300 ease-in"
-              leave-from-class="translate-x-0 translate-y-0 scale-100 opacity-100 blur-0"
-              leave-to-class="pointer-events-none -translate-y-16 translate-x-[18%] scale-[0.72] opacity-0 blur-[1px]"
+              :css="analyticsChromeReady"
+              enter-active-class="transition duration-150 ease-out motion-reduce:transition-none"
+              enter-from-class="-translate-y-1 opacity-0"
+              enter-to-class="translate-y-0 opacity-100"
+              leave-active-class="transition-opacity duration-75 ease-out motion-reduce:transition-none"
+              leave-from-class="opacity-100"
+              leave-to-class="pointer-events-none opacity-0"
           >
             <div v-if="showExpandedAnalytics" class="origin-top-right transform-gpu">
               <AnalyticsToolbar
@@ -609,20 +620,19 @@ onMounted(async () => {
           <WealthSection
 
 
-            v-else-if="budget.activeSection.value === 'wealth'"
+              v-else-if="budget.activeSection.value === 'wealth'"
 
 
-            :summary-currency="budget.summaryCurrency.value"
+              :summary-currency="budget.summaryCurrency.value"
 
 
           />
 
 
-
           <template v-else>
 
 
-          <ReportsSection
+            <ReportsSection
                 :preset="reports.reportPreset.value"
                 :start-date="reports.reportStartDate.value"
                 :end-date="reports.reportEndDate.value"
