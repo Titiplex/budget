@@ -1,21 +1,16 @@
 /**
  * Shared renderer/main types for the wealth domain.
  *
- * Keep this module separate from budget.ts on purpose: budget records describe
- * cash-flow events, while wealth records describe balance-sheet state.
+ * Budget records describe cash-flow events.
+ * Wealth records describe balance-sheet state at a given date.
  */
 
 export type WealthDateString = string
 export type WealthDateTimeString = string
 export type WealthCurrencyCode = string
 
-export type WealthEntityType =
-    | 'asset'
-    | 'portfolio'
-    | 'holdingLot'
-    | 'priceSnapshot'
-    | 'liability'
-    | 'netWorthSnapshot'
+export type WealthEntityType = 'asset' | 'portfolio' | 'holdingLot' | 'priceSnapshot' | 'liability' | 'netWorthSnapshot'
+export type WealthOverviewEntityType = 'asset' | 'portfolio' | 'liability'
 
 export type WealthAssetType =
     | 'CASH'
@@ -67,6 +62,9 @@ export type LiabilityType =
     | 'AUTO_LOAN'
     | 'TAX_DEBT'
     | 'OTHER'
+
+export type LiabilityPaymentFrequency = 'MONTHLY' | 'BIWEEKLY' | 'WEEKLY' | 'YEARLY' | 'OTHER'
+export type LiabilityRateType = 'FIXED' | 'VARIABLE' | 'PROMOTIONAL' | 'UNKNOWN'
 
 export type WealthRecordStatus = 'ACTIVE' | 'ARCHIVED'
 export type WealthValuationMode = 'MANUAL' | 'CALCULATED' | 'IMPORTED'
@@ -129,6 +127,21 @@ export const LIABILITY_TYPES = [
     'OTHER',
 ] as const satisfies readonly LiabilityType[]
 
+export const LIABILITY_PAYMENT_FREQUENCIES = [
+    'MONTHLY',
+    'BIWEEKLY',
+    'WEEKLY',
+    'YEARLY',
+    'OTHER',
+] as const satisfies readonly LiabilityPaymentFrequency[]
+
+export const LIABILITY_RATE_TYPES = [
+    'FIXED',
+    'VARIABLE',
+    'PROMOTIONAL',
+    'UNKNOWN',
+] as const satisfies readonly LiabilityRateType[]
+
 export const WEALTH_RECORD_STATUSES = ['ACTIVE', 'ARCHIVED'] as const satisfies readonly WealthRecordStatus[]
 export const WEALTH_VALUATION_MODES = ['MANUAL', 'CALCULATED', 'IMPORTED'] as const satisfies readonly WealthValuationMode[]
 export const PRICE_SNAPSHOT_SOURCES = ['MANUAL', 'IMPORTED', 'API'] as const satisfies readonly PriceSnapshotSource[]
@@ -190,6 +203,21 @@ export const LIABILITY_TYPE_LABELS: Record<LiabilityType, string> = {
     OTHER: 'Autre',
 }
 
+export const LIABILITY_PAYMENT_FREQUENCY_LABELS: Record<LiabilityPaymentFrequency, string> = {
+    MONTHLY: 'Mensuel',
+    BIWEEKLY: 'Aux deux semaines',
+    WEEKLY: 'Hebdomadaire',
+    YEARLY: 'Annuel',
+    OTHER: 'Autre',
+}
+
+export const LIABILITY_RATE_TYPE_LABELS: Record<LiabilityRateType, string> = {
+    FIXED: 'Fixe',
+    VARIABLE: 'Variable',
+    PROMOTIONAL: 'Promotionnel',
+    UNKNOWN: 'Inconnu',
+}
+
 export const WEALTH_RECORD_STATUS_LABELS: Record<WealthRecordStatus, string> = {
     ACTIVE: 'Actif',
     ARCHIVED: 'Archivé',
@@ -213,6 +241,7 @@ export interface WealthBaseRecord {
     name: string
     status: WealthRecordStatus
     currency: WealthCurrencyCode
+    includeInNetWorth: boolean
     note: string | null
     createdAt: WealthDateTimeString
     updatedAt: WealthDateTimeString
@@ -228,6 +257,7 @@ export interface WealthAsset extends WealthBaseRecord, WealthInstitutionFields {
     type: WealthAssetType
     valuationMode: WealthValuationMode
     currentValue: number
+    ownershipPercent: number
     acquisitionValue: number | null
     acquiredAt: WealthDateTimeString | null
     valueAsOf: WealthDateTimeString | null
@@ -241,6 +271,7 @@ export interface WealthPortfolio extends WealthBaseRecord, WealthInstitutionFiel
     taxWrapper: PortfolioTaxWrapper
     valuationMode: WealthValuationMode
     currentValue: number
+    ownershipPercent: number
     cashBalance: number
     valueAsOf: WealthDateTimeString | null
     accountId: number | null
@@ -289,6 +320,9 @@ export interface WealthLiability extends WealthBaseRecord, Omit<WealthInstitutio
     currentBalance: number
     initialAmount: number | null
     interestRate: number | null
+    minimumPayment: number | null
+    paymentFrequency: LiabilityPaymentFrequency | null
+    rateType: LiabilityRateType
     lenderName: string | null
     openedAt: WealthDateTimeString | null
     dueAt: WealthDateTimeString | null
@@ -342,6 +376,8 @@ export interface WealthAssetFormData {
     currency: WealthCurrencyCode
     valuationMode: WealthValuationMode
     currentValue: number
+    includeInNetWorth: boolean
+    ownershipPercent: number
     acquisitionValue: number | null
     acquiredAt: WealthDateTimeString | null
     valueAsOf: WealthDateTimeString | null
@@ -365,6 +401,8 @@ export interface WealthPortfolioFormData {
     taxWrapper: PortfolioTaxWrapper
     valuationMode: WealthValuationMode
     currentValue: number
+    includeInNetWorth: boolean
+    ownershipPercent: number
     cashBalance: number
     valueAsOf: WealthDateTimeString | null
     accountId: number | null
@@ -391,7 +429,7 @@ export interface HoldingLotFormData {
 }
 
 export type CreateHoldingLotInput = HoldingLotFormData
-export type UpdateHoldingLotInput = Partial<Omit<HoldingLotFormData, 'portfolioId'>>
+export type UpdateHoldingLotInput = Partial<HoldingLotFormData>
 
 export interface PriceSnapshotFormData {
     holdingLotId: number
@@ -403,7 +441,7 @@ export interface PriceSnapshotFormData {
 }
 
 export type CreatePriceSnapshotInput = PriceSnapshotFormData
-export type UpdatePriceSnapshotInput = Partial<Omit<PriceSnapshotFormData, 'holdingLotId'>>
+export type UpdatePriceSnapshotInput = Partial<PriceSnapshotFormData>
 
 export interface WealthLiabilityFormData {
     name: string
@@ -411,8 +449,12 @@ export interface WealthLiabilityFormData {
     status: WealthRecordStatus
     currency: WealthCurrencyCode
     currentBalance: number
+    includeInNetWorth: boolean
     initialAmount: number | null
     interestRate: number | null
+    minimumPayment: number | null
+    paymentFrequency: LiabilityPaymentFrequency | null
+    rateType: LiabilityRateType
     lenderName: string | null
     institutionCountry: string | null
     institutionRegion: string | null
@@ -427,53 +469,63 @@ export interface WealthLiabilityFormData {
 export type CreateWealthLiabilityInput = WealthLiabilityFormData
 export type UpdateWealthLiabilityInput = Partial<WealthLiabilityFormData>
 
-export interface NetWorthSnapshotFormData {
-    snapshotDate: WealthDateTimeString
-    currency: WealthCurrencyCode
-    totalStandaloneAssets: number
-    totalPortfolios: number
-    totalAssets: number
-    totalLiabilities: number
-    netWorth: number
-    source: NetWorthSnapshotSource
-    assetBreakdownJson: string | null
-    portfolioBreakdownJson: string | null
-    liabilityBreakdownJson: string | null
-    note: string | null
+export interface CreateGeneratedNetWorthSnapshotInput {
+    currency?: WealthCurrencyCode | null
+    snapshotDate?: WealthDateTimeString | WealthDateString | null
+    note?: string | null
 }
 
-export type CreateNetWorthSnapshotInput = NetWorthSnapshotFormData
-export type UpdateNetWorthSnapshotInput = Partial<NetWorthSnapshotFormData>
+export interface WealthDateRangeFilter {
+    startDate?: WealthDateString | null
+    endDate?: WealthDateString | null
+    currency?: WealthCurrencyCode | null
+}
 
-export interface WealthTotals {
-    currency: WealthCurrencyCode
+export interface WealthCurrencyTotals {
     totalStandaloneAssets: number
     totalPortfolios: number
     totalAssets: number
     totalLiabilities: number
     netWorth: number
+}
+
+export interface WealthTotals {
+    totalStandaloneAssets: number | null
+    totalPortfolios: number | null
+    totalAssets: number | null
+    totalLiabilities: number | null
+    netWorth: number | null
     assetCount: number
     portfolioCount: number
     liabilityCount: number
-    snapshotDate: WealthDateTimeString | null
+    snapshotDate?: WealthDateTimeString | null
 }
 
 export interface WealthBreakdownRow {
     key: string
     label: string
-    entityType: WealthEntityType
+    type: string
+    entityType: WealthOverviewEntityType
     amount: number
     currency: WealthCurrencyCode
     percentOfTotal: number | null
 }
 
 export interface WealthOverview {
+    currency: WealthCurrencyCode | null
+    currencies: WealthCurrencyCode[]
+    canConsolidate: boolean
     totals: WealthTotals
+    totalsByCurrency: Record<WealthCurrencyCode, WealthCurrencyTotals>
     assets: WealthAsset[]
     portfolios: WealthPortfolio[]
     liabilities: WealthLiability[]
     breakdown: WealthBreakdownRow[]
     latestSnapshot: NetWorthSnapshot | null
+}
+
+export interface WealthOverviewOptions {
+    currency?: WealthCurrencyCode | null
 }
 
 export interface WealthListFilters {
@@ -483,17 +535,6 @@ export interface WealthListFilters {
     assetType?: WealthAssetType | 'ALL'
     portfolioType?: PortfolioType | 'ALL'
     liabilityType?: LiabilityType | 'ALL'
-}
-
-export interface WealthDateRangeFilter {
-    startDate?: WealthDateString | null
-    endDate?: WealthDateString | null
-}
-
-export interface WealthMutationResult<TRecord> {
-    ok: boolean
-    record: TRecord | null
-    error?: string
 }
 
 export interface WealthDeleteResult {
@@ -528,11 +569,11 @@ export interface WealthRendererApi {
 
     deleteLiability(id: number): Promise<WealthDeleteResult>
 
-    getOverview(currency?: WealthCurrencyCode): Promise<WealthOverview>
+    getOverview(options?: WealthOverviewOptions): Promise<WealthOverview>
+
+    createGeneratedNetWorthSnapshot(options?: CreateGeneratedNetWorthSnapshotInput): Promise<NetWorthSnapshot>
 
     listNetWorthSnapshots(filters?: WealthDateRangeFilter): Promise<NetWorthSnapshot[]>
-
-    createNetWorthSnapshot(input: CreateNetWorthSnapshotInput): Promise<NetWorthSnapshot>
 }
 
 declare global {
@@ -548,6 +589,8 @@ export const DEFAULT_WEALTH_ASSET_FORM: WealthAssetFormData = {
     currency: 'CAD',
     valuationMode: 'MANUAL',
     currentValue: 0,
+    includeInNetWorth: true,
+    ownershipPercent: 100,
     acquisitionValue: null,
     acquiredAt: null,
     valueAsOf: null,
@@ -568,6 +611,8 @@ export const DEFAULT_WEALTH_PORTFOLIO_FORM: WealthPortfolioFormData = {
     taxWrapper: 'NONE',
     valuationMode: 'MANUAL',
     currentValue: 0,
+    includeInNetWorth: true,
+    ownershipPercent: 100,
     cashBalance: 0,
     valueAsOf: null,
     accountId: null,
@@ -580,8 +625,12 @@ export const DEFAULT_WEALTH_LIABILITY_FORM: WealthLiabilityFormData = {
     status: 'ACTIVE',
     currency: 'CAD',
     currentBalance: 0,
+    includeInNetWorth: true,
     initialAmount: null,
     interestRate: null,
+    minimumPayment: null,
+    paymentFrequency: null,
+    rateType: 'UNKNOWN',
     lenderName: null,
     institutionCountry: null,
     institutionRegion: null,
