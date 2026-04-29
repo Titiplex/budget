@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref, watch} from 'vue'
 
+import MarketWatchlistPanel from './MarketWatchlistPanel.vue'
+
 import {
   DEFAULT_WEALTH_ASSET_FORM,
   DEFAULT_WEALTH_LIABILITY_FORM,
@@ -604,6 +606,7 @@ onMounted(() => {
     >
       {{ successMessage }}
     </div>
+    <MarketWatchlistPanel :summary-currency="props.summaryCurrency"/>
 
     <div class="grid gap-6 xl:grid-cols-[430px_minmax(0,1fr)]">
       <article class="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-sm">

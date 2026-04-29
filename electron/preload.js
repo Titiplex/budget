@@ -76,6 +76,19 @@ contextBridge.exposeInMainWorld('marketData', {
     listFreshnessStatuses: (filters) => ipcRenderer.invoke('marketData:freshness:list', filters),
 })
 
+contextBridge.exposeInMainWorld('marketData', {
+    listInstruments: (filters) => ipcRenderer.invoke('marketData:instrument:list', filters),
+    getLatestSnapshot: (options) => ipcRenderer.invoke('marketData:snapshot:latest', options),
+    listSnapshotHistory: (options) => ipcRenderer.invoke('marketData:snapshot:history', options),
+    refresh: (options) => ipcRenderer.invoke('marketData:refresh', options),
+    getAssetValuation: (options) => ipcRenderer.invoke('marketData:valuation:get', options),
+    listFreshnessStatuses: (filters) => ipcRenderer.invoke('marketData:freshness:list', filters),
+    listWatchlist: (options) => ipcRenderer.invoke('marketData:watchlist:list', options),
+    addWatchlistInstrument: (data) => ipcRenderer.invoke('marketData:watchlist:add', data),
+    removeWatchlistInstrument: (id) => ipcRenderer.invoke('marketData:watchlist:remove', id),
+    refreshWatchlist: (options) => ipcRenderer.invoke('marketData:watchlist:refresh', options),
+})
+
 contextBridge.exposeInMainWorld('wealth', {
     listAssets: (filters) => ipcRenderer.invoke('db:asset:list', filters),
     createAsset: (data) => ipcRenderer.invoke('db:asset:create', data),

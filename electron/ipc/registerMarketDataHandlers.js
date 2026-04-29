@@ -5,6 +5,7 @@ const {
     createMarketDataHandlers,
     toIpcError,
 } = require('./marketDataHandlers')
+const {createMarketDataWatchlistHandlers} = require('./marketDataWatchlistHandlers')
 
 const MARKET_DATA_IPC_CHANNELS = Object.freeze({
     LIST_INSTRUMENTS: 'marketData:instrument:list',
@@ -13,6 +14,10 @@ const MARKET_DATA_IPC_CHANNELS = Object.freeze({
     REFRESH: 'marketData:refresh',
     GET_VALUATION: 'marketData:valuation:get',
     LIST_FRESHNESS_STATUSES: 'marketData:freshness:list',
+    WATCHLIST_LIST: 'marketData:watchlist:list',
+    WATCHLIST_ADD: 'marketData:watchlist:add',
+    WATCHLIST_REMOVE: 'marketData:watchlist:remove',
+    WATCHLIST_REFRESH: 'marketData:watchlist:refresh',
 })
 
 function ok(data) {
@@ -40,6 +45,7 @@ function registerMarketDataHandlers({
                                         now,
                                     } = {}) {
     const handlers = createMarketDataHandlers({prisma, provider, now})
+    const watchlistHandlers = createMarketDataWatchlistHandlers({prisma, now})
 
     registerSafeHandler(ipc, MARKET_DATA_IPC_CHANNELS.LIST_INSTRUMENTS, handlers.listInstruments)
     registerSafeHandler(ipc, MARKET_DATA_IPC_CHANNELS.GET_LATEST_SNAPSHOT, handlers.getLatestSnapshot)
@@ -47,8 +53,12 @@ function registerMarketDataHandlers({
     registerSafeHandler(ipc, MARKET_DATA_IPC_CHANNELS.REFRESH, handlers.refresh)
     registerSafeHandler(ipc, MARKET_DATA_IPC_CHANNELS.GET_VALUATION, handlers.getAssetValuation)
     registerSafeHandler(ipc, MARKET_DATA_IPC_CHANNELS.LIST_FRESHNESS_STATUSES, handlers.listFreshnessStatuses)
+    registerSafeHandler(ipc, MARKET_DATA_IPC_CHANNELS.WATCHLIST_LIST, watchlistHandlers.listWatchlist)
+    registerSafeHandler(ipc, MARKET_DATA_IPC_CHANNELS.WATCHLIST_ADD, watchlistHandlers.createWatchlistInstrument)
+    registerSafeHandler(ipc, MARKET_DATA_IPC_CHANNELS.WATCHLIST_REMOVE, watchlistHandlers.removeWatchlistInstrument)
+    registerSafeHandler(ipc, MARKET_DATA_IPC_CHANNELS.WATCHLIST_REFRESH, watchlistHandlers.refreshWatchlist)
 
-    return handlers
+    return {...handlers, ...watchlistHandlers}
 }
 
 module.exports = {
