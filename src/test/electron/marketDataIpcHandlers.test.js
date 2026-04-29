@@ -1,4 +1,5 @@
-const {describe, expect, it} = require('vitest')
+import {describe, expect, it} from "vitest";
+
 const {
     MARKET_DATA_IPC_CHANNELS,
     registerMarketDataHandlers,

@@ -1,4 +1,5 @@
-const {describe, expect, it} = require('vitest')
+import {describe, expect, it} from "vitest";
+
 const {
     calculateSnapshotFreshness,
     createMarketValuationService,
