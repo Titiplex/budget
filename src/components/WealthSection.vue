@@ -3,6 +3,8 @@ import {computed, onMounted, reactive, ref, watch} from 'vue'
 
 import MarketWatchlistPanel from './MarketWatchlistPanel.vue'
 
+import WealthMarketValuationPanel from './WealthMarketValuationPanel.vue'
+
 import {
   DEFAULT_WEALTH_ASSET_FORM,
   DEFAULT_WEALTH_LIABILITY_FORM,
@@ -606,6 +608,12 @@ onMounted(() => {
     >
       {{ successMessage }}
     </div>
+    <WealthMarketValuationPanel
+        :assets="assets"
+        :portfolios="portfolios"
+        :summary-currency="props.summaryCurrency"
+        @refresh="loadWealth"
+    />
     <MarketWatchlistPanel :summary-currency="props.summaryCurrency"/>
 
     <div class="grid gap-6 xl:grid-cols-[430px_minmax(0,1fr)]">
