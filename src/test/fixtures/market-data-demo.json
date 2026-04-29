@@ -1,0 +1,96 @@
+{
+  "generatedAt": "2026-04-28T12:00:00.000Z",
+  "purpose": "Dataset demo local pour watchlist et valorisations sans provider réseau.",
+  "marketInstruments": [
+    {
+      "instrumentKey": "local:AAPL:XNAS:USD",
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "instrumentType": "EQUITY",
+      "exchange": "XNAS",
+      "quoteCurrency": "USD",
+      "provider": "local",
+      "providerInstrumentId": "AAPL",
+      "staleAfterHours": 24,
+      "isActive": true,
+      "note": "Fixture fraîche pour vérifier l'affichage watchlist."
+    },
+    {
+      "instrumentKey": "local:XEQT:XTSE:CAD",
+      "symbol": "XEQT",
+      "name": "iShares Core Equity ETF Portfolio",
+      "instrumentType": "ETF",
+      "exchange": "XTSE",
+      "quoteCurrency": "CAD",
+      "provider": "local",
+      "providerInstrumentId": "XEQT.TO",
+      "staleAfterHours": 24,
+      "isActive": true,
+      "note": "Fixture stale pour vérifier le badge obsolète."
+    },
+    {
+      "instrumentKey": "offline:MSFT:XNAS:USD",
+      "symbol": "MSFT",
+      "name": "Microsoft Corporation",
+      "instrumentType": "EQUITY",
+      "exchange": "XNAS",
+      "quoteCurrency": "USD",
+      "provider": "offline",
+      "providerInstrumentId": "MSFT",
+      "staleAfterHours": 24,
+      "isActive": true,
+      "note": "Fixture provider indisponible pour vérifier le fallback cache."
+    }
+  ],
+  "priceSnapshots": [
+    {
+      "instrumentKey": "local:AAPL:XNAS:USD",
+      "unitPrice": 198.12,
+      "currency": "USD",
+      "pricedAt": "2026-04-28T10:00:00.000Z",
+      "retrievedAt": "2026-04-28T10:01:00.000Z",
+      "provider": "local",
+      "source": "API",
+      "freshnessStatus": "FRESH"
+    },
+    {
+      "instrumentKey": "local:XEQT:XTSE:CAD",
+      "unitPrice": 33.8,
+      "currency": "CAD",
+      "pricedAt": "2026-04-24T16:00:00.000Z",
+      "retrievedAt": "2026-04-24T16:01:00.000Z",
+      "provider": "local",
+      "source": "API",
+      "freshnessStatus": "STALE"
+    },
+    {
+      "instrumentKey": "offline:MSFT:XNAS:USD",
+      "unitPrice": 402.5,
+      "currency": "USD",
+      "pricedAt": "2026-04-26T16:00:00.000Z",
+      "retrievedAt": "2026-04-26T16:01:00.000Z",
+      "provider": "local",
+      "source": "API",
+      "freshnessStatus": "STALE"
+    }
+  ],
+  "valuableAssets": [
+    {
+      "name": "Lot AAPL fixture",
+      "symbol": "AAPL",
+      "quantity": 10,
+      "currency": "USD",
+      "instrumentKey": "local:AAPL:XNAS:USD",
+      "manualMarketValue": 1800,
+      "expectedSnapshotNativeValue": 1981.2
+    },
+    {
+      "name": "Position privée fixture",
+      "quantity": 2,
+      "currency": "CAD",
+      "instrumentKey": null,
+      "manualMarketValue": 1100,
+      "expectedSnapshotNativeValue": null
+    }
+  ]
+}

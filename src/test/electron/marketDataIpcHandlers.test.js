@@ -1,95 +1,11 @@
 const {describe, expect, it} = require('vitest')
-
 const {
     MARKET_DATA_IPC_CHANNELS,
     registerMarketDataHandlers,
 } = require('../../../electron/ipc/registerMarketDataHandlers')
 
-function sortSnapshots(rows) {
-    return [...rows].sort((left, right) => {
-        const priced = new Date(right.pricedAt).getTime() - new Date(left.pricedAt).getTime()
-        if (priced !== 0) return priced
-        return right.id - left.id
-    })
-}
-
-function matchesWhere(row, where = {}) {
-    return Object.entries(where).every(([key, expected]) => {
-        if (expected && typeof expected === 'object' && !Array.isArray(expected) && !(expected instanceof Date)) {
-            if (expected.in) return expected.in.includes(row[key])
-            if (expected.gte && new Date(row[key]).getTime() < new Date(expected.gte).getTime()) return false
-            if (expected.lte && new Date(row[key]).getTime() > new Date(expected.lte).getTime()) return false
-            if (expected.contains) return String(row[key] || '').includes(expected.contains)
-            return true
-        }
-
-        return row[key] === expected
-    })
-}
-
-function createFakePrisma(seed = {}) {
-    const state = {
-        instruments: [...(seed.instruments || [])],
-        snapshots: [...(seed.snapshots || [])],
-        holdingLots: [...(seed.holdingLots || [])],
-        assets: [...(seed.assets || [])],
-        nextSnapshotId: seed.nextSnapshotId || 100,
-    }
-
-    return {
-        state,
-        marketInstrument: {
-            findMany: async ({where} = {}) => state.instruments.filter((row) => matchesWhere(row, where)),
-            findUnique: async ({where}) => state.instruments.find((row) => row.id === where.id) || null,
-            findFirst: async ({where} = {}) => state.instruments.find((row) => matchesWhere(row, where)) || null,
-            update: async ({where, data}) => {
-                const index = state.instruments.findIndex((row) => row.id === where.id)
-                if (index < 0) throw new Error('Instrument not found')
-                state.instruments[index] = {
-                    ...state.instruments[index], ...data,
-                    updatedAt: new Date('2026-04-28T12:00:00Z')
-                }
-                return state.instruments[index]
-            },
-        },
-        priceSnapshot: {
-            findFirst: async ({where} = {}) => sortSnapshots(state.snapshots.filter((row) => matchesWhere(row, where)))[0] || null,
-            findMany: async ({
-                                 where,
-                                 take
-                             } = {}) => sortSnapshots(state.snapshots.filter((row) => matchesWhere(row, where))).slice(0, take || 30),
-            create: async ({data}) => {
-                const row = {
-                    id: state.nextSnapshotId++,
-                    createdAt: new Date('2026-04-28T12:00:00Z'),
-                    updatedAt: new Date('2026-04-28T12:00:00Z'),
-                    ...data,
-                }
-                state.snapshots.push(row)
-                return row
-            },
-            update: async ({where, data}) => {
-                const index = state.snapshots.findIndex((row) => row.id === where.id)
-                if (index < 0) throw new Error('Snapshot not found')
-                state.snapshots[index] = {
-                    ...state.snapshots[index], ...data,
-                    updatedAt: new Date('2026-04-28T12:00:00Z')
-                }
-                return state.snapshots[index]
-            },
-        },
-        holdingLot: {
-            findUnique: async ({where}) => state.holdingLots.find((row) => row.id === where.id) || null,
-        },
-        asset: {
-            findUnique: async ({where}) => state.assets.find((row) => row.id === where.id) || null,
-        },
-    }
-}
-
 function createFakeIpc() {
     const handlers = new Map()
-
     return {
         handlers,
         handle(channel, handler) {
@@ -103,48 +19,153 @@ function createFakeIpc() {
     }
 }
 
-const instrument = {
-    id: 1,
-    instrumentKey: 'mock:AAPL:XNAS:USD',
-    symbol: 'AAPL',
-    name: 'Apple Inc.',
-    instrumentType: 'EQUITY',
-    exchange: 'XNAS',
-    quoteCurrency: 'USD',
-    provider: 'mock',
-    providerInstrumentId: 'AAPL',
-    currentPrice: null,
-    currentPriceCurrency: null,
-    currentPriceQuotedAt: null,
-    currentPriceProvider: null,
-    freshnessStatus: 'UNKNOWN',
-    freshnessCheckedAt: null,
-    staleAfterHours: 24,
-    isActive: true,
-    note: null,
-    createdAt: new Date('2026-04-01T00:00:00Z'),
-    updatedAt: new Date('2026-04-01T00:00:00Z'),
+function matchesWhere(row, where = {}) {
+    return Object.entries(where || {}).every(([key, expected]) => {
+        if (key === 'OR') return expected.some((clause) => matchesWhere(row, clause))
+        if (expected && typeof expected === 'object' && !Array.isArray(expected) && !(expected instanceof Date)) {
+            if ('in' in expected) return expected.in.includes(row[key])
+            if ('contains' in expected) return String(row[key] || '').includes(expected.contains)
+            if ('gte' in expected && new Date(row[key]).getTime() < new Date(expected.gte).getTime()) return false
+            if ('lte' in expected && new Date(row[key]).getTime() > new Date(expected.lte).getTime()) return false
+            return true
+        }
+        if (expected instanceof Date) return new Date(row[key]).getTime() === expected.getTime()
+        return row[key] === expected
+    })
+}
+
+function sortRows(rows, orderBy = []) {
+    const clauses = Array.isArray(orderBy) ? orderBy : [orderBy]
+    return [...rows].sort((left, right) => {
+        for (const clause of clauses.filter(Boolean)) {
+            const [[key, direction]] = Object.entries(clause)
+            const leftValue = left[key] instanceof Date ? left[key].getTime() : left[key]
+            const rightValue = right[key] instanceof Date ? right[key].getTime() : right[key]
+            if (leftValue === rightValue) continue
+            const modifier = direction === 'desc' ? -1 : 1
+            return leftValue > rightValue ? modifier : -modifier
+        }
+        return 0
+    })
+}
+
+function createFakePrisma() {
+    const now = new Date('2026-04-28T12:00:00.000Z')
+    const instruments = [
+        {
+            id: 1,
+            instrumentKey: 'local:AAPL:XNAS:USD',
+            symbol: 'AAPL',
+            name: 'Apple Inc.',
+            instrumentType: 'EQUITY',
+            exchange: 'XNAS',
+            quoteCurrency: 'USD',
+            provider: 'local',
+            providerInstrumentId: 'AAPL',
+            currentPrice: null,
+            currentPriceCurrency: null,
+            currentPriceQuotedAt: null,
+            currentPriceProvider: null,
+            freshnessStatus: 'UNKNOWN',
+            freshnessCheckedAt: null,
+            staleAfterHours: 24,
+            isActive: true,
+            note: null,
+            createdAt: new Date('2026-04-01T00:00:00.000Z'),
+            updatedAt: new Date('2026-04-01T00:00:00.000Z'),
+        },
+    ]
+    const snapshots = []
+    const holdingLots = [
+        {
+            id: 5,
+            name: 'Apple lot',
+            quantity: 3,
+            currency: 'USD',
+            unitPrice: 40,
+            marketValue: 120,
+            valueAsOf: new Date('2026-04-01T00:00:00.000Z'),
+            marketInstrumentId: 1,
+            marketInstrument: instruments[0],
+        },
+    ]
+
+    return {
+        state: {instruments, snapshots, holdingLots},
+        marketInstrument: {
+            findMany: async ({where, include, orderBy} = {}) =>
+                sortRows(instruments.filter((row) => matchesWhere(row, where)), orderBy).map((instrument) => ({
+                    ...instrument,
+                    priceSnapshots: include?.priceSnapshots
+                        ? sortRows(
+                            snapshots.filter((snapshot) => snapshot.marketInstrumentId === instrument.id),
+                            include.priceSnapshots.orderBy,
+                        ).slice(0, include.priceSnapshots.take || undefined)
+                        : undefined,
+                })),
+            findUnique: async ({where}) => instruments.find((row) => row.id === where.id) || null,
+            findFirst: async ({
+                                  where,
+                                  orderBy
+                              } = {}) => sortRows(instruments.filter((row) => matchesWhere(row, where)), orderBy)[0] || null,
+            update: async ({where, data}) => {
+                const row = instruments.find((instrument) => instrument.id === where.id)
+                if (!row) throw new Error('Instrument not found')
+                Object.assign(row, data, {updatedAt: now})
+                return row
+            },
+            upsert: async ({where, create, update, include}) => {
+                const row = instruments.find((instrument) => instrument.instrumentKey === where.instrumentKey)
+                if (row) {
+                    Object.assign(row, update, {updatedAt: now})
+                    return {...row, priceSnapshots: include?.priceSnapshots ? [] : undefined}
+                }
+                const created = {id: instruments.length + 1, ...create, createdAt: now, updatedAt: now}
+                instruments.push(created)
+                return {...created, priceSnapshots: include?.priceSnapshots ? [] : undefined}
+            },
+        },
+        priceSnapshot: {
+            findFirst: async ({
+                                  where,
+                                  orderBy
+                              } = {}) => sortRows(snapshots.filter((row) => matchesWhere(row, where)), orderBy)[0] || null,
+            findMany: async ({
+                                 where,
+                                 orderBy,
+                                 take
+                             } = {}) => sortRows(snapshots.filter((row) => matchesWhere(row, where)), orderBy).slice(0, take || undefined),
+            create: async ({data}) => {
+                const row = {id: snapshots.length + 10, createdAt: now, updatedAt: now, ...data}
+                snapshots.push(row)
+                return row
+            },
+            update: async ({where, data}) => {
+                const row = snapshots.find((snapshot) => snapshot.id === where.id)
+                if (!row) throw new Error('Snapshot not found')
+                Object.assign(row, data, {updatedAt: now})
+                return row
+            },
+        },
+        holdingLot: {
+            findUnique: async ({where}) => holdingLots.find((row) => row.id === where.id) || null,
+        },
+        asset: {
+            findUnique: async () => null,
+        },
+    }
 }
 
 describe('market data IPC handlers', () => {
-    it('registers narrow market data channels without throwing existing IPC errors to the renderer', async () => {
-        const prisma = createFakePrisma({instruments: [instrument]})
+    it('registers every market data and watchlist channel with safe IPC envelopes', async () => {
+        const prisma = createFakePrisma()
         const ipc = createFakeIpc()
+        registerMarketDataHandlers({ipc, prisma, now: () => new Date('2026-04-28T12:00:00.000Z')})
 
-        registerMarketDataHandlers({ipc, prisma, now: () => new Date('2026-04-28T12:00:00Z')})
-
-        expect([...ipc.handlers.keys()]).toEqual([
-            MARKET_DATA_IPC_CHANNELS.LIST_INSTRUMENTS,
-            MARKET_DATA_IPC_CHANNELS.GET_LATEST_SNAPSHOT,
-            MARKET_DATA_IPC_CHANNELS.LIST_SNAPSHOT_HISTORY,
-            MARKET_DATA_IPC_CHANNELS.REFRESH,
-            MARKET_DATA_IPC_CHANNELS.GET_VALUATION,
-            MARKET_DATA_IPC_CHANNELS.LIST_FRESHNESS_STATUSES,
-        ])
+        expect([...ipc.handlers.keys()].sort()).toEqual(Object.values(MARKET_DATA_IPC_CHANNELS).sort())
 
         const instruments = await ipc.invoke(MARKET_DATA_IPC_CHANNELS.LIST_INSTRUMENTS, {})
-        expect(instruments.ok).toBe(true)
-        expect(instruments.data).toHaveLength(1)
+        expect(instruments).toMatchObject({ok: true, error: null})
         expect(instruments.data[0].symbol).toBe('AAPL')
 
         const missingSnapshot = await ipc.invoke(MARKET_DATA_IPC_CHANNELS.GET_LATEST_SNAPSHOT, {instrumentId: 1})
@@ -152,19 +173,18 @@ describe('market data IPC handlers', () => {
         expect(missingSnapshot.error.code).toBe('NO_LOCAL_DATA')
     })
 
-    it('refreshes an instrument through the provider without exposing provider details to the renderer', async () => {
-        const prisma = createFakePrisma({instruments: [instrument]})
+    it('refreshes an instrument through the injected provider and stores a local snapshot', async () => {
+        const prisma = createFakePrisma()
         const ipc = createFakeIpc()
         const provider = {
             getQuote: async () => ({
                 price: 200.12,
                 currency: 'USD',
-                pricedAt: '2026-04-28T10:00:00Z',
-                provider: 'mock',
+                pricedAt: '2026-04-28T10:00:00.000Z',
+                provider: 'local',
             }),
         }
-
-        registerMarketDataHandlers({ipc, prisma, provider, now: () => new Date('2026-04-28T12:00:00Z')})
+        registerMarketDataHandlers({ipc, prisma, provider, now: () => new Date('2026-04-28T12:00:00.000Z')})
 
         const result = await ipc.invoke(MARKET_DATA_IPC_CHANNELS.REFRESH, {instrumentId: 1})
 
@@ -175,32 +195,29 @@ describe('market data IPC handlers', () => {
         expect(prisma.state.snapshots).toHaveLength(1)
     })
 
-    it('returns a provider error with the last local snapshot as fallback', async () => {
-        const prisma = createFakePrisma({
-            instruments: [instrument],
-            snapshots: [{
-                id: 10,
-                unitPrice: 198,
-                currency: 'USD',
-                pricedAt: new Date('2026-04-27T10:00:00Z'),
-                provider: 'mock',
-                source: 'API',
-                freshnessStatus: 'STALE',
-                retrievedAt: new Date('2026-04-27T10:01:00Z'),
-                marketInstrumentId: 1,
-                holdingLotId: null,
-                createdAt: new Date('2026-04-27T10:01:00Z'),
-                updatedAt: new Date('2026-04-27T10:01:00Z'),
-            }],
+    it('returns provider failures as recoverable fallback data when a local snapshot exists', async () => {
+        const prisma = createFakePrisma()
+        prisma.state.snapshots.push({
+            id: 42,
+            unitPrice: 198,
+            currency: 'USD',
+            pricedAt: new Date('2026-04-27T10:00:00.000Z'),
+            provider: 'local',
+            source: 'API',
+            freshnessStatus: 'STALE',
+            retrievedAt: new Date('2026-04-27T10:01:00.000Z'),
+            marketInstrumentId: 1,
+            holdingLotId: null,
+            createdAt: new Date('2026-04-27T10:01:00.000Z'),
+            updatedAt: new Date('2026-04-27T10:01:00.000Z'),
         })
         const ipc = createFakeIpc()
         const provider = {
             getQuote: async () => {
-                throw new Error('Provider down')
-            }
+                throw Object.assign(new Error('Provider down'), {code: 'PROVIDER_UNAVAILABLE'})
+            },
         }
-
-        registerMarketDataHandlers({ipc, prisma, provider, now: () => new Date('2026-04-28T12:00:00Z')})
+        registerMarketDataHandlers({ipc, prisma, provider, now: () => new Date('2026-04-28T12:00:00.000Z')})
 
         const result = await ipc.invoke(MARKET_DATA_IPC_CHANNELS.REFRESH, {instrumentId: 1})
 
@@ -210,38 +227,24 @@ describe('market data IPC handlers', () => {
         expect(result.data.fallbackSnapshot.unitPrice).toBe(198)
     })
 
-    it('valuates a holding lot from the latest local snapshot before manual fallback', async () => {
-        const prisma = createFakePrisma({
-            instruments: [instrument],
-            snapshots: [{
-                id: 10,
-                unitPrice: 50,
-                currency: 'USD',
-                pricedAt: new Date('2026-04-28T10:00:00Z'),
-                provider: 'mock',
-                source: 'API',
-                freshnessStatus: 'FRESH',
-                retrievedAt: new Date('2026-04-28T10:01:00Z'),
-                marketInstrumentId: 1,
-                holdingLotId: null,
-                createdAt: new Date('2026-04-28T10:01:00Z'),
-                updatedAt: new Date('2026-04-28T10:01:00Z'),
-            }],
-            holdingLots: [{
-                id: 5,
-                name: 'Apple lot',
-                quantity: 3,
-                currency: 'USD',
-                unitPrice: 40,
-                marketValue: 120,
-                valueAsOf: new Date('2026-04-01T00:00:00Z'),
-                marketInstrumentId: 1,
-                marketInstrument: instrument,
-            }],
+    it('valuates a holding lot from local snapshot before manual fallback', async () => {
+        const prisma = createFakePrisma()
+        prisma.state.snapshots.push({
+            id: 42,
+            unitPrice: 50,
+            currency: 'USD',
+            pricedAt: new Date('2026-04-28T10:00:00.000Z'),
+            provider: 'local',
+            source: 'API',
+            freshnessStatus: 'FRESH',
+            retrievedAt: new Date('2026-04-28T10:01:00.000Z'),
+            marketInstrumentId: 1,
+            holdingLotId: null,
+            createdAt: new Date('2026-04-28T10:01:00.000Z'),
+            updatedAt: new Date('2026-04-28T10:01:00.000Z'),
         })
         const ipc = createFakeIpc()
-
-        registerMarketDataHandlers({ipc, prisma, now: () => new Date('2026-04-28T12:00:00Z')})
+        registerMarketDataHandlers({ipc, prisma, now: () => new Date('2026-04-28T12:00:00.000Z')})
 
         const result = await ipc.invoke(MARKET_DATA_IPC_CHANNELS.GET_VALUATION, {holdingLotId: 5})
 
