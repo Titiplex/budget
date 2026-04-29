@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
+import {useI18n} from 'vue-i18n'
 
 import type {WealthAsset, WealthPortfolio} from '../types/wealth'
 
@@ -15,6 +16,8 @@ import {
   type WealthMarketFreshnessStatus,
   type WealthMarketValuationRow,
 } from '../utils/wealthMarketValuation'
+
+const {t} = useI18n()
 
 const props = withDefaults(
     defineProps<{
@@ -75,7 +78,7 @@ function unwrapIpc<T>(
       data: null,
       error: {
         code: 'NO_RESPONSE',
-        message: 'Aucune réponse IPC.',
+        message: t('wealth.marketValuation.errors.noIpcResponse'),
       },
     }
   }
@@ -133,7 +136,7 @@ async function loadMarketValuations() {
 
     rows.value = nextRows
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Impossible de charger les valorisations de marché.'
+    errorMessage.value = error instanceof Error ? error.message : t('wealth.marketValuation.errors.load')
 
     rows.value = [
       ...activeRecords(props.assets).map((asset) =>
@@ -155,7 +158,7 @@ async function loadInstruments(marketDataApi: MarketDataRendererApi | null) {
   const response = unwrapIpc(await marketDataApi.listInstruments({activeOnly: false}))
 
   if (response.error) {
-    errorMessage.value = response.error.message || 'Impossible de lire les instruments de marché.'
+    errorMessage.value = response.error.message || t('wealth.marketValuation.errors.listInstruments')
     return []
   }
 
@@ -168,7 +171,7 @@ async function loadLatestSnapshot(marketDataApi: MarketDataRendererApi | null, i
       snapshot: null,
       error: {
         code: 'PROVIDER_UNAVAILABLE',
-        message: 'API market data indisponible.',
+        message: t('wealth.marketValuation.errors.apiUnavailable'),
       },
     }
   }
@@ -185,7 +188,7 @@ async function loadLatestSnapshot(marketDataApi: MarketDataRendererApi | null, i
       snapshot: null,
       error: {
         code: 'RENDERER_ERROR',
-        message: error instanceof Error ? error.message : 'Erreur renderer pendant la lecture du snapshot.',
+        message: error instanceof Error ? error.message : t('wealth.marketValuation.errors.rendererSnapshot'),
       },
     }
   }
@@ -217,10 +220,10 @@ function statusClass(status: WealthMarketFreshnessStatus) {
 }
 
 function sourceLabel(row: WealthMarketValuationRow) {
-  if (row.source === 'MARKET') return 'Automatique marché'
-  if (row.source === 'MANUAL_FALLBACK') return 'Fallback manuel'
+  if (row.source === 'MARKET') return t('wealth.marketValuation.sources.MARKET')
+  if (row.source === 'MANUAL_FALLBACK') return t('wealth.marketValuation.sources.MANUAL_FALLBACK')
 
-  return 'Indisponible'
+  return t('wealth.marketValuation.sources.UNAVAILABLE')
 }
 
 function refreshValuations() {
@@ -245,13 +248,13 @@ onMounted(() => {
   <article class="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-sm">
     <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Valorisation marché</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">
+          {{ t('wealth.marketValuation.eyebrow') }}</p>
 
-        <h3 class="mt-2 text-lg font-semibold text-white">Prix locaux, fallback manuel et fraîcheur</h3>
+        <h3 class="mt-2 text-lg font-semibold text-white">{{ t('wealth.marketValuation.title') }}</h3>
 
         <p class="mt-1 max-w-3xl text-sm leading-6 text-slate-400">
-          Les montants ci-dessous viennent du dernier snapshot local quand il existe. Sinon, l’écran retombe sur la
-          valeur manuelle et continue de contribuer à la valeur nette.
+          {{ t('wealth.marketValuation.description') }}
         </p>
       </div>
 
@@ -261,37 +264,40 @@ onMounted(() => {
           :disabled="loading"
           @click="refreshValuations"
       >
-        {{ loading ? 'Lecture…' : 'Rafraîchir valorisation' }}
+        {{ loading ? t('wealth.marketValuation.reading') : t('wealth.marketValuation.refresh') }}
       </button>
     </div>
 
     <div class="mt-5 grid gap-3 md:grid-cols-4">
       <div class="rounded-2xl border border-emerald-900/70 bg-emerald-950/30 p-4">
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">Marché</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
+          {{ t('wealth.marketValuation.market') }}</p>
 
         <p class="mt-2 text-2xl font-semibold text-white">
           {{ formatMoney(summary.totalMarketValue, summary.currency) }}
         </p>
 
-        <p class="mt-1 text-xs text-emerald-100/70">Snapshots locaux exploitables</p>
+        <p class="mt-1 text-xs text-emerald-100/70">{{ t('wealth.marketValuation.marketHint') }}</p>
       </div>
 
       <div class="rounded-2xl border border-sky-900/70 bg-sky-950/30 p-4">
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">Fallback manuel</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">
+          {{ t('wealth.marketValuation.manualFallback') }}</p>
 
         <p class="mt-2 text-2xl font-semibold text-white">
           {{ formatMoney(summary.totalManualFallbackValue, summary.currency) }}
         </p>
 
-        <p class="mt-1 text-xs text-sky-100/70">Valeur saisie par l’utilisateur</p>
+        <p class="mt-1 text-xs text-sky-100/70">{{ t('wealth.marketValuation.manualFallbackHint') }}</p>
       </div>
 
       <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Indisponible</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+          {{ t('wealth.marketValuation.unavailable') }}</p>
 
         <p class="mt-2 text-2xl font-semibold text-white">{{ summary.totalUnavailableCount }}</p>
 
-        <p class="mt-1 text-xs text-slate-500">Actif(s) sans prix ni fallback</p>
+        <p class="mt-1 text-xs text-slate-500">{{ t('wealth.marketValuation.unavailableHint') }}</p>
       </div>
 
       <div
@@ -306,7 +312,7 @@ onMounted(() => {
             class="text-xs font-semibold uppercase tracking-[0.18em]"
             :class="summary.totalErrorCount > 0 ? 'text-red-300' : 'text-slate-400'"
         >
-          Provider
+          {{ t('wealth.marketValuation.provider') }}
         </p>
 
         <p class="mt-2 text-2xl font-semibold text-white">{{ summary.totalErrorCount }}</p>
@@ -315,31 +321,37 @@ onMounted(() => {
             class="mt-1 text-xs"
             :class="summary.totalErrorCount > 0 ? 'text-red-100/70' : 'text-slate-500'"
         >
-          {{ summary.totalErrorCount > 0 ? 'Erreur(s) sans blocage écran' : 'Aucune erreur provider' }}
+          {{
+            summary.totalErrorCount > 0 ? t('wealth.marketValuation.providerErrors') : t('wealth.marketValuation.providerOk')
+          }}
         </p>
       </div>
     </div>
 
     <p v-if="summary.ignoredCurrencyCount" class="mt-3 text-xs text-amber-300">
-      {{ summary.ignoredCurrencyCount }} ligne(s) dans une autre devise ne sont pas additionnées au résumé
-      {{ summary.currency }}.
+      {{
+        t('wealth.marketValuation.ignoredCurrencies', {
+          count: summary.ignoredCurrencyCount,
+          currency: summary.currency
+        })
+      }}
     </p>
 
     <p
         v-if="errorMessage"
         class="mt-3 rounded-2xl border border-amber-900/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
     >
-      {{ errorMessage }} Les fallbacks manuels restent affichés.
+      {{ errorMessage }} {{ t('wealth.marketValuation.manualFallbacksRemain') }}
     </p>
 
     <div v-if="sortedRows.length" class="mt-5 overflow-hidden rounded-2xl border border-slate-800">
       <div
           class="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 border-b border-slate-800 bg-slate-900/70 px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
       >
-        <span>Actif</span>
-        <span>Valeur utilisée</span>
-        <span>Prix / snapshot</span>
-        <span>Statut</span>
+        <span>{{ t('wealth.marketValuation.columns.asset') }}</span>
+        <span>{{ t('wealth.marketValuation.columns.valueUsed') }}</span>
+        <span>{{ t('wealth.marketValuation.columns.priceSnapshot') }}</span>
+        <span>{{ t('wealth.marketValuation.columns.status') }}</span>
       </div>
 
       <div
@@ -351,7 +363,9 @@ onMounted(() => {
           <p class="font-semibold text-white">{{ row.label }}</p>
 
           <p class="mt-1 text-xs text-slate-500">
-            {{ row.entityType === 'asset' ? 'Actif autonome' : 'Portefeuille' }}
+            {{
+              row.entityType === 'asset' ? t('wealth.marketValuation.standaloneAsset') : t('wealth.marketValuation.portfolio')
+            }}
             <template v-if="row.symbol"> · {{ row.symbol }}</template>
           </p>
         </div>
@@ -365,17 +379,23 @@ onMounted(() => {
         <div>
           <p class="font-medium text-slate-200">
             <template v-if="row.unitPrice != null">
-              {{ formatMoney(row.unitPrice, row.quoteCurrency || row.displayCurrency) }} / unité
+              {{ formatMoney(row.unitPrice, row.quoteCurrency || row.displayCurrency) }} /
+              {{ t('wealth.marketValuation.unit') }}
             </template>
 
-            <template v-else>Prix absent</template>
+            <template v-else>{{ t('wealth.marketValuation.missingPrice') }}</template>
           </p>
 
           <p class="mt-1 text-xs text-slate-500">
             {{ formatDate(row.pricedAt) }}
 
             <template v-if="row.quoteCurrency && row.quoteCurrency !== row.displayCurrency">
-              · coté {{ row.quoteCurrency }}, affiché {{ row.displayCurrency }}
+              · {{
+                t('wealth.marketValuation.quoteDisplay', {
+                  quoteCurrency: row.quoteCurrency,
+                  displayCurrency: row.displayCurrency
+                })
+              }}
             </template>
           </p>
         </div>
@@ -397,7 +417,7 @@ onMounted(() => {
         v-else
         class="mt-5 rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 px-4 py-6 text-sm text-slate-400"
     >
-      Aucun actif patrimonial valorisable pour le moment.
+      {{ t('wealth.marketValuation.empty') }}
     </div>
   </article>
 </template>

@@ -152,8 +152,8 @@ const sectionMeta = computed<Record<SectionKey, { title: string; description: st
   },
 
   wealth: {
-    title: t('sections.wealth.title'),
-    description: t('sections.wealth.description'),
+    title: t('wealth.section.title'),
+    description: t('wealth.section.description'),
   },
 }))
 

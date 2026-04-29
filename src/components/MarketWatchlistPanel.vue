@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref} from 'vue'
+import {useI18n} from 'vue-i18n'
+
+import {currentLocaleCode} from '../i18n'
 
 import type {
   MarketDataRefreshResult,
@@ -16,6 +19,8 @@ const props = withDefaults(
       summaryCurrency: 'CAD',
     },
 )
+
+const {t} = useI18n()
 
 const rows = ref<MarketWatchlistItem[]>([])
 const loading = ref(false)
@@ -36,6 +41,15 @@ const form = reactive<MarketWatchlistForm>({
 
 const hasProviderFailures = computed(() => Boolean(lastRefresh.value?.errors.length))
 const activeRows = computed(() => rows.value.filter((row) => row.instrument?.isActive !== false))
+
+
+const instrumentTypeOptions = computed(() => [
+  {value: 'EQUITY', label: t('wealth.market.instrumentTypes.EQUITY')},
+  {value: 'ETF', label: t('wealth.market.instrumentTypes.ETF')},
+  {value: 'BOND', label: t('wealth.market.instrumentTypes.BOND')},
+  {value: 'INDEX', label: t('wealth.market.instrumentTypes.INDEX')},
+  {value: 'OTHER', label: t('wealth.market.instrumentTypes.OTHER')},
+])
 
 function resetForm() {
   form.symbol = ''
@@ -76,7 +90,7 @@ function normalizeError(error: unknown, fallback: string) {
 function priceLabel(item: MarketWatchlistItem) {
   const snapshot = item.lastSnapshot
   if (!snapshot) return '—'
-  return new Intl.NumberFormat('fr-CA', {
+  return new Intl.NumberFormat(currentLocaleCode(), {
     style: 'currency',
     currency: snapshot.currency || item.targetCurrency || props.summaryCurrency,
     maximumFractionDigits: 4,
@@ -84,10 +98,10 @@ function priceLabel(item: MarketWatchlistItem) {
 }
 
 function dateLabel(value: string | null | undefined) {
-  if (!value) return 'Aucun snapshot local'
+  if (!value) return t('wealth.market.noLocalSnapshot')
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Date inconnue'
-  return new Intl.DateTimeFormat('fr-CA', {
+  if (Number.isNaN(date.getTime())) return t('wealth.market.unknownDate')
+  return new Intl.DateTimeFormat(currentLocaleCode(), {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date)
@@ -96,16 +110,16 @@ function dateLabel(value: string | null | undefined) {
 function freshnessLabel(status: string | null | undefined) {
   switch (status) {
     case 'FRESH':
-      return 'frais'
+      return t('wealth.market.freshnessLabels.FRESH')
     case 'STALE':
-      return 'stale'
+      return t('wealth.market.freshnessLabels.STALE')
     case 'UNAVAILABLE':
     case 'MISSING':
-      return 'absent'
+      return t('wealth.market.freshnessLabels.MISSING')
     case 'ERROR':
-      return 'erreur'
+      return t('wealth.market.freshnessLabels.ERROR')
     default:
-      return 'inconnu'
+      return t('wealth.market.freshnessLabels.UNKNOWN')
   }
 }
 
@@ -125,16 +139,16 @@ function freshnessClass(status: string | null | undefined) {
 async function loadWatchlist() {
   const api = marketDataApi()
   if (!api) {
-    errorMessage.value = 'Market data IPC indisponible.'
+    errorMessage.value = t('wealth.market.errors.apiUnavailable')
     return
   }
 
   loading.value = true
   errorMessage.value = null
   try {
-    rows.value = unwrapIpcResult<MarketWatchlistItem[]>(await api.listWatchlist(), 'Impossible de charger la watchlist.')
+    rows.value = unwrapIpcResult<MarketWatchlistItem[]>(await api.listWatchlist(), t('wealth.market.errors.load'))
   } catch (error) {
-    errorMessage.value = normalizeError(error, 'Impossible de charger la watchlist.')
+    errorMessage.value = normalizeError(error, t('wealth.market.errors.load'))
   } finally {
     loading.value = false
   }
@@ -155,11 +169,11 @@ async function addInstrument() {
       exchange: form.exchange || null,
       provider: form.provider || 'local',
       instrumentType: form.instrumentType || 'OTHER',
-    }), "Impossible d'ajouter l'instrument.")
+    }), t('wealth.market.errors.add'))
     resetForm()
     await loadWatchlist()
   } catch (error) {
-    errorMessage.value = normalizeError(error, "Impossible d'ajouter l'instrument.")
+    errorMessage.value = normalizeError(error, t('wealth.market.errors.add'))
   } finally {
     saving.value = false
   }
@@ -168,8 +182,8 @@ async function addInstrument() {
 async function removeInstrument(item: MarketWatchlistItem) {
   const api = marketDataApi()
   if (!api) return
-  const symbol = item.instrument?.symbol || 'cet instrument'
-  if (!window.confirm(`Retirer ${symbol} de la watchlist ?`)) return
+  const symbol = item.instrument?.symbol || t('wealth.market.thisInstrument')
+  if (!window.confirm(t('wealth.market.confirmRemove', {symbol}))) return
 
   saving.value = true
   errorMessage.value = null
@@ -177,10 +191,10 @@ async function removeInstrument(item: MarketWatchlistItem) {
     unwrapIpcResult<{
       ok: boolean;
       id: number
-    }>(await api.removeWatchlistInstrument(item.instrumentId), "Impossible de retirer l'instrument.")
+    }>(await api.removeWatchlistInstrument(item.instrumentId), t('wealth.market.errors.remove'))
     await loadWatchlist()
   } catch (error) {
-    errorMessage.value = normalizeError(error, "Impossible de retirer l'instrument.")
+    errorMessage.value = normalizeError(error, t('wealth.market.errors.remove'))
   } finally {
     saving.value = false
   }
@@ -196,13 +210,16 @@ async function refreshPrices(instrumentId?: number) {
   try {
     lastRefresh.value = unwrapIpcResult<MarketDataRefreshResult>(
         await api.refreshWatchlist(instrumentId ? {instrumentIds: [instrumentId]} : undefined),
-        'Refresh manuel impossible.',
+        t('wealth.market.errors.refresh'),
     )
     const summary = lastRefresh.value.summary
-    refreshMessage.value = `${summary.succeeded}/${summary.requested} prix rafraîchis. Les snapshots locaux restent affichés si le provider échoue.`
+    refreshMessage.value = t('wealth.market.refreshSummary', {
+      succeeded: summary.succeeded,
+      requested: summary.requested
+    })
     await loadWatchlist()
   } catch (error) {
-    errorMessage.value = normalizeError(error, 'Refresh manuel impossible. Les derniers snapshots locaux restent affichés.')
+    errorMessage.value = normalizeError(error, t('wealth.market.errors.refresh'))
   } finally {
     refreshing.value = false
   }
@@ -217,11 +234,10 @@ onMounted(() => {
   <section class="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-sm">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">Marché</p>
-        <h3 class="mt-2 text-xl font-semibold text-white">Watchlist</h3>
+        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">{{ t('wealth.market.eyebrow') }}</p>
+        <h3 class="mt-2 text-xl font-semibold text-white">{{ t('wealth.market.title') }}</h3>
         <p class="mt-1 max-w-2xl text-sm leading-6 text-slate-400">
-          Vue locale des instruments suivis. Les prix sont des derniers snapshots connus, pas du temps réel.
-        </p>
+          {{ t('wealth.market.description') }}</p>
       </div>
       <button
           type="button"
@@ -229,7 +245,7 @@ onMounted(() => {
           :disabled="loading || refreshing || activeRows.length === 0"
           @click="refreshPrices()"
       >
-        {{ refreshing ? 'Refresh…' : 'Refresh manuel' }}
+        {{ refreshing ? t('wealth.market.refreshing') : t('wealth.market.manualRefresh') }}
       </button>
     </div>
 
@@ -246,16 +262,16 @@ onMounted(() => {
         />
       </label>
       <label class="space-y-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-        Nom optionnel
+        {{ t('wealth.market.optionalName') }}
         <input
             v-model.trim="form.name"
             class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm normal-case tracking-normal text-white outline-none transition focus:border-sky-500"
             placeholder="Apple Inc."
         />
       </label>
-      <label class="space-y-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-        Devise
-        <input
+      <label class="space-y-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{{
+          t('wealth.market.currency')
+        }}<input
             v-model.trim="form.currency"
             required
             maxlength="3"
@@ -263,9 +279,9 @@ onMounted(() => {
             placeholder="CAD"
         />
       </label>
-      <label class="space-y-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-        Marché
-        <input
+      <label class="space-y-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{{
+          t('wealth.market.exchange')
+        }}<input
             v-model.trim="form.exchange"
             class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm normal-case tracking-normal text-white outline-none transition focus:border-sky-500"
             placeholder="NASDAQ"
@@ -277,14 +293,14 @@ onMounted(() => {
             v-model="form.instrumentType"
             class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm normal-case tracking-normal text-white outline-none transition focus:border-sky-500"
         >
-          <option value="EQUITY">Action</option>
+          <option value="EQUITY">{{ t('wealth.market.instrumentTypes.EQUITY') }}</option>
           <option value="ETF">ETF</option>
-          <option value="MUTUAL_FUND">Fonds</option>
-          <option value="BOND">Obligation</option>
+          <option value="MUTUAL_FUND">{{ t('wealth.market.instrumentTypes.MUTUAL_FUND') }}</option>
+          <option value="BOND">{{ t('wealth.market.instrumentTypes.BOND') }}</option>
           <option value="CRYPTO">Crypto</option>
           <option value="FOREX">Forex</option>
-          <option value="INDEX">Indice</option>
-          <option value="OTHER">Autre</option>
+          <option value="INDEX">{{ t('wealth.market.instrumentTypes.INDEX') }}</option>
+          <option value="OTHER">{{ t('wealth.market.instrumentTypes.OTHER') }}</option>
         </select>
       </label>
       <label class="space-y-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -301,7 +317,7 @@ onMounted(() => {
             class="w-full rounded-2xl border border-sky-700/70 bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
             :disabled="saving || loading"
         >
-          Ajouter
+          {{ saving ? t('wealth.market.adding') : t('wealth.market.add') }}
         </button>
       </div>
     </form>
@@ -316,30 +332,30 @@ onMounted(() => {
     </div>
     <div v-if="hasProviderFailures"
          class="mt-4 rounded-2xl border border-amber-900/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
-      Provider indisponible pour certains symboles. L'UI conserve le dernier snapshot local quand il existe.
+      {{ t('wealth.market.providerFailureWarning') }}
     </div>
 
     <div v-if="loading"
          class="mt-5 rounded-3xl border border-slate-800 bg-slate-900/50 px-4 py-6 text-sm text-slate-400">
-      Chargement de la watchlist…
+      {{ t('wealth.market.loading') }}
     </div>
 
     <div v-else-if="activeRows.length === 0"
          class="mt-5 rounded-3xl border border-dashed border-slate-700 bg-slate-900/40 px-4 py-8 text-center">
-      <p class="text-sm font-semibold text-slate-200">Aucun instrument suivi</p>
-      <p class="mt-1 text-sm text-slate-500">Ajoute un symbole pour commencer. Le provider <code>local</code> permet de
-        tester sans réseau.</p>
+      <p class="text-sm font-semibold text-slate-200">{{ t('wealth.market.empty') }}</p>
+      <p class="mt-1 text-sm text-slate-500">{{ t('wealth.market.emptyHelpBeforeProvider') }} <code>local</code>
+        {{ t('wealth.market.emptyHelpAfterProvider') }}</p>
     </div>
 
     <div v-else class="mt-5 overflow-hidden rounded-3xl border border-slate-800">
       <div
           class="hidden grid-cols-[1.1fr_1fr_0.9fr_1fr_0.9fr_auto] gap-3 border-b border-slate-800 bg-slate-900/80 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 lg:grid">
-        <span>Instrument</span>
-        <span>Prix local</span>
-        <span>Freshness</span>
-        <span>Snapshot</span>
-        <span>Provider</span>
-        <span class="text-right">Actions</span>
+        <span>{{ t('wealth.market.instrument') }}</span>
+        <span>{{ t('wealth.market.localPrice') }}</span>
+        <span>{{ t('wealth.market.freshness') }}</span>
+        <span>{{ t('wealth.market.snapshot') }}</span>
+        <span>{{ t('wealth.market.provider') }}</span>
+        <span class="text-right">{{ t('wealth.market.actions') }}</span>
       </div>
       <article
           v-for="item in activeRows"
@@ -381,7 +397,7 @@ onMounted(() => {
               :disabled="refreshing || saving"
               @click="refreshPrices(item.instrumentId)"
           >
-            Refresh
+            {{ t('wealth.market.refresh') }}
           </button>
           <button
               type="button"
@@ -389,7 +405,7 @@ onMounted(() => {
               :disabled="saving || refreshing"
               @click="removeInstrument(item)"
           >
-            Retirer
+            {{ t('wealth.market.remove') }}
           </button>
         </div>
       </article>

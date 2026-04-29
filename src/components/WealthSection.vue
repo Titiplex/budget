@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref, watch} from 'vue'
+import {useI18n} from 'vue-i18n'
 
 import MarketWatchlistPanel from './MarketWatchlistPanel.vue'
 
@@ -35,6 +36,8 @@ const props = withDefaults(
       summaryCurrency: 'CAD',
     },
 )
+
+const {t} = useI18n()
 
 type WealthTab = 'asset' | 'portfolio' | 'liability'
 type EditingState = { type: WealthTab; id: number } | null
@@ -196,10 +199,27 @@ const dataQualityScore = computed(() => {
   return Math.round((points / (records.length * 3)) * 100)
 })
 
+function translatedEnumLabels<T extends string>(source: Record<T, string>, scope: string) {
+  return Object.fromEntries(
+      Object.entries(source).map(([value, fallback]) => {
+        const key = `wealth.${scope}.${value}`
+        const translated = t(key)
+        return [value, translated === key ? fallback : translated]
+      }),
+  ) as Record<T, string>
+}
+
+const wealthAssetTypeLabels = computed(() => translatedEnumLabels(WEALTH_ASSET_TYPE_LABELS, 'assetTypes'))
+const portfolioTypeLabels = computed(() => translatedEnumLabels(PORTFOLIO_TYPE_LABELS, 'portfolioTypes'))
+const portfolioTaxWrapperLabels = computed(() => translatedEnumLabels(PORTFOLIO_TAX_WRAPPER_LABELS, 'portfolioTaxWrappers'))
+const liabilityTypeLabels = computed(() => translatedEnumLabels(LIABILITY_TYPE_LABELS, 'liabilityTypes'))
+const liabilityPaymentFrequencyLabels = computed(() => translatedEnumLabels(LIABILITY_PAYMENT_FREQUENCY_LABELS, 'liabilityPaymentFrequencies'))
+const liabilityRateTypeLabels = computed(() => translatedEnumLabels(LIABILITY_RATE_TYPE_LABELS, 'liabilityRateTypes'))
+
 const tabs = computed(() => [
-  {key: 'asset' as const, label: 'Actif', count: totals.value.assetCount},
-  {key: 'portfolio' as const, label: 'Portefeuille', count: totals.value.portfolioCount},
-  {key: 'liability' as const, label: 'Dette', count: totals.value.liabilityCount},
+  {key: 'asset' as const, label: t('wealth.tabs.asset'), count: totals.value.assetCount},
+  {key: 'portfolio' as const, label: t('wealth.tabs.portfolio'), count: totals.value.portfolioCount},
+  {key: 'liability' as const, label: t('wealth.tabs.liability'), count: totals.value.liabilityCount},
 ])
 
 function formatMoney(amount: number | null | undefined, currency = overviewCurrency.value) {
@@ -312,7 +332,7 @@ async function loadWealth() {
   const wealthApi = window.wealth
 
   if (!wealthApi) {
-    errorMessage.value = 'Wealth IPC is not available.'
+    errorMessage.value = t('wealth.errors.missingWealthApi')
     return
   }
 
@@ -331,7 +351,7 @@ async function loadWealth() {
     liabilities.value = overviewResult.liabilities || []
     snapshots.value = snapshotRows || []
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to load wealth data.'
+    errorMessage.value = error instanceof Error ? error.message : t('wealth.errors.load')
   } finally {
     loading.value = false
   }
@@ -376,11 +396,11 @@ async function saveActiveForm() {
       }
     }
 
-    successMessage.value = editing.value ? 'Entrée mise à jour.' : 'Entrée ajoutée.'
+    successMessage.value = editing.value ? t('wealth.notices.entryUpdated') : t('wealth.notices.entryAdded')
     resetActiveForm()
     await loadWealth()
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Impossible de sauvegarder cette entrée patrimoine.'
+    errorMessage.value = error instanceof Error ? error.message : t('wealth.errors.save')
   } finally {
     saving.value = false
   }
@@ -397,13 +417,13 @@ async function createSnapshot() {
   try {
     await wealthApi.createGeneratedNetWorthSnapshot({
       currency: props.summaryCurrency,
-      note: 'Snapshot généré depuis la vue patrimoine.',
+      note: t('wealth.notices.snapshotNote'),
     })
 
-    successMessage.value = 'Snapshot de valeur nette créé.'
+    successMessage.value = t('wealth.notices.snapshotCreated')
     await loadWealth()
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Impossible de créer le snapshot.'
+    errorMessage.value = error instanceof Error ? error.message : t('wealth.errors.snapshot')
   } finally {
     saving.value = false
   }
@@ -454,17 +474,17 @@ function editLiability(liability: WealthLiability) {
 }
 
 async function removeAsset(asset: WealthAsset) {
-  if (!window.confirm(`Supprimer l'actif "${asset.name}" ?`)) return
+  if (!window.confirm(t('wealth.confirms.deleteAsset', {name: asset.name}))) return
   await runDelete(() => window.wealth.deleteAsset(asset.id))
 }
 
 async function removePortfolio(portfolio: WealthPortfolio) {
-  if (!window.confirm(`Supprimer le portefeuille "${portfolio.name}" ?`)) return
+  if (!window.confirm(t('wealth.confirms.deletePortfolio', {name: portfolio.name}))) return
   await runDelete(() => window.wealth.deletePortfolio(portfolio.id))
 }
 
 async function removeLiability(liability: WealthLiability) {
-  if (!window.confirm(`Supprimer la dette "${liability.name}" ?`)) return
+  if (!window.confirm(t('wealth.confirms.deleteLiability', {name: liability.name}))) return
   await runDelete(() => window.wealth.deleteLiability(liability.id))
 }
 
@@ -475,11 +495,11 @@ async function runDelete(callback: () => Promise<unknown>) {
 
   try {
     await callback()
-    successMessage.value = 'Entrée supprimée.'
+    successMessage.value = t('wealth.notices.deleted')
     resetActiveForm()
     await loadWealth()
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Impossible de supprimer cette entrée patrimoine.'
+    errorMessage.value = error instanceof Error ? error.message : t('wealth.errors.delete')
   } finally {
     saving.value = false
   }
@@ -505,14 +525,13 @@ onMounted(() => {
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p class="text-xs font-semibold uppercase tracking-[0.24em] text-violet-300">
-              Wealth
+              {{ t('wealth.section.eyebrow') }}
             </p>
             <h2 class="mt-2 text-2xl font-semibold text-white">
-              Patrimoine
+              {{ t('wealth.section.title') }}
             </h2>
             <p class="mt-1 max-w-2xl text-sm leading-6 text-slate-400">
-              Le budget suit les flux. Le patrimoine suit les valeurs à date.
-            </p>
+              {{ t('wealth.section.description') }}</p>
           </div>
 
           <div class="flex flex-wrap gap-2">
@@ -522,7 +541,7 @@ onMounted(() => {
                 :disabled="loading || saving || !hasWealthData"
                 @click="createSnapshot"
             >
-              Créer snapshot
+              {{ saving ? t('wealth.section.createSnapshotLoading') : t('wealth.section.createSnapshot') }}
             </button>
             <button
                 type="button"
@@ -530,7 +549,7 @@ onMounted(() => {
                 :disabled="loading"
                 @click="loadWealth"
             >
-              {{ loading ? 'Chargement…' : 'Rafraîchir' }}
+              {{ loading ? t('wealth.section.loading') : t('wealth.section.refresh') }}
             </button>
           </div>
         </div>
@@ -539,49 +558,51 @@ onMounted(() => {
       <div class="grid gap-px bg-slate-800/80 md:grid-cols-4">
         <article class="bg-slate-950 px-6 py-5">
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Actifs
+            {{ t('wealth.summary.assets') }}
           </p>
           <p class="mt-3 text-3xl font-semibold text-white">
             {{ formatMoney(totals.totalAssets) }}
           </p>
           <p class="mt-1 text-sm text-slate-400">
-            {{ totals.assetCount }} actif(s) · {{ totals.portfolioCount }} portefeuille(s)
+            {{
+              t('wealth.summary.assetPortfolioCount', {assets: totals.assetCount, portfolios: totals.portfolioCount})
+            }}
           </p>
         </article>
 
         <article class="bg-slate-950 px-6 py-5">
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Dettes
+            {{ t('wealth.summary.liabilities') }}
           </p>
           <p class="mt-3 text-3xl font-semibold text-white">
             {{ formatMoney(totals.totalLiabilities) }}
           </p>
           <p class="mt-1 text-sm text-slate-400">
-            {{ totals.liabilityCount }} dette(s)
+            {{ t('wealth.summary.liabilityCount', {count: totals.liabilityCount}) }}
           </p>
         </article>
 
         <article class="bg-gradient-to-br from-violet-950 to-slate-950 px-6 py-5">
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">
-            Valeur nette
+            {{ t('wealth.summary.netWorth') }}
           </p>
           <p class="mt-3 text-3xl font-semibold text-white">
             {{ formatMoney(totals.netWorth) }}
           </p>
           <p class="mt-1 text-sm text-violet-200/80">
-            Dernière valorisation : {{ formatDate(latestValuationDate) }}
+            {{ t('wealth.summary.latestValuation', {date: formatDate(latestValuationDate)}) }}
           </p>
         </article>
 
         <article class="bg-slate-950 px-6 py-5">
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Qualité données
+            {{ t('wealth.summary.dataQuality') }}
           </p>
           <p class="mt-3 text-3xl font-semibold text-white">
             {{ dataQualityScore }}%
           </p>
           <p class="mt-1 text-sm text-slate-400">
-            Devise, institution, date
+            {{ t('wealth.summary.dataQualityHint') }}
           </p>
         </article>
       </div>
@@ -591,8 +612,7 @@ onMounted(() => {
         v-if="hasMultiCurrencyWarning"
         class="rounded-2xl border border-amber-900/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
     >
-      Plusieurs devises sont présentes. Le total consolidé affiché utilise uniquement {{ props.summaryCurrency }}.
-      Les autres devises restent visibles dans le détail.
+      {{ t('wealth.section.multiCurrencyWarning', {currency: props.summaryCurrency}) }}
     </div>
 
     <div
@@ -634,15 +654,15 @@ onMounted(() => {
 
         <div class="mb-5">
           <h3 class="text-lg font-semibold text-white">
-            {{ editing ? 'Modifier une entrée' : 'Ajouter une entrée' }}
+            {{ editing ? t('wealth.form.editEntry') : t('wealth.form.addEntry') }}
           </h3>
           <p class="mt-1 text-sm text-slate-400">
             {{
               activeTab === 'asset'
-                  ? 'Un actif détenu hors portefeuille.'
+                  ? t('wealth.form.assetDescription')
                   : activeTab === 'portfolio'
                       ? 'Un compte ou portefeuille d’investissement.'
-                      : 'Une dette ou obligation à rembourser.'
+                      : t('wealth.form.liabilityDescription')
             }}
           </p>
         </div>
@@ -650,24 +670,24 @@ onMounted(() => {
         <form class="space-y-4" @submit.prevent="saveActiveForm">
           <template v-if="activeTab === 'asset'">
             <div>
-              <label class="text-sm font-medium text-slate-300">Nom</label>
+              <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.name') }}</label>
               <input
                   v-model="assetForm.name"
                   required
                   class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500"
-                  placeholder="Maison, voiture, cash long terme…"
+                  :placeholder="t('wealth.form.assetNamePlaceholder')"
               />
             </div>
 
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
-                <label class="text-sm font-medium text-slate-300">Type</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.type') }}</label>
                 <select
                     v-model="assetForm.type"
                     class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500"
                 >
                   <option
-                      v-for="(label, value) in WEALTH_ASSET_TYPE_LABELS"
+                      v-for="(label, value) in wealthAssetTypeLabels"
                       :key="value"
                       :value="value"
                   >
@@ -677,7 +697,7 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="text-sm font-medium text-slate-300">Devise</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.currency') }}</label>
                 <input
                     v-model="assetForm.currency"
                     class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm uppercase text-white outline-none focus:border-violet-500"
@@ -687,7 +707,7 @@ onMounted(() => {
 
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
-                <label class="text-sm font-medium text-slate-300">Valeur actuelle</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.currentValue') }}</label>
                 <input
                     v-model.number="assetForm.currentValue"
                     type="number"
@@ -698,7 +718,7 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="text-sm font-medium text-slate-300">Détention %</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.ownershipPercent') }}</label>
                 <input
                     v-model.number="assetForm.ownershipPercent"
                     type="number"
@@ -712,7 +732,7 @@ onMounted(() => {
 
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
-                <label class="text-sm font-medium text-slate-300">Date valorisation</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.valuationDate') }}</label>
                 <input
                     v-model="assetForm.valueAsOf"
                     type="date"
@@ -721,7 +741,7 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="text-sm font-medium text-slate-300">Institution</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.institution') }}</label>
                 <input
                     v-model="assetForm.institutionName"
                     class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500"
@@ -733,30 +753,30 @@ onMounted(() => {
                 class="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
               <input v-model="assetForm.includeInNetWorth" type="checkbox"
                      class="h-4 w-4 rounded border-slate-600 bg-slate-950"/>
-              Inclure dans la valeur nette
+              {{ t('wealth.form.includeInNetWorth') }}
             </label>
           </template>
 
           <template v-if="activeTab === 'portfolio'">
             <div>
-              <label class="text-sm font-medium text-slate-300">Nom</label>
+              <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.name') }}</label>
               <input
                   v-model="portfolioForm.name"
                   required
                   class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500"
-                  placeholder="CELI, PEA, CTO…"
+                  :placeholder="t('wealth.form.portfolioNamePlaceholder')"
               />
             </div>
 
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
-                <label class="text-sm font-medium text-slate-300">Type</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.type') }}</label>
                 <select
                     v-model="portfolioForm.type"
                     class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500"
                 >
                   <option
-                      v-for="(label, value) in PORTFOLIO_TYPE_LABELS"
+                      v-for="(label, value) in portfolioTypeLabels"
                       :key="value"
                       :value="value"
                   >
@@ -766,13 +786,13 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="text-sm font-medium text-slate-300">Enveloppe fiscale</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.taxWrapper') }}</label>
                 <select
                     v-model="portfolioForm.taxWrapper"
                     class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500"
                 >
                   <option
-                      v-for="(label, value) in PORTFOLIO_TAX_WRAPPER_LABELS"
+                      v-for="(label, value) in portfolioTaxWrapperLabels"
                       :key="value"
                       :value="value"
                   >
@@ -784,7 +804,7 @@ onMounted(() => {
 
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
-                <label class="text-sm font-medium text-slate-300">Valeur actuelle</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.currentValue') }}</label>
                 <input
                     v-model.number="portfolioForm.currentValue"
                     type="number"
@@ -795,7 +815,7 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="text-sm font-medium text-slate-300">Cash</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.cash') }}</label>
                 <input
                     v-model.number="portfolioForm.cashBalance"
                     type="number"
@@ -808,7 +828,7 @@ onMounted(() => {
 
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
-                <label class="text-sm font-medium text-slate-300">Détention %</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.ownershipPercent') }}</label>
                 <input
                     v-model.number="portfolioForm.ownershipPercent"
                     type="number"
@@ -820,7 +840,7 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="text-sm font-medium text-slate-300">Devise</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.currency') }}</label>
                 <input
                     v-model="portfolioForm.currency"
                     class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm uppercase text-white outline-none focus:border-violet-500"
@@ -830,7 +850,7 @@ onMounted(() => {
 
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
-                <label class="text-sm font-medium text-slate-300">Date valorisation</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.valuationDate') }}</label>
                 <input
                     v-model="portfolioForm.valueAsOf"
                     type="date"
@@ -839,7 +859,7 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="text-sm font-medium text-slate-300">Institution</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.institution') }}</label>
                 <input
                     v-model="portfolioForm.institutionName"
                     class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500"
@@ -851,30 +871,30 @@ onMounted(() => {
                 class="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
               <input v-model="portfolioForm.includeInNetWorth" type="checkbox"
                      class="h-4 w-4 rounded border-slate-600 bg-slate-950"/>
-              Inclure dans la valeur nette
+              {{ t('wealth.form.includeInNetWorth') }}
             </label>
           </template>
 
           <template v-if="activeTab === 'liability'">
             <div>
-              <label class="text-sm font-medium text-slate-300">Nom</label>
+              <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.name') }}</label>
               <input
                   v-model="liabilityForm.name"
                   required
                   class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500"
-                  placeholder="Hypothèque, carte de crédit…"
+                  :placeholder="t('wealth.form.liabilityNamePlaceholder')"
               />
             </div>
 
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
-                <label class="text-sm font-medium text-slate-300">Type</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.type') }}</label>
                 <select
                     v-model="liabilityForm.type"
                     class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500"
                 >
                   <option
-                      v-for="(label, value) in LIABILITY_TYPE_LABELS"
+                      v-for="(label, value) in liabilityTypeLabels"
                       :key="value"
                       :value="value"
                   >
@@ -884,7 +904,7 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="text-sm font-medium text-slate-300">Devise</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.currency') }}</label>
                 <input
                     v-model="liabilityForm.currency"
                     class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm uppercase text-white outline-none focus:border-violet-500"
@@ -894,7 +914,7 @@ onMounted(() => {
 
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
-                <label class="text-sm font-medium text-slate-300">Solde courant</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.currentBalance') }}</label>
                 <input
                     v-model.number="liabilityForm.currentBalance"
                     type="number"
@@ -905,7 +925,7 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="text-sm font-medium text-slate-300">Taux %</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.ratePercent') }}</label>
                 <input
                     v-model.number="liabilityForm.interestRate"
                     type="number"
@@ -918,7 +938,7 @@ onMounted(() => {
 
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
-                <label class="text-sm font-medium text-slate-300">Paiement minimum</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.minimumPayment') }}</label>
                 <input
                     v-model.number="liabilityForm.minimumPayment"
                     type="number"
@@ -929,14 +949,14 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="text-sm font-medium text-slate-300">Fréquence</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.frequency') }}</label>
                 <select
                     v-model="liabilityForm.paymentFrequency"
                     class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500"
                 >
-                  <option :value="null">Non renseignée</option>
+                  <option :value="null">{{ t('wealth.form.notProvided') }}</option>
                   <option
-                      v-for="(label, value) in LIABILITY_PAYMENT_FREQUENCY_LABELS"
+                      v-for="(label, value) in liabilityPaymentFrequencyLabels"
                       :key="value"
                       :value="value as LiabilityPaymentFrequency"
                   >
@@ -948,13 +968,13 @@ onMounted(() => {
 
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
-                <label class="text-sm font-medium text-slate-300">Type de taux</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.rateType') }}</label>
                 <select
                     v-model="liabilityForm.rateType"
                     class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500"
                 >
                   <option
-                      v-for="(label, value) in LIABILITY_RATE_TYPE_LABELS"
+                      v-for="(label, value) in liabilityRateTypeLabels"
                       :key="value"
                       :value="value as LiabilityRateType"
                   >
@@ -964,7 +984,7 @@ onMounted(() => {
               </div>
 
               <div>
-                <label class="text-sm font-medium text-slate-300">Date du solde</label>
+                <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.balanceDate') }}</label>
                 <input
                     v-model="liabilityForm.balanceAsOf"
                     type="date"
@@ -974,7 +994,7 @@ onMounted(() => {
             </div>
 
             <div>
-              <label class="text-sm font-medium text-slate-300">Prêteur</label>
+              <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.lender') }}</label>
               <input
                   v-model="liabilityForm.lenderName"
                   class="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500"
@@ -985,12 +1005,12 @@ onMounted(() => {
                 class="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
               <input v-model="liabilityForm.includeInNetWorth" type="checkbox"
                      class="h-4 w-4 rounded border-slate-600 bg-slate-950"/>
-              Inclure dans la valeur nette
+              {{ t('wealth.form.includeInNetWorth') }}
             </label>
           </template>
 
           <div>
-            <label class="text-sm font-medium text-slate-300">Note</label>
+            <label class="text-sm font-medium text-slate-300">{{ t('wealth.form.note') }}</label>
             <textarea
                 v-if="activeTab === 'asset'"
                 v-model="assetForm.note"
@@ -1017,7 +1037,7 @@ onMounted(() => {
                 class="flex-1 rounded-2xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                 :disabled="saving"
             >
-              {{ saving ? 'Sauvegarde…' : editing ? 'Mettre à jour' : 'Ajouter' }}
+              {{ saving ? t('wealth.form.saving') : editing ? t('wealth.form.update') : t('wealth.form.add') }}
             </button>
             <button
                 v-if="editing"
@@ -1025,7 +1045,7 @@ onMounted(() => {
                 class="rounded-2xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-slate-900"
                 @click="resetActiveForm"
             >
-              Annuler
+              {{ t('common.cancel') }}
             </button>
           </div>
         </form>
@@ -1035,20 +1055,16 @@ onMounted(() => {
         <article class="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-sm">
           <div class="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h3 class="text-lg font-semibold text-white">
-                Vue détaillée
-              </h3>
-              <p class="mt-1 text-sm text-slate-400">
-                Les montants exclus ou archivés ne comptent pas dans la valeur nette.
-              </p>
+              <h3 class="text-lg font-semibold text-white">{{ t('wealth.section.detailedView') }}</h3>
+              <p class="mt-1 text-sm text-slate-400">{{ t('wealth.section.detailDisclaimer') }}</p>
             </div>
           </div>
 
           <div v-if="!hasWealthData && !loading"
                class="rounded-2xl border border-dashed border-slate-700 p-8 text-center">
-            <p class="text-base font-semibold text-white">Aucune donnée patrimoine.</p>
+            <p class="text-base font-semibold text-white">{{ t('wealth.section.empty') }}</p>
             <p class="mt-2 text-sm text-slate-400">
-              Ajoute un actif, un portefeuille ou une dette pour commencer.
+              {{ t('wealth.form.addElement') }}
             </p>
           </div>
 
@@ -1070,8 +1086,8 @@ onMounted(() => {
                     </p>
                     <p class="mt-1 text-xs text-slate-500">
                       Valorisation : {{ formatDate(asset.valueAsOf) }}
-                      <span v-if="asset.includeInNetWorth === false"> · Exclu valeur nette</span>
-                      <span v-if="asset.status === 'ARCHIVED'"> · Archivé</span>
+                      <span v-if="asset.includeInNetWorth === false"> · {{ t('wealth.status.netWorthExcluded') }}</span>
+                      <span v-if="asset.status === 'ARCHIVED'"> · {{ t('wealth.status.archivedMasc') }}</span>
                     </p>
                   </div>
                   <div class="text-left sm:text-right">
@@ -1081,10 +1097,10 @@ onMounted(() => {
                     <div class="mt-2 flex gap-2 sm:justify-end">
                       <button class="text-sm font-semibold text-violet-300 hover:text-violet-200"
                               @click="editAsset(asset)">
-                        Modifier
+                        {{ t('common.modify') }}
                       </button>
                       <button class="text-sm font-semibold text-red-300 hover:text-red-200" @click="removeAsset(asset)">
-                        Supprimer
+                        {{ t('wealth.actions.delete') }}
                       </button>
                     </div>
                   </div>
@@ -1109,8 +1125,9 @@ onMounted(() => {
                     </p>
                     <p class="mt-1 text-xs text-slate-500">
                       Valorisation : {{ formatDate(portfolio.valueAsOf) }}
-                      <span v-if="portfolio.includeInNetWorth === false"> · Exclu valeur nette</span>
-                      <span v-if="portfolio.status === 'ARCHIVED'"> · Archivé</span>
+                      <span
+                          v-if="portfolio.includeInNetWorth === false"> · {{ t('wealth.status.netWorthExcluded') }}</span>
+                      <span v-if="portfolio.status === 'ARCHIVED'"> · {{ t('wealth.status.archivedMasc') }}</span>
                     </p>
                   </div>
                   <div class="text-left sm:text-right">
@@ -1123,11 +1140,10 @@ onMounted(() => {
                     <div class="mt-2 flex gap-2 sm:justify-end">
                       <button class="text-sm font-semibold text-violet-300 hover:text-violet-200"
                               @click="editPortfolio(portfolio)">
-                        Modifier
+                        {{ t('common.modify') }}
                       </button>
                       <button class="text-sm font-semibold text-red-300 hover:text-red-200"
-                              @click="removePortfolio(portfolio)">
-                        Supprimer
+                              @click="removePortfolio(portfolio)">{{ t('wealth.actions.delete') }}
                       </button>
                     </div>
                   </div>
@@ -1155,8 +1171,8 @@ onMounted(() => {
                       <span v-if="liability.minimumPayment != null"> · Min. {{
                           formatMoney(liability.minimumPayment, liability.currency)
                         }}</span>
-                      <span v-if="liability.includeInNetWorth === false"> · Exclue valeur nette</span>
-                      <span v-if="liability.status === 'ARCHIVED'"> · Archivée</span>
+                      <span v-if="liability.includeInNetWorth === false"> · {{ t('wealth.status.netWorthExcluded') }}</span>
+                      <span v-if="liability.status === 'ARCHIVED'"> · {{ t('wealth.status.archivedFem') }}</span>
                     </p>
                   </div>
                   <div class="text-left sm:text-right">
@@ -1166,11 +1182,10 @@ onMounted(() => {
                     <div class="mt-2 flex gap-2 sm:justify-end">
                       <button class="text-sm font-semibold text-violet-300 hover:text-violet-200"
                               @click="editLiability(liability)">
-                        Modifier
+                        {{ t('common.modify') }}
                       </button>
                       <button class="text-sm font-semibold text-red-300 hover:text-red-200"
-                              @click="removeLiability(liability)">
-                        Supprimer
+                              @click="removeLiability(liability)">{{ t('wealth.actions.delete') }}
                       </button>
                     </div>
                   </div>
@@ -1182,16 +1197,16 @@ onMounted(() => {
 
         <article class="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-sm">
           <h3 class="text-lg font-semibold text-white">
-            Breakdown valeur nette
+            {{ t('wealth.section.breakdown') }}
           </h3>
           <div class="mt-4 overflow-hidden rounded-2xl border border-slate-800">
             <table class="min-w-full divide-y divide-slate-800 text-sm">
               <thead class="bg-slate-900/70 text-left text-xs uppercase tracking-[0.16em] text-slate-500">
               <tr>
-                <th class="px-4 py-3">Élément</th>
-                <th class="px-4 py-3">Type</th>
-                <th class="px-4 py-3 text-right">Montant</th>
-                <th class="px-4 py-3 text-right">Poids</th>
+                <th class="px-4 py-3">{{ t('wealth.breakdown.item') }}</th>
+                <th class="px-4 py-3">{{ t('wealth.breakdown.type') }}</th>
+                <th class="px-4 py-3 text-right">{{ t('wealth.breakdown.amount') }}</th>
+                <th class="px-4 py-3 text-right">{{ t('wealth.breakdown.weight') }}</th>
               </tr>
               </thead>
               <tbody class="divide-y divide-slate-800">
@@ -1206,9 +1221,7 @@ onMounted(() => {
                 <td class="px-4 py-3 text-right">{{ formatPercent(row.percentOfTotal) }}</td>
               </tr>
               <tr v-if="!overview?.breakdown.length">
-                <td colspan="4" class="px-4 py-6 text-center text-slate-500">
-                  Aucun breakdown disponible.
-                </td>
+                <td colspan="4" class="px-4 py-6 text-center text-slate-500">{{ t('wealth.breakdown.empty') }}</td>
               </tr>
               </tbody>
             </table>
@@ -1237,9 +1250,7 @@ onMounted(() => {
                 {{ formatMoney(snapshot.netWorth, snapshot.currency) }}
               </p>
             </div>
-            <p v-if="snapshots.length === 0" class="text-sm text-slate-500">
-              Aucun snapshot pour l’instant.
-            </p>
+            <p v-if="snapshots.length === 0" class="text-sm text-slate-500">{{ t('wealth.snapshots.empty') }}</p>
           </div>
         </article>
       </div>
