@@ -67,6 +67,15 @@ contextBridge.exposeInMainWorld('fx', {
     quoteHistorical: (options) => ipcRenderer.invoke('fx:quote-historical', options),
 })
 
+contextBridge.exposeInMainWorld('marketData', {
+    listInstruments: (filters) => ipcRenderer.invoke('marketData:instrument:list', filters),
+    getLatestSnapshot: (options) => ipcRenderer.invoke('marketData:snapshot:latest', options),
+    listSnapshotHistory: (options) => ipcRenderer.invoke('marketData:snapshot:history', options),
+    refresh: (options) => ipcRenderer.invoke('marketData:refresh', options),
+    getAssetValuation: (options) => ipcRenderer.invoke('marketData:valuation:get', options),
+    listFreshnessStatuses: (filters) => ipcRenderer.invoke('marketData:freshness:list', filters),
+})
+
 contextBridge.exposeInMainWorld('wealth', {
     listAssets: (filters) => ipcRenderer.invoke('db:asset:list', filters),
     createAsset: (data) => ipcRenderer.invoke('db:asset:create', data),
