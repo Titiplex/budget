@@ -36,13 +36,15 @@ function clearCommonJsCache() {
 
 function installCommonJsMocks() {
     Module._load = function loadWithDashboardIpcMocks(request, parent, isMain) {
-        const parentFile = parent?.filename || ''
-
         if (request === 'electron') return {ipcMain}
-        if (parentFile.endsWith('electron/ipc/registerWealthHandlers.js') && request === '../db') {
+        if (request === '../db' || request.endsWith('/db') || request.endsWith('electron/db')) {
             return {getPrisma}
         }
-        if (parentFile.endsWith('electron/ipc/registerWealthHandlers.js') && request === '../portfolio/portfolioDashboardService') {
+        if (
+            request === '../portfolio/portfolioDashboardService' ||
+            request.endsWith('/portfolio/portfolioDashboardService') ||
+            request.endsWith('electron/portfolio/portfolioDashboardService')
+        ) {
             return {getPortfolioDashboard}
         }
 
