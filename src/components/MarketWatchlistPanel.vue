@@ -46,8 +46,14 @@ const activeRows = computed(() => rows.value.filter((row) => row.instrument?.isA
 const instrumentTypeOptions = computed(() => [
   {value: 'EQUITY', label: t('wealth.market.instrumentTypes.EQUITY')},
   {value: 'ETF', label: t('wealth.market.instrumentTypes.ETF')},
+  {value: 'MUTUAL_FUND', label: t('wealth.market.instrumentTypes.MUTUAL_FUND')},
   {value: 'BOND', label: t('wealth.market.instrumentTypes.BOND')},
+  {value: 'CRYPTO', label: t('wealth.market.instrumentTypes.CRYPTO')},
+  {value: 'OPTION', label: t('wealth.market.instrumentTypes.OPTION')},
+  {value: 'COMMODITY', label: t('wealth.market.instrumentTypes.COMMODITY')},
+  {value: 'FOREX', label: t('wealth.market.instrumentTypes.FOREX')},
   {value: 'INDEX', label: t('wealth.market.instrumentTypes.INDEX')},
+  {value: 'FUND', label: t('wealth.market.instrumentTypes.FUND')},
   {value: 'OTHER', label: t('wealth.market.instrumentTypes.OTHER')},
 ])
 
@@ -113,7 +119,10 @@ function freshnessLabel(status: string | null | undefined) {
       return t('wealth.market.freshnessLabels.FRESH')
     case 'STALE':
       return t('wealth.market.freshnessLabels.STALE')
+    case 'EXPIRED':
+      return t('wealth.market.freshnessLabels.EXPIRED')
     case 'UNAVAILABLE':
+      return t('wealth.market.freshnessLabels.UNAVAILABLE')
     case 'MISSING':
       return t('wealth.market.freshnessLabels.MISSING')
     case 'ERROR':

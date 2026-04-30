@@ -18,14 +18,12 @@ export type MarketInstrumentType =
     | 'MUTUAL_FUND'
     | 'BOND'
     | 'CRYPTO'
-    | 'CURRENCY'
-    | 'COMMODITY'
-    | 'INDEX'
     | 'OPTION'
-    | 'REAL_ESTATE_FUND'
-    | 'CASH'
+    | 'COMMODITY'
+    | 'FOREX'
+    | 'INDEX'
+    | 'FUND'
     | 'OTHER'
-
 export type StalenessStatus = 'MISSING' | 'FRESH' | 'STALE' | 'EXPIRED' | 'UNKNOWN'
 export type MarketDataStalenessStatus = StalenessStatus
 
@@ -59,12 +57,11 @@ export const MARKET_INSTRUMENT_TYPES = [
     'MUTUAL_FUND',
     'BOND',
     'CRYPTO',
-    'CURRENCY',
-    'COMMODITY',
-    'INDEX',
     'OPTION',
-    'REAL_ESTATE_FUND',
-    'CASH',
+    'COMMODITY',
+    'FOREX',
+    'INDEX',
+    'FUND',
     'OTHER',
 ] as const satisfies readonly MarketInstrumentType[]
 
@@ -111,46 +108,45 @@ export const MARKET_DATA_TIME_GRANULARITIES = [
 ] as const satisfies readonly MarketDataTimeGranularity[]
 
 export const MARKET_INSTRUMENT_TYPE_LABELS: Record<MarketInstrumentType, string> = {
-    EQUITY: 'Action',
-    ETF: 'ETF',
-    MUTUAL_FUND: 'Fonds commun',
-    BOND: 'Obligation',
-    CRYPTO: 'Crypto',
-    CURRENCY: 'Devise',
-    COMMODITY: 'Matière première',
-    INDEX: 'Indice',
-    OPTION: 'Option',
-    REAL_ESTATE_FUND: 'Fonds immobilier',
-    CASH: 'Cash',
-    OTHER: 'Autre',
+    EQUITY: 'wealth.market.instrumentTypes.EQUITY',
+    ETF: 'wealth.market.instrumentTypes.ETF',
+    MUTUAL_FUND: 'wealth.market.instrumentTypes.MUTUAL_FUND',
+    BOND: 'wealth.market.instrumentTypes.BOND',
+    CRYPTO: 'wealth.market.instrumentTypes.CRYPTO',
+    OPTION: 'wealth.market.instrumentTypes.OPTION',
+    COMMODITY: 'wealth.market.instrumentTypes.COMMODITY',
+    FOREX: 'wealth.market.instrumentTypes.FOREX',
+    INDEX: 'wealth.market.instrumentTypes.INDEX',
+    FUND: 'wealth.market.instrumentTypes.FUND',
+    OTHER: 'wealth.market.instrumentTypes.OTHER',
 }
 
 export const MARKET_DATA_STALENESS_STATUS_LABELS: Record<StalenessStatus, string> = {
-    MISSING: 'Aucune donnée',
-    FRESH: 'Fraîche',
-    STALE: 'Obsolète',
-    EXPIRED: 'Expirée',
-    UNKNOWN: 'Inconnue',
+    MISSING: 'wealth.market.freshnessLabels.MISSING',
+    FRESH: 'wealth.market.freshnessLabels.FRESH',
+    STALE: 'wealth.market.freshnessLabels.STALE',
+    EXPIRED: 'wealth.market.freshnessLabels.EXPIRED',
+    UNKNOWN: 'wealth.market.freshnessLabels.UNKNOWN',
 }
 
 export const MARKET_DATA_PROVIDER_ERROR_STATUS_LABELS: Record<ProviderErrorStatus, string> = {
-    UNKNOWN_SYMBOL: 'Symbole inconnu',
-    RATE_LIMITED: 'Limite de requêtes atteinte',
-    PROVIDER_UNAVAILABLE: 'Provider indisponible',
-    UNSUPPORTED_CURRENCY: 'Devise non supportée',
-    INVALID_RESPONSE: 'Réponse invalide',
-    NETWORK_ERROR: 'Erreur réseau',
-    TIMEOUT: 'Délai dépassé',
-    UNKNOWN_ERROR: 'Erreur inconnue',
+    UNKNOWN_SYMBOL: 'wealth.market.providerErrors.UNKNOWN_SYMBOL',
+    RATE_LIMITED: 'wealth.market.providerErrors.RATE_LIMITED',
+    PROVIDER_UNAVAILABLE: 'wealth.market.providerErrors.PROVIDER_UNAVAILABLE',
+    UNSUPPORTED_CURRENCY: 'wealth.market.providerErrors.UNSUPPORTED_CURRENCY',
+    INVALID_RESPONSE: 'wealth.market.providerErrors.INVALID_RESPONSE',
+    NETWORK_ERROR: 'wealth.market.providerErrors.NETWORK_ERROR',
+    TIMEOUT: 'wealth.market.providerErrors.TIMEOUT',
+    UNKNOWN_ERROR: 'wealth.market.providerErrors.UNKNOWN_ERROR',
 }
 
 export const MARKET_VALUATION_MODE_LABELS: Record<MarketValuationMode, string> = {
-    MANUAL: 'Manuel',
-    LATEST_PRICE: 'Dernier prix connu',
-    LATEST_FRESH_PRICE: 'Dernier prix frais',
-    HISTORICAL_PRICE: 'Prix historique',
-    PROVIDER_QUOTE: 'Quote provider',
-    FALLBACK_MANUAL: 'Fallback manuel',
+    MANUAL: 'wealth.market.valuationModes.MANUAL',
+    LATEST_PRICE: 'wealth.market.valuationModes.LATEST_PRICE',
+    LATEST_FRESH_PRICE: 'wealth.market.valuationModes.LATEST_FRESH_PRICE',
+    HISTORICAL_PRICE: 'wealth.market.valuationModes.HISTORICAL_PRICE',
+    PROVIDER_QUOTE: 'wealth.market.valuationModes.PROVIDER_QUOTE',
+    FALLBACK_MANUAL: 'wealth.market.valuationModes.FALLBACK_MANUAL',
 }
 
 export interface MarketDataProviderRateLimit {

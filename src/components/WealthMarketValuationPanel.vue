@@ -5,14 +5,17 @@ import {useI18n} from 'vue-i18n'
 import type {WealthAsset, WealthPortfolio} from '../types/wealth'
 
 import {
+  createHoldingLotMarketValuationRow,
   createPortfolioManualValuationRow,
   createWealthAssetValuationRow,
   getAssetMarketInstrumentId,
+  getHoldingMarketInstrumentId,
   summarizeWealthMarketValuations,
   type MarketDataErrorLite,
   type MarketInstrumentLite,
   type MarketSnapshotLite,
   type WealthAssetWithMarketInstrument,
+  type WealthHoldingLotWithMarketInstrument,
   type WealthMarketFreshnessStatus,
   type WealthMarketValuationRow,
 } from '../utils/wealthMarketValuation'
@@ -97,6 +100,67 @@ function getMarketDataApi(): MarketDataRendererApi | null {
 function activeRecords<T extends { status?: string; includeInNetWorth?: boolean }>(records: T[]) {
   return records.filter((record) => record.status !== 'ARCHIVED' && record.includeInNetWorth !== false)
 }
+function activeHoldingLots(portfolio: WealthPortfolio) {
+  return ((portfolio.holdings || []) as WealthHoldingLotWithMarketInstrument[]).filter((holding) => {
+    const quantity = Number(holding.quantity || 0)
+    const manualValue = Number(holding.marketValue || 0) || (Number(holding.unitPrice || 0) * quantity)
+    return quantity > 0 || manualValue > 0 || Boolean(getHoldingMarketInstrumentId(holding))
+  })
+}
+
+async function appendPortfolioValuationRows(
+  targetRows: WealthMarketValuationRow[],
+  portfolio: WealthPortfolio,
+  marketDataApi: MarketDataRendererApi | null,
+  instrumentsById: Map<number, MarketInstrumentLite>,
+) {
+  const holdings = activeHoldingLots(portfolio)
+
+  if (!holdings.length) {
+    targetRows.push(createPortfolioManualValuationRow(portfolio))
+    return
+  }
+
+  for (const holding of holdings) {
+    const instrumentId = getHoldingMarketInstrumentId(holding)
+    const instrument = instrumentId ? instrumentsById.get(instrumentId) || holding.marketInstrument || null : null
+    const snapshotResult = instrumentId
+      ? await loadLatestSnapshot(marketDataApi, instrumentId)
+      : {snapshot: null, error: null}
+
+    targetRows.push(createHoldingLotMarketValuationRow({
+      holding,
+      portfolio,
+      snapshot: snapshotResult.snapshot,
+      instrument,
+      error: snapshotResult.error,
+      summaryCurrency: props.summaryCurrency,
+    }))
+  }
+}
+
+function fallbackPortfolioValuationRows(portfolio: WealthPortfolio) {
+  const holdings = activeHoldingLots(portfolio)
+  if (!holdings.length) return [createPortfolioManualValuationRow(portfolio)]
+
+  return holdings.map((holding) => createHoldingLotMarketValuationRow({
+    holding,
+    portfolio,
+    summaryCurrency: props.summaryCurrency,
+  }))
+}
+
+function valuationStatusLabel(status: WealthMarketFreshnessStatus) {
+  return t(`wealth.marketValuation.statusLabels.${status}`)
+}
+
+function valuationErrorMessage(row: WealthMarketValuationRow) {
+  if (row.errorCode === 'NO_LOCAL_DATA') return t('wealth.marketValuation.messages.noLocalData')
+  if (row.errorCode === 'PORTFOLIO_NO_MANUAL_VALUE') return t('wealth.marketValuation.messages.portfolioNoManualValue')
+  if (row.errorCode === 'HOLDING_NO_MANUAL_VALUE') return t('wealth.marketValuation.messages.holdingNoManualValue')
+  return row.errorMessage
+}
+
 
 async function loadMarketValuations() {
   loading.value = true
@@ -131,8 +195,8 @@ async function loadMarketValuations() {
     }
 
     for (const portfolio of activeRecords(props.portfolios)) {
-      nextRows.push(createPortfolioManualValuationRow(portfolio))
-    }
+    await appendPortfolioValuationRows(nextRows, portfolio, marketDataApi, instrumentsById)
+  }
 
     rows.value = nextRows
   } catch (error) {
@@ -145,7 +209,7 @@ async function loadMarketValuations() {
             summaryCurrency: props.summaryCurrency,
           }),
       ),
-      ...activeRecords(props.portfolios).map((portfolio) => createPortfolioManualValuationRow(portfolio)),
+      ...activeRecords(props.portfolios).flatMap((portfolio) => fallbackPortfolioValuationRows(portfolio)),
     ]
   } finally {
     loading.value = false
@@ -364,7 +428,7 @@ onMounted(() => {
 
           <p class="mt-1 text-xs text-slate-500">
             {{
-              row.entityType === 'asset' ? t('wealth.marketValuation.standaloneAsset') : t('wealth.marketValuation.portfolio')
+              t(`wealth.marketValuation.entityTypes.${row.entityType}`)
             }}
             <template v-if="row.symbol"> · {{ row.symbol }}</template>
           </p>
@@ -405,10 +469,10 @@ onMounted(() => {
               class="inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
               :class="statusClass(row.status)"
           >
-            {{ row.statusLabel }}
+            {{ valuationStatusLabel(row.status) }}
           </span>
 
-          <p v-if="row.errorMessage" class="mt-2 text-xs text-slate-500">{{ row.errorMessage }}</p>
+          <p v-if="valuationErrorMessage(row)" class="mt-2 text-xs text-slate-500">{{ valuationErrorMessage(row) }}</p>
         </div>
       </div>
     </div>

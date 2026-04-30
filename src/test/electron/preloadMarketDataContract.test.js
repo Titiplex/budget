@@ -27,3 +27,37 @@ describe('preload market data contract', () => {
     expect(wealthIndex).toBeGreaterThan(marketDataIndex)
   })
 })
+
+it('exposes the full marketData preload contract with production IPC channels', async () => {
+  const calls = []
+  const exposed = {}
+  vi.doMock('electron', () => ({
+    contextBridge: {
+      exposeInMainWorld(name, value) {
+        exposed[name] = value
+      },
+    },
+    ipcRenderer: {
+      invoke(channel, payload) {
+        calls.push([channel, payload])
+        return Promise.resolve({ok: true, data: null, error: null})
+      },
+      send() {},
+      on() {},
+    },
+  }))
+
+  await import('../../../electron/preload.js')
+
+  expect(exposed.marketData).toBeTruthy()
+  await exposed.marketData.listInstruments({activeOnly: true})
+  await exposed.marketData.getLatestSnapshot({instrumentId: 1})
+  await exposed.marketData.refreshWatchlist({instrumentIds: [1]})
+
+  expect(calls.map(([channel]) => channel)).toEqual(expect.arrayContaining([
+    'marketData:instrument:list',
+    'marketData:snapshot:latest',
+    'marketData:watchlist:refresh',
+  ]))
+})
+
