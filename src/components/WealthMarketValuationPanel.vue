@@ -100,6 +100,7 @@ function getMarketDataApi(): MarketDataRendererApi | null {
 function activeRecords<T extends { status?: string; includeInNetWorth?: boolean }>(records: T[]) {
   return records.filter((record) => record.status !== 'ARCHIVED' && record.includeInNetWorth !== false)
 }
+
 function activeHoldingLots(portfolio: WealthPortfolio) {
   return ((portfolio.holdings || []) as WealthHoldingLotWithMarketInstrument[]).filter((holding) => {
     const quantity = Number(holding.quantity || 0)
@@ -109,10 +110,10 @@ function activeHoldingLots(portfolio: WealthPortfolio) {
 }
 
 async function appendPortfolioValuationRows(
-  targetRows: WealthMarketValuationRow[],
-  portfolio: WealthPortfolio,
-  marketDataApi: MarketDataRendererApi | null,
-  instrumentsById: Map<number, MarketInstrumentLite>,
+    targetRows: WealthMarketValuationRow[],
+    portfolio: WealthPortfolio,
+    marketDataApi: MarketDataRendererApi | null,
+    instrumentsById: Map<number, MarketInstrumentLite>,
 ) {
   const holdings = activeHoldingLots(portfolio)
 
@@ -125,8 +126,8 @@ async function appendPortfolioValuationRows(
     const instrumentId = getHoldingMarketInstrumentId(holding)
     const instrument = instrumentId ? instrumentsById.get(instrumentId) || holding.marketInstrument || null : null
     const snapshotResult = instrumentId
-      ? await loadLatestSnapshot(marketDataApi, instrumentId)
-      : {snapshot: null, error: null}
+        ? await loadLatestSnapshot(marketDataApi, instrumentId)
+        : {snapshot: null, error: null}
 
     targetRows.push(createHoldingLotMarketValuationRow({
       holding,
@@ -161,7 +162,6 @@ function valuationErrorMessage(row: WealthMarketValuationRow) {
   return row.errorMessage
 }
 
-
 async function loadMarketValuations() {
   loading.value = true
   errorMessage.value = null
@@ -195,8 +195,8 @@ async function loadMarketValuations() {
     }
 
     for (const portfolio of activeRecords(props.portfolios)) {
-    await appendPortfolioValuationRows(nextRows, portfolio, marketDataApi, instrumentsById)
-  }
+      await appendPortfolioValuationRows(nextRows, portfolio, marketDataApi, instrumentsById)
+    }
 
     rows.value = nextRows
   } catch (error) {
@@ -288,6 +288,10 @@ function sourceLabel(row: WealthMarketValuationRow) {
   if (row.source === 'MANUAL_FALLBACK') return t('wealth.marketValuation.sources.MANUAL_FALLBACK')
 
   return t('wealth.marketValuation.sources.UNAVAILABLE')
+}
+
+function entityTypeLabel(row: WealthMarketValuationRow) {
+  return t(`wealth.marketValuation.entityTypes.${row.entityType}`)
 }
 
 function refreshValuations() {
@@ -427,9 +431,7 @@ onMounted(() => {
           <p class="font-semibold text-white">{{ row.label }}</p>
 
           <p class="mt-1 text-xs text-slate-500">
-            {{
-              t(`wealth.marketValuation.entityTypes.${row.entityType}`)
-            }}
+            {{ entityTypeLabel(row) }}
             <template v-if="row.symbol"> · {{ row.symbol }}</template>
           </p>
         </div>
