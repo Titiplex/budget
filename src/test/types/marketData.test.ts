@@ -20,7 +20,19 @@ import {
 describe('market data shared contracts', () => {
     it('exposes stable enum-like values needed by renderer and Electron main', () => {
         expect(MARKET_INSTRUMENT_TYPES).toEqual(
-            expect.arrayContaining(['EQUITY', 'ETF', 'BOND', 'CRYPTO', 'CURRENCY', 'OTHER']),
+            expect.arrayContaining([
+                'EQUITY',
+                'ETF',
+                'MUTUAL_FUND',
+                'BOND',
+                'CRYPTO',
+                'OPTION',
+                'COMMODITY',
+                'FOREX',
+                'INDEX',
+                'FUND',
+                'OTHER',
+            ])
         )
         expect(MARKET_DATA_STALENESS_STATUSES).toEqual(
             expect.arrayContaining(['MISSING', 'FRESH', 'STALE', 'EXPIRED', 'UNKNOWN']),
