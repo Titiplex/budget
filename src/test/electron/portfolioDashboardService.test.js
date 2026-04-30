@@ -92,7 +92,7 @@ describe('portfolio dashboard service', () => {
         expect(dashboard.dataStatus).toMatchObject({fresh: 1, missing: 1, total: 2})
         expect(dashboard.allocationBlocks.assetClass).toEqual(expect.arrayContaining([
             expect.objectContaining({key: 'etf', marketValue: 1200, allocationPercent: 100}),
-            expect.objectContaining({key: 'unknown', marketValue: 0, allocationPercent: 0, completenessStatus: 'missing'}),
+            expect.objectContaining({key: 'other', marketValue: 0, allocationPercent: 0, completenessStatus: 'missing'}),
         ]))
         expect(dashboard.history).toHaveLength(2)
         expect(dashboard.isEmpty).toBe(false)
