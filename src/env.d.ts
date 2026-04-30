@@ -7,14 +7,42 @@ declare module '*.vue' {
 }
 
 type AccountTypeDto = 'CASH' | 'BANK' | 'SAVINGS' | 'CREDIT' | 'INVESTMENT' | 'OTHER'
-type AccountTaxReportingTypeDto = 'STANDARD' | 'BANK' | 'CASH' | 'BROKERAGE' | 'CRYPTO' | 'LIFE_INSURANCE' | 'RETIREMENT' | 'LOAN' | 'OTHER'
+type AccountTaxReportingTypeDto =
+    'STANDARD'
+    | 'BANK'
+    | 'CASH'
+    | 'BROKERAGE'
+    | 'CRYPTO'
+    | 'LIFE_INSURANCE'
+    | 'RETIREMENT'
+    | 'LOAN'
+    | 'OTHER'
 type TransactionKindDto = 'INCOME' | 'EXPENSE' | 'TRANSFER'
 type ConversionModeDto = 'NONE' | 'MANUAL' | 'AUTOMATIC'
 type TransferDirectionDto = 'OUT' | 'IN'
 type BudgetPeriodDto = 'MONTHLY' | 'YEARLY' | 'CUSTOM'
 type RecurringFrequencyDto = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
-type TaxIncomeCategoryDto = 'EMPLOYMENT' | 'BUSINESS' | 'INTEREST' | 'DIVIDEND' | 'CAPITAL_GAIN' | 'RENTAL' | 'PENSION' | 'BENEFIT' | 'GIFT' | 'REFUND' | 'TRANSFER' | 'OTHER'
-type TaxTreatmentDto = 'UNKNOWN' | 'NOT_TAXABLE' | 'TAXABLE_NO_WITHHOLDING' | 'TAX_WITHHELD_AT_SOURCE' | 'FOREIGN_TAX_CREDIT_CANDIDATE' | 'TREATY_EXEMPT_CANDIDATE' | 'REVIEW_REQUIRED'
+type TaxIncomeCategoryDto =
+    'EMPLOYMENT'
+    | 'BUSINESS'
+    | 'INTEREST'
+    | 'DIVIDEND'
+    | 'CAPITAL_GAIN'
+    | 'RENTAL'
+    | 'PENSION'
+    | 'BENEFIT'
+    | 'GIFT'
+    | 'REFUND'
+    | 'TRANSFER'
+    | 'OTHER'
+type TaxTreatmentDto =
+    'UNKNOWN'
+    | 'NOT_TAXABLE'
+    | 'TAXABLE_NO_WITHHOLDING'
+    | 'TAX_WITHHELD_AT_SOURCE'
+    | 'FOREIGN_TAX_CREDIT_CANDIDATE'
+    | 'TREATY_EXEMPT_CANDIDATE'
+    | 'REVIEW_REQUIRED'
 
 interface AccountDto {
     id: number
@@ -150,6 +178,167 @@ interface RecurringGenerationResult {
     generatedTemplates: number
     generatedTransactions: number
 }
+
+
+type MarketDataIpcErrorCodeDto =
+    | 'PROVIDER_UNAVAILABLE'
+    | 'UNKNOWN_SYMBOL'
+    | 'NO_LOCAL_DATA'
+    | 'STALE_DATA'
+    | 'INVALID_INPUT'
+    | 'INVALID_PRICE'
+    | 'INVALID_PROVIDER_RESPONSE'
+    | 'REPOSITORY_ERROR'
+
+type MarketPriceFreshnessStatusDto = 'UNKNOWN' | 'FRESH' | 'STALE' | 'UNAVAILABLE' | 'ERROR'
+type MarketInstrumentTypeDto =
+    'EQUITY'
+    | 'ETF'
+    | 'MUTUAL_FUND'
+    | 'BOND'
+    | 'CRYPTO'
+    | 'OPTION'
+    | 'COMMODITY'
+    | 'FOREX'
+    | 'INDEX'
+    | 'FUND'
+    | 'OTHER'
+type MarketDataRefreshStatusDto = 'REFRESHED' | 'FAILED_WITH_FALLBACK' | 'FAILED_NO_DATA'
+type MarketDataValuationSourceDto = 'LOCAL_SNAPSHOT' | 'MANUAL_FALLBACK' | 'UNAVAILABLE'
+
+interface MarketDataIpcErrorDto {
+    code: MarketDataIpcErrorCodeDto | string
+    message: string
+    details: unknown | null
+}
+
+interface MarketDataIpcResultDto<T> {
+    ok: boolean
+    data: T | null
+    error: MarketDataIpcErrorDto | null
+}
+
+interface MarketInstrumentDto {
+    id: number
+    instrumentKey: string
+    symbol: string
+    name: string | null
+    instrumentType: MarketInstrumentTypeDto
+    exchange: string | null
+    quoteCurrency: string
+    provider: string | null
+    providerInstrumentId: string | null
+    currentPrice: number | null
+    currentPriceCurrency: string | null
+    currentPriceQuotedAt: string | null
+    currentPriceProvider: string | null
+    freshnessStatus: MarketPriceFreshnessStatusDto
+    freshnessCheckedAt: string | null
+    staleAfterHours: number
+    isActive: boolean
+    note: string | null
+    createdAt: string | null
+    updatedAt: string | null
+}
+
+interface MarketPriceSnapshotDto {
+    id: number
+    marketInstrumentId: number | null
+    holdingLotId: number | null
+    unitPrice: number
+    currency: string
+    pricedAt: string | null
+    provider: string
+    source: 'MANUAL' | 'IMPORTED' | 'API'
+    freshnessStatus: MarketPriceFreshnessStatusDto
+    retrievedAt: string | null
+    note: string | null
+    createdAt: string | null
+    updatedAt: string | null
+}
+
+interface MarketFreshnessStatusDto {
+    instrumentId: number
+    symbol: string
+    exchange: string | null
+    provider: string | null
+    quoteCurrency: string
+    currentPrice: number | null
+    currentPriceCurrency: string | null
+    currentPriceQuotedAt: string | null
+    freshnessStatus: MarketPriceFreshnessStatusDto
+    freshnessCheckedAt: string | null
+    staleAfterHours: number
+}
+
+interface MarketDataRefreshResultDto {
+    status: MarketDataRefreshStatusDto
+    instrument: MarketInstrumentDto
+    snapshot: MarketPriceSnapshotDto | null
+    error: MarketDataIpcErrorDto | null
+    fallbackSnapshot: MarketPriceSnapshotDto | null
+}
+
+interface MarketDataValuationResultDto {
+    entityType: 'asset' | 'holdingLot'
+    entityId: number
+    label: string
+    status: MarketPriceFreshnessStatusDto
+    valuationSource: MarketDataValuationSourceDto
+    quantity: number | null
+    unitPrice: number | null
+    currency: string
+    marketValue: number | null
+    pricedAt: string | null
+    snapshot: MarketPriceSnapshotDto | null
+    error: MarketDataIpcErrorDto | null
+}
+
+interface MarketInstrumentListFiltersDto {
+    ids?: number[]
+    symbol?: string
+    exchange?: string
+    provider?: string
+    quoteCurrency?: string
+    search?: string
+    activeOnly?: boolean
+}
+
+interface MarketSnapshotReadOptionsDto {
+    instrumentId?: number
+    holdingLotId?: number
+    provider?: string
+    from?: string
+    to?: string
+    limit?: number
+}
+
+interface MarketDataRefreshOptionsDto {
+    instrumentId?: number
+    symbol?: string
+    exchange?: string
+    provider?: string
+    quoteCurrency?: string
+}
+
+interface MarketDataValuationOptionsDto {
+    assetId?: number
+    holdingLotId?: number
+    quantity?: number
+    targetCurrency?: string
+}
+
+interface Window {
+    marketData: {
+        listInstruments: (filters?: MarketInstrumentListFiltersDto) => Promise<MarketDataIpcResultDto<MarketInstrumentDto[]>>
+        getLatestSnapshot: (options: MarketSnapshotReadOptionsDto) => Promise<MarketDataIpcResultDto<MarketPriceSnapshotDto>>
+        listSnapshotHistory: (options: MarketSnapshotReadOptionsDto) => Promise<MarketDataIpcResultDto<MarketPriceSnapshotDto[]>>
+        refresh: (options: MarketDataRefreshOptionsDto) => Promise<MarketDataIpcResultDto<MarketDataRefreshResultDto>>
+        getAssetValuation: (options: MarketDataValuationOptionsDto) => Promise<MarketDataIpcResultDto<MarketDataValuationResultDto>>
+        listFreshnessStatuses: (filters?: MarketInstrumentListFiltersDto) => Promise<MarketDataIpcResultDto<MarketFreshnessStatusDto[]>>
+    }
+}
+
 
 interface Window {
     versions: {

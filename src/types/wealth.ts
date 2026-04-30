@@ -229,6 +229,19 @@ export const WEALTH_VALUATION_MODE_LABELS: Record<WealthValuationMode, string> =
     IMPORTED: 'Importé',
 }
 
+export interface WealthMarketInstrumentRef {
+    id: number
+    symbol?: string | null
+    name?: string | null
+    quoteCurrency?: string | null
+    provider?: string | null
+    currentPrice?: number | null
+    currentPriceCurrency?: string | null
+    currentPriceQuotedAt?: string | null
+    currentPriceProvider?: string | null
+    freshnessStatus?: string | null
+}
+
 export interface WealthBudgetAccountLink {
     id: number
     name: string
@@ -299,6 +312,8 @@ export interface HoldingLot {
     updatedAt: WealthDateTimeString
     portfolioId: number
     portfolio?: WealthPortfolio | null
+    marketInstrumentId?: number | null
+    marketInstrument?: WealthMarketInstrumentRef | null
     priceSnapshots?: PriceSnapshot[]
 }
 
@@ -312,6 +327,11 @@ export interface PriceSnapshot {
     createdAt: WealthDateTimeString
     updatedAt: WealthDateTimeString
     holdingLotId: number
+    provider?: string | null
+    freshnessStatus?: string | null
+    retrievedAt?: WealthDateTimeString | null
+    marketInstrumentId?: number | null
+    marketInstrument?: WealthMarketInstrumentRef | null
     holdingLot?: HoldingLot | null
 }
 
@@ -425,6 +445,7 @@ export interface HoldingLotFormData {
     openedAt: WealthDateTimeString | null
     valueAsOf: WealthDateTimeString | null
     portfolioId: number
+    marketInstrumentId?: number | null
     note: string | null
 }
 

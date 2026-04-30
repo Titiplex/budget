@@ -25,18 +25,22 @@ model Account {
   recurringTemplates  RecurringTransactionTemplate[]
   transferPeerForRows Transaction[]                  @relation("TransactionTransferPeer")
 
+  // Pont optionnel vers le domaine patrimoine. Les transactions budget restent
+  // la source de vérité du cash-flow; le patrimoine référence un compte uniquement
+  // pour faciliter la réconciliation.
   wealthPortfolio   Portfolio?
   wealthLiabilities Liability[]
 }
 
 model Category {
-  id                 Int                            @id @default(autoincrement())
-  name               String                         @unique
-  kind               TransactionKind
-  color              String?
-  description        String?
-  createdAt          DateTime                       @default(now())
-  updatedAt          DateTime                       @updatedAt
+  id          Int             @id @default(autoincrement())
+  name        String          @unique
+  kind        TransactionKind
+  color       String?
+  description String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
   transactions       Transaction[]
   budgetTargets      BudgetTarget[]
   recurringTemplates RecurringTransactionTemplate[]
@@ -66,12 +70,10 @@ model Transaction {
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
-  accountId Int
-  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
-
-  categoryId Int?
-  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-
+  accountId             Int
+  account               Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId            Int?
+  category              Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   transferGroup         String?
   transferDirection     TransferDirection?
   transferPeerAccountId Int?
@@ -127,13 +129,14 @@ model RecurringTransactionTemplate {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  accountId Int
-  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
-
+  accountId  Int
+  account    Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
   categoryId Int?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 }
 
+/// Actif patrimonial autonome suivi manuellement hors ledger de transactions budget.
+/// Exemples : immobilier, véhicule, parts privées, objet de collection, réserve cash.
 model Asset {
   id                 Int                 @id @default(autoincrement())
   name               String
@@ -156,11 +159,19 @@ model Asset {
 
   securedLiabilities Liability[]
 
+  // Lien optionnel vers un instrument coté/valorisable. currentValue reste le
+  // fallback manuel offline lorsque le prix de marché est absent ou obsolète.
+  marketInstrumentId Int?
+  marketInstrument   MarketInstrument? @relation("AssetMarketInstrument", fields: [marketInstrumentId], references: [id], onDelete: SetNull)
+
   @@index([type])
   @@index([status])
   @@index([currency])
+  @@index([marketInstrumentId])
 }
 
+/// Conteneur d'investissement. Il est volontairement séparé de Account :
+/// Account stocke les flux budget, Portfolio stocke la valorisation patrimoniale.
 model Portfolio {
   id                 Int                 @id @default(autoincrement())
   name               String
@@ -181,10 +192,9 @@ model Portfolio {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
-  accountId Int?     @unique
-  account   Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
-
-  holdings HoldingLot[]
+  accountId Int?         @unique
+  account   Account?     @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  holdings  HoldingLot[]
 
   @@index([type])
   @@index([status])
@@ -192,6 +202,52 @@ model Portfolio {
   @@index([institutionCountry, institutionRegion])
 }
 
+/// Instrument de marché normalisé et provider-agnostic.
+/// Il stocke le dernier prix connu comme cache local, tandis que PriceSnapshot
+/// garde l'historique append-only exploitable offline.
+model MarketInstrument {
+  id Int @id @default(autoincrement())
+
+  // Clé normalisée calculée côté application pour éviter les ambiguïtés SQLite
+  // liées aux colonnes nullable dans les contraintes uniques composites.
+  // Format conseillé : `${provider ?? 'manual'}:${symbol}:${exchange ?? 'none'}:${quoteCurrency}`.
+  instrumentKey String @unique
+
+  symbol               String
+  name                 String?
+  instrumentType       MarketInstrumentType @default(OTHER)
+  exchange             String?
+  quoteCurrency        String               @default("CAD")
+  provider             String?
+  providerInstrumentId String?
+
+  currentPrice         Float?
+  currentPriceCurrency String?
+  currentPriceQuotedAt DateTime?
+  currentPriceProvider String?
+  freshnessStatus      MarketPriceFreshnessStatus @default(UNKNOWN)
+  freshnessCheckedAt   DateTime?
+  staleAfterHours      Int                        @default(24)
+  isActive             Boolean                    @default(true)
+  note                 String?
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+
+  standaloneAssets Asset[]         @relation("AssetMarketInstrument")
+  holdingLots      HoldingLot[]
+  priceSnapshots   PriceSnapshot[]
+
+  @@unique([symbol, exchange, quoteCurrency, provider])
+  @@unique([provider, providerInstrumentId])
+  @@index([symbol])
+  @@index([exchange])
+  @@index([quoteCurrency])
+  @@index([freshnessStatus])
+}
+
+/// Lot/position manuel dans un portefeuille.
+/// Les champs unitPrice/marketValue restent le fallback manuel; marketInstrumentId
+/// permet de relier le lot à un instrument et à ses snapshots de prix.
 model HoldingLot {
   id          Int               @id @default(autoincrement())
   name        String
@@ -209,35 +265,52 @@ model HoldingLot {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  portfolioId Int
-  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
-
-  priceSnapshots PriceSnapshot[]
+  portfolioId        Int
+  portfolio          Portfolio         @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  priceSnapshots     PriceSnapshot[]
+  marketInstrumentId Int?
+  marketInstrument   MarketInstrument? @relation(fields: [marketInstrumentId], references: [id], onDelete: SetNull)
 
   @@index([portfolioId])
   @@index([assetClass])
   @@index([symbol])
   @@index([currency])
+  @@index([marketInstrumentId])
 }
 
+/// Snapshot local d'un prix connu.
+/// - marketInstrumentId : historique normalisé pour un instrument.
+/// - holdingLotId : compatibilité avec les snapshots manuels par position existants.
+/// - provider : source concrète et provider-agnostic (`manual`, `yahoo`, `import-csv`, etc.).
 model PriceSnapshot {
-  id        Int                 @id @default(autoincrement())
-  unitPrice Float
-  currency  String              @default("CAD")
-  pricedAt  DateTime
-  source    PriceSnapshotSource @default(MANUAL)
-  note      String?
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  id              Int                        @id @default(autoincrement())
+  unitPrice       Float
+  currency        String                     @default("CAD")
+  pricedAt        DateTime
+  provider        String                     @default("manual")
+  source          PriceSnapshotSource        @default(MANUAL)
+  freshnessStatus MarketPriceFreshnessStatus @default(UNKNOWN)
+  retrievedAt     DateTime                   @default(now())
+  note            String?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
 
-  holdingLotId Int
-  holdingLot   HoldingLot @relation(fields: [holdingLotId], references: [id], onDelete: Cascade)
+  holdingLotId       Int?
+  holdingLot         HoldingLot?       @relation(fields: [holdingLotId], references: [id], onDelete: Cascade)
+  marketInstrumentId Int?
+  marketInstrument   MarketInstrument? @relation(fields: [marketInstrumentId], references: [id], onDelete: Cascade)
 
   @@unique([holdingLotId, pricedAt, currency, source])
+  @@unique([marketInstrumentId, pricedAt, currency, provider])
   @@index([pricedAt])
   @@index([currency])
+  @@index([provider])
+  @@index([freshnessStatus])
+  @@index([marketInstrumentId])
 }
 
+/// Dette/passif suivi dans le domaine patrimoine. Peut être lié optionnellement à un
+/// Account budget pour réconciliation, mais les remboursements restent des Transaction.
 model Liability {
   id                 Int                        @id @default(autoincrement())
   name               String
@@ -262,10 +335,9 @@ model Liability {
   updatedAt          DateTime                   @updatedAt
 
   securedAssetId Int?
-  securedAsset   Asset? @relation(fields: [securedAssetId], references: [id], onDelete: SetNull)
-
-  accountId Int?
-  account   Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  securedAsset   Asset?   @relation(fields: [securedAssetId], references: [id], onDelete: SetNull)
+  accountId      Int?
+  account        Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
   @@index([type])
   @@index([status])
@@ -274,6 +346,8 @@ model Liability {
   @@index([accountId])
 }
 
+/// Agrégat persistant à date donnée pour historiser la valeur nette.
+/// Les breakdowns sont des chaînes JSON pour rester simples côté SQLite et auditables.
 model NetWorthSnapshot {
   id                     Int                    @id @default(autoincrement())
   snapshotDate           DateTime
@@ -415,6 +489,28 @@ enum HoldingAssetClass {
   COMMODITY
   REAL_ESTATE_FUND
   OTHER
+}
+
+enum MarketInstrumentType {
+  EQUITY
+  ETF
+  MUTUAL_FUND
+  BOND
+  CRYPTO
+  OPTION
+  COMMODITY
+  FOREX
+  INDEX
+  FUND
+  OTHER
+}
+
+enum MarketPriceFreshnessStatus {
+  UNKNOWN
+  FRESH
+  STALE
+  UNAVAILABLE
+  ERROR
 }
 
 enum LiabilityType {

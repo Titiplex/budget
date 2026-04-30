@@ -1,12 +1,12 @@
 import {describe, expect, it} from 'vitest'
-import type {Account, TaxProfile, Transaction} from '../types/budget'
+import type {Account, TaxProfile, Transaction} from '../../types/budget'
 import {
     buildTaxReport,
     getApplicableTaxRuleSets,
     getTaxResidenceOption,
     type TaxJurisdictionRuleSet,
     taxReportToMarkdown,
-} from './taxReport'
+} from '../../utils/taxReport'
 
 function account(overrides: Partial<Account>): Account {
     return {
