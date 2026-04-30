@@ -1,6 +1,6 @@
-const {describe, expect, it, vi} = require('vitest')
+import {describe, expect, it, vi} from 'vitest'
 
-const handlers = new Map()
+const handlers = vi.hoisted(() => new Map())
 
 vi.mock('electron', () => ({
     ipcMain: {
@@ -30,6 +30,7 @@ vi.mock('../../../electron/portfolio/portfolioDashboardService', () => ({
 describe('portfolio dashboard IPC', () => {
     it('registers a renderer-safe dashboard handler through wealth IPC', async () => {
         handlers.clear()
+        vi.resetModules()
         const {registerWealthHandlers} = require('../../../electron/ipc/registerWealthHandlers')
         const {getPortfolioDashboard} = require('../../../electron/portfolio/portfolioDashboardService')
         const prisma = {portfolio: {}, asset: {}, liability: {}, netWorthSnapshot: {}}
