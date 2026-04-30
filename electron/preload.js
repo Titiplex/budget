@@ -96,4 +96,5 @@ contextBridge.exposeInMainWorld('wealth', {
   getOverview: (options) => ipcRenderer.invoke('db:wealth:overview', options),
   createGeneratedNetWorthSnapshot: (options) => ipcRenderer.invoke('db:netWorthSnapshot:createGenerated', options),
   listNetWorthSnapshots: (filters) => ipcRenderer.invoke('db:netWorthSnapshot:list', filters),
+  getPortfolioAnalyticsDashboard: (options) => ipcRenderer.invoke('db:portfolioAnalytics:dashboard', options),
 })

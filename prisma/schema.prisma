@@ -30,6 +30,9 @@ model Account {
   // pour faciliter la réconciliation.
   wealthPortfolio   Portfolio?
   wealthLiabilities Liability[]
+
+  investmentPositions InvestmentPosition[]
+  investmentMovements InvestmentMovement[]
 }
 
 model Category {
@@ -196,6 +199,9 @@ model Portfolio {
   account   Account?     @relation(fields: [accountId], references: [id], onDelete: SetNull)
   holdings  HoldingLot[]
 
+  investmentPositions InvestmentPosition[]
+  investmentMovements InvestmentMovement[]
+
   @@index([type])
   @@index([status])
   @@index([currency])
@@ -233,9 +239,10 @@ model MarketInstrument {
   createdAt            DateTime                   @default(now())
   updatedAt            DateTime                   @updatedAt
 
-  standaloneAssets Asset[]         @relation("AssetMarketInstrument")
-  holdingLots      HoldingLot[]
-  priceSnapshots   PriceSnapshot[]
+  standaloneAssets      Asset[]                @relation("AssetMarketInstrument")
+  holdingLots           HoldingLot[]
+  investmentInstruments InvestmentInstrument[]
+  priceSnapshots        PriceSnapshot[]
 
   @@unique([symbol, exchange, quoteCurrency, provider])
   @@unique([provider, providerInstrumentId])
@@ -295,18 +302,124 @@ model PriceSnapshot {
   createdAt       DateTime                   @default(now())
   updatedAt       DateTime                   @updatedAt
 
-  holdingLotId       Int?
-  holdingLot         HoldingLot?       @relation(fields: [holdingLotId], references: [id], onDelete: Cascade)
-  marketInstrumentId Int?
-  marketInstrument   MarketInstrument? @relation(fields: [marketInstrumentId], references: [id], onDelete: Cascade)
+  holdingLotId         Int?
+  holdingLot           HoldingLot?         @relation(fields: [holdingLotId], references: [id], onDelete: Cascade)
+  marketInstrumentId   Int?
+  marketInstrument     MarketInstrument?   @relation(fields: [marketInstrumentId], references: [id], onDelete: Cascade)
+  investmentPositionId Int?
+  investmentPosition   InvestmentPosition? @relation(fields: [investmentPositionId], references: [id], onDelete: Cascade)
 
   @@unique([holdingLotId, pricedAt, currency, source])
   @@unique([marketInstrumentId, pricedAt, currency, provider])
+  @@unique([investmentPositionId, pricedAt, currency, provider])
   @@index([pricedAt])
   @@index([currency])
   @@index([provider])
   @@index([freshnessStatus])
   @@index([marketInstrumentId])
+  @@index([investmentPositionId])
+}
+
+/// Investable instrument owned in one or more investment accounts.
+/// marketInstrumentId is optional and only bridges to the local market-data cache.
+model InvestmentInstrument {
+  id               Int                        @id @default(autoincrement())
+  instrumentKey    String                     @unique
+  name             String
+  symbol           String?
+  assetClass       InvestmentAssetClass
+  geographicRegion InvestmentGeographicRegion @default(GLOBAL)
+  sector           InvestmentSector?
+  currency         String                     @default("CAD")
+  exchange         String?
+  isin             String?
+  cusip            String?
+  issuer           String?
+  note             String?
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+
+  marketInstrumentId Int?
+  marketInstrument   MarketInstrument?    @relation(fields: [marketInstrumentId], references: [id], onDelete: SetNull)
+  positions          InvestmentPosition[]
+  movements          InvestmentMovement[]
+
+  @@index([assetClass])
+  @@index([geographicRegion])
+  @@index([sector])
+  @@index([symbol])
+  @@index([currency])
+  @@index([marketInstrumentId])
+}
+
+/// Current position for an instrument in an investment account.
+/// Quantity and cost fields are cached values; InvestmentMovement is auditable.
+model InvestmentPosition {
+  id              Int                @id @default(autoincrement())
+  status          WealthRecordStatus @default(ACTIVE)
+  quantity        Float              @default(0)
+  averageUnitCost Float?
+  costBasis       Float?
+  costCurrency    String             @default("CAD")
+  openedAt        DateTime?
+  closedAt        DateTime?
+  valueAsOf       DateTime?
+  note            String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  portfolioId  Int
+  portfolio    Portfolio            @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  accountId    Int
+  account      Account              @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  instrumentId Int
+  instrument   InvestmentInstrument @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+
+  movements      InvestmentMovement[]
+  priceSnapshots PriceSnapshot[]
+
+  @@unique([portfolioId, accountId, instrumentId])
+  @@index([portfolioId])
+  @@index([accountId])
+  @@index([instrumentId])
+  @@index([status])
+}
+
+/// Auditable investment operation. BUY/SELL/MANUAL_ADJUSTMENT can use quantity
+/// and unitPrice; DIVIDEND/INTEREST/FEE/DEPOSIT/WITHDRAWAL can use cashAmount.
+model InvestmentMovement {
+  id             Int                    @id @default(autoincrement())
+  type           InvestmentMovementType
+  quantity       Float?
+  unitPrice      Float?
+  priceCurrency  String                 @default("CAD")
+  cashAmount     Float?
+  cashCurrency   String                 @default("CAD")
+  feeAmount      Float                  @default(0)
+  feeCurrency    String                 @default("CAD")
+  operationDate  DateTime
+  settlementDate DateTime?
+  externalRef    String?
+  note           String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  portfolioId  Int
+  portfolio    Portfolio             @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  accountId    Int
+  account      Account               @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  instrumentId Int?
+  instrument   InvestmentInstrument? @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+  positionId   Int?
+  position     InvestmentPosition?   @relation(fields: [positionId], references: [id], onDelete: SetNull)
+
+  @@unique([accountId, externalRef])
+  @@index([portfolioId])
+  @@index([accountId])
+  @@index([instrumentId])
+  @@index([positionId])
+  @@index([type])
+  @@index([operationDate])
 }
 
 /// Dette/passif suivi dans le domaine patrimoine. Peut être lié optionnellement à un
@@ -488,6 +601,63 @@ enum HoldingAssetClass {
   OPTION
   COMMODITY
   REAL_ESTATE_FUND
+  OTHER
+}
+
+enum InvestmentAssetClass {
+  CASH
+  EQUITY
+  ETF
+  MUTUAL_FUND
+  BOND
+  CRYPTO
+  OPTION
+  COMMODITY
+  REAL_ESTATE
+  PRIVATE_EQUITY
+  FOREX
+  OTHER
+}
+
+enum InvestmentMovementType {
+  BUY
+  SELL
+  DIVIDEND
+  INTEREST
+  FEE
+  DEPOSIT
+  WITHDRAWAL
+  MANUAL_ADJUSTMENT
+}
+
+enum InvestmentGeographicRegion {
+  GLOBAL
+  NORTH_AMERICA
+  CANADA
+  UNITED_STATES
+  EUROPE
+  EUROZONE
+  UNITED_KINGDOM
+  ASIA_PACIFIC
+  EMERGING_MARKETS
+  DEVELOPED_MARKETS
+  LATIN_AMERICA
+  MIDDLE_EAST_AFRICA
+  OTHER
+}
+
+enum InvestmentSector {
+  COMMUNICATION_SERVICES
+  CONSUMER_DISCRETIONARY
+  CONSUMER_STAPLES
+  ENERGY
+  FINANCIALS
+  HEALTH_CARE
+  INDUSTRIALS
+  INFORMATION_TECHNOLOGY
+  MATERIALS
+  REAL_ESTATE
+  UTILITIES
   OTHER
 }
 
