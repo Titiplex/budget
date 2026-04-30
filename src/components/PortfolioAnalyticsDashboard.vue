@@ -42,6 +42,10 @@ type PortfolioDashboard = {
   warnings: {positionId: number | null; warning: string}[]
 }
 
+type PortfolioAnalyticsRendererApi = {
+  getPortfolioAnalyticsDashboard?: (options?: Record<string, unknown>) => Promise<PortfolioDashboard>
+}
+
 const props = withDefaults(defineProps<{summaryCurrency?: string}>(), {summaryCurrency: 'CAD'})
 const emit = defineEmits<{(event: 'create-asset'): void; (event: 'create-movement'): void}>()
 
@@ -59,8 +63,13 @@ const allocationTabs = [
 
 const activeAllocation = ref<(typeof allocationTabs)[number]['key']>('asset')
 
+function portfolioAnalyticsApi(): PortfolioAnalyticsRendererApi | null {
+  return (window as unknown as {wealth?: PortfolioAnalyticsRendererApi}).wealth || null
+}
+
 async function loadDashboard() {
-  if (!window.wealth?.getPortfolioAnalyticsDashboard) {
+  const api = portfolioAnalyticsApi()
+  if (!api?.getPortfolioAnalyticsDashboard) {
     errorMessage.value = 'API Portfolio analytics indisponible.'
     return
   }
@@ -69,7 +78,7 @@ async function loadDashboard() {
   errorMessage.value = null
 
   try {
-    dashboard.value = await window.wealth.getPortfolioAnalyticsDashboard({
+    dashboard.value = await api.getPortfolioAnalyticsDashboard({
       baseCurrency: props.summaryCurrency,
       incomePeriod: 'currentMonth',
     })
