@@ -1,6 +1,7 @@
 const {ipcMain} = require('electron')
 
 const {getPrisma} = require('../db')
+const {getPortfolioDashboard} = require('../portfolio/portfolioDashboardService')
 const {
     createAsset,
     createLiability,
@@ -42,6 +43,9 @@ function registerWealthHandlers(prisma = getPrisma()) {
         createGeneratedNetWorthSnapshot(prisma, options),
     )
     ipcMain.handle('db:netWorthSnapshot:list', async (_event, filters) => listNetWorthSnapshots(prisma, filters))
+    ipcMain.handle('db:portfolioAnalytics:dashboard', async (_event, options) =>
+        getPortfolioDashboard(options || {}, {prisma}),
+    )
 }
 
 module.exports = {registerWealthHandlers}
