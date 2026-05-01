@@ -98,3 +98,11 @@ contextBridge.exposeInMainWorld('wealth', {
   listNetWorthSnapshots: (filters) => ipcRenderer.invoke('db:netWorthSnapshot:list', filters),
   getPortfolioAnalyticsDashboard: (options) => ipcRenderer.invoke('db:portfolioAnalytics:dashboard', options),
 })
+
+contextBridge.exposeInMainWorld('goals', {
+  listFinancialGoals: (filters) => ipcRenderer.invoke('db:financialGoal:list', filters),
+  getFinancialGoal: (id) => ipcRenderer.invoke('db:financialGoal:get', id),
+  createFinancialGoal: (data) => ipcRenderer.invoke('db:financialGoal:create', data),
+  updateFinancialGoal: (id, data) => ipcRenderer.invoke('db:financialGoal:update', id, data),
+  deleteFinancialGoal: (id) => ipcRenderer.invoke('db:financialGoal:delete', id),
+})
