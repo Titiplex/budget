@@ -29,9 +29,14 @@ export type ProjectionResultStatus = 'reachable' | 'unreachableWithinHorizon' | 
 
 export type GoalsProjectionErrorCode =
     | 'goalNotFound'
+    | 'scenarioNotFound'
     | 'invalidTargetAmount'
     | 'invalidHorizon'
     | 'invalidCurrency'
+    | 'invalidScenarioName'
+    | 'invalidScenarioKind'
+    | 'invalidMonthlySurplus'
+    | 'invalidRate'
     | 'projectionImpossible'
 
 export const FINANCIAL_GOAL_TYPES = [
@@ -68,9 +73,14 @@ export const PROJECTION_RESULT_STATUSES = [
 
 export const GOALS_PROJECTION_ERROR_CODES = [
     'goalNotFound',
+    'scenarioNotFound',
     'invalidTargetAmount',
     'invalidHorizon',
     'invalidCurrency',
+    'invalidScenarioName',
+    'invalidScenarioKind',
+    'invalidMonthlySurplus',
+    'invalidRate',
     'projectionImpossible',
 ] as const satisfies readonly GoalsProjectionErrorCode[]
 
@@ -98,7 +108,15 @@ export interface ProjectionScenario {
     name: string
     kind: ProjectionScenarioKind
     description: string | null
+    monthlySurplus: number
+    annualGrowthRate: number | null
+    annualInflationRate: number | null
+    horizonMonths: number
+    horizonYears: number
+    currency: GoalCurrencyCode
     isDefault: boolean
+    isActive: boolean
+    notes: string | null
     createdAt: ProjectionDateTimeString
     updatedAt: ProjectionDateTimeString
 }
@@ -116,6 +134,7 @@ export interface ProjectionInput {
     estimatedMonthlySurplus: number
     manualMonthlyContribution?: number | null
     annualGrowthRate?: number | null
+    annualInflationRate?: number | null
 }
 
 export interface ProjectionMonth {
@@ -124,6 +143,7 @@ export interface ProjectionMonth {
     projectedValue: number
     contributionAmount: number
     growthAmount: number
+    inflationImpactAmount?: number
     remainingAmount: number
     progressPercent: number
     currency: GoalCurrencyCode
@@ -186,8 +206,16 @@ export interface UpdateFinancialGoalInput extends Partial<CreateFinancialGoalInp
 export interface CreateProjectionScenarioInput {
     name: string
     kind: ProjectionScenarioKind
+    monthlySurplus: number
+    currency: GoalCurrencyCode
+    annualGrowthRate?: number | null
+    annualInflationRate?: number | null
+    horizonMonths?: number
+    horizonYears?: number
     description?: string | null
+    notes?: string | null
     isDefault?: boolean
+    isActive?: boolean
 }
 
 export interface UpdateProjectionScenarioInput extends Partial<CreateProjectionScenarioInput> {
