@@ -375,7 +375,8 @@ export function buildMonthlyProjection(input: MonthlyProjectionInput): MonthlyPr
         }
     }
 
-    const finalProjectedValue = months.at(-1)?.projectedValue ?? initialValue
+    const lastMonth = months.length > 0 ? months[months.length - 1] : null
+    const finalProjectedValue = lastMonth?.projectedValue ?? initialValue
     const status = estimatedReachDate ? REACHABLE_STATUS : UNREACHABLE_STATUS
 
     return {
