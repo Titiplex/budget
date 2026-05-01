@@ -38,6 +38,19 @@ type ProjectionScenarioErrorCodeDto =
     | 'invalidMonthlySurplus'
     | 'unknownProjectionScenarioError'
 
+type MonthlySurplusSourceDto =
+    | 'automaticFromBudget'
+    | 'automaticFromRecurring'
+    | 'manualOverride'
+    | 'unavailable'
+
+type MonthlySurplusErrorCodeDto =
+    | 'invalidManualContribution'
+    | 'invalidCurrency'
+    | 'invalidLookback'
+    | 'invalidReferenceDate'
+    | 'unknownMonthlySurplusError'
+
 interface FinancialGoalIpcErrorDto {
     code: FinancialGoalErrorCodeDto | string
     message: string
@@ -56,6 +69,14 @@ interface ProjectionScenarioIpcErrorDto {
     recoverable: boolean
 }
 
+interface MonthlySurplusIpcErrorDto {
+    code: MonthlySurplusErrorCodeDto | string
+    message: string
+    field: string | null
+    details: unknown | null
+    recoverable: boolean
+}
+
 interface FinancialGoalIpcResultDto<T> {
     ok: boolean
     data: T | null
@@ -66,6 +87,12 @@ interface ProjectionScenarioIpcResultDto<T> {
     ok: boolean
     data: T | null
     error: ProjectionScenarioIpcErrorDto | null
+}
+
+interface MonthlySurplusIpcResultDto<T> {
+    ok: boolean
+    data: T | null
+    error: MonthlySurplusIpcErrorDto | null
 }
 
 interface FinancialGoalDto {
@@ -108,6 +135,61 @@ interface ProjectionScenarioDto {
     notes: string | null
     createdAt: string | null
     updatedAt: string | null
+}
+
+interface MonthlySurplusBreakdownDto {
+    budget: {
+        estimatedMonthlyIncome: number
+        estimatedMonthlyExpense: number
+        estimatedNetMonthly: number
+        incomeTargetCount: number
+        expenseTargetCount: number
+        ignoredTransferCount: number
+        targetCount: number
+    }
+    recurring: {
+        estimatedMonthlyIncome: number
+        estimatedMonthlyExpense: number
+        estimatedNetMonthly: number
+        incomeTemplateCount: number
+        expenseTemplateCount: number
+        ignoredTransferCount: number
+        templateCount: number
+    }
+    historical: {
+        estimatedMonthlyIncome: number
+        estimatedMonthlyExpense: number
+        estimatedNetMonthly: number
+        incomeTransactionCount: number
+        expenseTransactionCount: number
+        ignoredTransferCount: number
+        transactionCount: number
+        lookbackMonths: number
+    }
+}
+
+interface MonthlySurplusEstimateDto {
+    source: MonthlySurplusSourceDto
+    currency: string
+    monthlyContributionUsed: number
+    manualMonthlyContribution: number | null
+    estimatedMonthlySurplus: number
+    estimatedMonthlyIncome: number
+    estimatedMonthlyExpense: number
+    netMonthlyEstimate: number
+    referenceMonth: string
+    historyStartDate: string
+    historyEndDate: string
+    breakdown: MonthlySurplusBreakdownDto
+    warnings: string[]
+}
+
+interface MonthlySurplusEstimateOptionsDto {
+    currency?: string
+    manualMonthlyContribution?: number | null
+    manualContribution?: number | null
+    lookbackMonths?: number
+    referenceDate?: string | Date | null
 }
 
 interface FinancialGoalListFiltersDto {
@@ -196,5 +278,8 @@ interface Window {
             data: UpdateProjectionScenarioDto,
         ) => Promise<ProjectionScenarioIpcResultDto<ProjectionScenarioDto>>
         removeProjectionScenario: (id: number) => Promise<ProjectionScenarioIpcResultDto<ProjectionScenarioDeleteResultDto>>
+        estimateMonthlySurplus: (
+            options?: MonthlySurplusEstimateOptionsDto,
+        ) => Promise<MonthlySurplusIpcResultDto<MonthlySurplusEstimateDto>>
     }
 }
