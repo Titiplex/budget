@@ -105,4 +105,10 @@ contextBridge.exposeInMainWorld('goals', {
   createFinancialGoal: (data) => ipcRenderer.invoke('db:financialGoal:create', data),
   updateFinancialGoal: (id, data) => ipcRenderer.invoke('db:financialGoal:update', id, data),
   deleteFinancialGoal: (id) => ipcRenderer.invoke('db:financialGoal:delete', id),
+  ensureDefaultProjectionScenarios: () => ipcRenderer.invoke('db:projectionScenario:ensureDefaults'),
+  listProjectionScenarios: (filters) => ipcRenderer.invoke('db:projectionScenario:list', filters),
+  getProjectionScenario: (id) => ipcRenderer.invoke('db:projectionScenario:get', id),
+  createProjectionScenario: (data) => ipcRenderer.invoke('db:projectionScenario:create', data),
+  updateProjectionScenario: (id, data) => ipcRenderer.invoke('db:projectionScenario:update', id, data),
+  removeProjectionScenario: (id) => ipcRenderer.invoke('db:projectionScenario:delete', id),
 })
