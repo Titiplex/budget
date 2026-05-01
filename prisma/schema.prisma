@@ -167,6 +167,8 @@ model Asset {
   marketInstrumentId Int?
   marketInstrument   MarketInstrument? @relation("AssetMarketInstrument", fields: [marketInstrumentId], references: [id], onDelete: SetNull)
 
+  financialGoals FinancialGoal[] @relation("FinancialGoalAsset")
+
   @@index([type])
   @@index([status])
   @@index([currency])
@@ -201,6 +203,7 @@ model Portfolio {
 
   investmentPositions InvestmentPosition[]
   investmentMovements InvestmentMovement[]
+  financialGoals      FinancialGoal[]      @relation("FinancialGoalPortfolio")
 
   @@index([type])
   @@index([status])
@@ -452,6 +455,8 @@ model Liability {
   accountId      Int?
   account        Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
+  financialGoals FinancialGoal[] @relation("FinancialGoalLiability")
+
   @@index([type])
   @@index([status])
   @@index([currency])
@@ -478,9 +483,121 @@ model NetWorthSnapshot {
   createdAt              DateTime               @default(now())
   updatedAt              DateTime               @updatedAt
 
+  financialGoals FinancialGoal[] @relation("FinancialGoalBaselineNetWorthSnapshot")
+
   @@unique([snapshotDate, currency, source])
   @@index([snapshotDate])
   @@index([currency])
+}
+
+/// Objectif financier local-first. Le modèle stocke un objectif et ses liens de
+/// contexte, mais aucune recommandation d'achat/vente ou de conseil financier.
+model FinancialGoal {
+  id             Int                 @id @default(autoincrement())
+  name           String
+  type           FinancialGoalType
+  targetAmount   Float
+  currency       String              @default("CAD")
+  targetDate     DateTime?
+  startingAmount Float?
+  status         FinancialGoalStatus @default(ACTIVE)
+  priority       Int?
+  notes          String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  trackedAssetId             Int?
+  trackedAsset               Asset?            @relation("FinancialGoalAsset", fields: [trackedAssetId], references: [id], onDelete: SetNull)
+  trackedPortfolioId         Int?
+  trackedPortfolio           Portfolio?        @relation("FinancialGoalPortfolio", fields: [trackedPortfolioId], references: [id], onDelete: SetNull)
+  trackedLiabilityId         Int?
+  trackedLiability           Liability?        @relation("FinancialGoalLiability", fields: [trackedLiabilityId], references: [id], onDelete: SetNull)
+  baselineNetWorthSnapshotId Int?
+  baselineNetWorthSnapshot   NetWorthSnapshot? @relation("FinancialGoalBaselineNetWorthSnapshot", fields: [baselineNetWorthSnapshotId], references: [id], onDelete: SetNull)
+
+  projectionSettings ProjectionSetting[]
+  projectionResults  ProjectionResult[]
+
+  @@index([type])
+  @@index([status])
+  @@index([currency])
+  @@index([priority])
+  @@index([targetDate])
+  @@index([trackedAssetId])
+  @@index([trackedPortfolioId])
+  @@index([trackedLiabilityId])
+  @@index([baselineNetWorthSnapshotId])
+}
+
+/// Scénario réutilisable pour comparer plusieurs projections locales.
+model ProjectionScenario {
+  id          Int                    @id @default(autoincrement())
+  name        String                 @unique
+  kind        ProjectionScenarioKind @default(CUSTOM)
+  description String?
+  isDefault   Boolean                @default(false)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  settings ProjectionSetting[]
+  results  ProjectionResult[]
+
+  @@index([kind])
+  @@index([isDefault])
+}
+
+/// Paramètres d'une projection pour un objectif et un scénario donnés.
+model ProjectionSetting {
+  id                        Int      @id @default(autoincrement())
+  projectionHorizonMonths   Int
+  displayCurrency           String   @default("CAD")
+  estimatedMonthlySurplus   Float    @default(0)
+  manualMonthlyContribution Float?
+  annualGrowthRate          Float?
+  notes                     String?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  goalId     Int
+  goal       FinancialGoal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  scenarioId Int
+  scenario   ProjectionScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  results ProjectionResult[]
+
+  @@unique([goalId, scenarioId])
+  @@index([goalId])
+  @@index([scenarioId])
+  @@index([displayCurrency])
+}
+
+/// Ligne mensuelle calculée pour une projection. Elle reste persistée localement
+/// afin de fonctionner offline et d'être recalculable sans service externe.
+model ProjectionResult {
+  id                 Int                   @id @default(autoincrement())
+  projectionMonth    DateTime
+  projectedValue     Float
+  remainingAmount    Float
+  progressPercent    Float
+  estimatedReachDate DateTime?
+  reachStatus        ProjectionReachStatus @default(UNKNOWN)
+  calculatedAt       DateTime              @default(now())
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  goalId     Int
+  goal       FinancialGoal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  scenarioId Int
+  scenario   ProjectionScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  settingId  Int?
+  setting    ProjectionSetting? @relation(fields: [settingId], references: [id], onDelete: SetNull)
+
+  @@unique([goalId, scenarioId, projectionMonth])
+  @@index([goalId])
+  @@index([scenarioId])
+  @@index([settingId])
+  @@index([projectionMonth])
+  @@index([reachStatus])
 }
 
 enum AccountType {
@@ -730,4 +847,39 @@ enum LiabilityRateType {
   VARIABLE
   PROMOTIONAL
   UNKNOWN
+}
+
+enum FinancialGoalType {
+  SAVINGS
+  EMERGENCY_FUND
+  DEBT_PAYOFF
+  PURCHASE
+  INVESTMENT
+  RETIREMENT
+  NET_WORTH
+  OTHER
+}
+
+enum FinancialGoalStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum ProjectionScenarioKind {
+  BASELINE
+  CONSERVATIVE
+  OPTIMISTIC
+  CUSTOM
+}
+
+enum ProjectionReachStatus {
+  UNKNOWN
+  NOT_STARTED
+  IN_PROGRESS
+  ON_TRACK
+  OFF_TRACK
+  REACHED
+  NOT_REACHABLE
 }
