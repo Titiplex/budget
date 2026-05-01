@@ -111,4 +111,5 @@ contextBridge.exposeInMainWorld('goals', {
   createProjectionScenario: (data) => ipcRenderer.invoke('db:projectionScenario:create', data),
   updateProjectionScenario: (id, data) => ipcRenderer.invoke('db:projectionScenario:update', id, data),
   removeProjectionScenario: (id) => ipcRenderer.invoke('db:projectionScenario:delete', id),
+  estimateMonthlySurplus: (options) => ipcRenderer.invoke('db:goalProjection:monthlySurplus:estimate', options),
 })
