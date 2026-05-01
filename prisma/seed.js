@@ -234,6 +234,163 @@ async function main() {
         })
     }
 
+    const seededNetWorthSnapshot = await prisma.netWorthSnapshot.upsert({
+        where: {
+            snapshotDate_currency_source: {
+                snapshotDate: seededSnapshotDate,
+                currency: 'CAD',
+                source: 'GENERATED',
+            },
+        },
+        update: {
+            totalPortfolios: 325,
+            totalAssets: 325,
+            totalLiabilities: 0,
+            netWorth: 325,
+            portfolioBreakdownJson: JSON.stringify([
+                {
+                    portfolioId: demoPortfolio.id,
+                    name: demoPortfolio.name,
+                    value: 325,
+                    currency: 'CAD',
+                },
+            ]),
+            note: 'Demo generated net worth snapshot for financial goal projections',
+        },
+        create: {
+            snapshotDate: seededSnapshotDate,
+            currency: 'CAD',
+            totalStandaloneAssets: 0,
+            totalPortfolios: 325,
+            totalAssets: 325,
+            totalLiabilities: 0,
+            netWorth: 325,
+            source: 'GENERATED',
+            portfolioBreakdownJson: JSON.stringify([
+                {
+                    portfolioId: demoPortfolio.id,
+                    name: demoPortfolio.name,
+                    value: 325,
+                    currency: 'CAD',
+                },
+            ]),
+            note: 'Demo generated net worth snapshot for financial goal projections',
+        },
+    })
+
+    const baselineScenario = await prisma.projectionScenario.upsert({
+        where: {name: 'Seeded baseline scenario'},
+        update: {
+            kind: 'BASELINE',
+            description: 'Neutral local-only demo scenario using manually entered projection assumptions.',
+            isDefault: true,
+        },
+        create: {
+            name: 'Seeded baseline scenario',
+            kind: 'BASELINE',
+            description: 'Neutral local-only demo scenario using manually entered projection assumptions.',
+            isDefault: true,
+        },
+    })
+
+    const goalData = {
+        name: 'Seeded net worth milestone',
+        type: 'NET_WORTH',
+        targetAmount: 10000,
+        currency: 'CAD',
+        targetDate: new Date('2027-04-30T00:00:00.000Z'),
+        startingAmount: 325,
+        status: 'ACTIVE',
+        priority: 1,
+        notes: 'Demo goal used to exercise the local-first goals and projection data model. Not financial advice.',
+        baselineNetWorthSnapshotId: seededNetWorthSnapshot.id,
+    }
+
+    let financialGoal = await prisma.financialGoal.findFirst({
+        where: {name: goalData.name},
+    })
+
+    if (financialGoal) {
+        financialGoal = await prisma.financialGoal.update({
+            where: {id: financialGoal.id},
+            data: goalData,
+        })
+    } else {
+        financialGoal = await prisma.financialGoal.create({data: goalData})
+    }
+
+    const projectionSetting = await prisma.projectionSetting.upsert({
+        where: {
+            goalId_scenarioId: {
+                goalId: financialGoal.id,
+                scenarioId: baselineScenario.id,
+            },
+        },
+        update: {
+            projectionHorizonMonths: 12,
+            displayCurrency: 'CAD',
+            estimatedMonthlySurplus: 500,
+            manualMonthlyContribution: 600,
+            annualGrowthRate: 0.03,
+            notes: 'Demo assumptions only; generated without external data or advice.',
+        },
+        create: {
+            goalId: financialGoal.id,
+            scenarioId: baselineScenario.id,
+            projectionHorizonMonths: 12,
+            displayCurrency: 'CAD',
+            estimatedMonthlySurplus: 500,
+            manualMonthlyContribution: 600,
+            annualGrowthRate: 0.03,
+            notes: 'Demo assumptions only; generated without external data or advice.',
+        },
+    })
+
+    await prisma.projectionResult.deleteMany({
+        where: {
+            goalId: financialGoal.id,
+            scenarioId: baselineScenario.id,
+        },
+    })
+
+    await prisma.projectionResult.createMany({
+        data: [
+            {
+                projectionMonth: new Date('2026-05-31T00:00:00.000Z'),
+                projectedValue: 925,
+                remainingAmount: 9075,
+                progressPercent: 9.25,
+                estimatedReachDate: new Date('2027-08-31T00:00:00.000Z'),
+                reachStatus: 'IN_PROGRESS',
+                goalId: financialGoal.id,
+                scenarioId: baselineScenario.id,
+                settingId: projectionSetting.id,
+            },
+            {
+                projectionMonth: new Date('2026-06-30T00:00:00.000Z'),
+                projectedValue: 1527.31,
+                remainingAmount: 8472.69,
+                progressPercent: 15.27,
+                estimatedReachDate: new Date('2027-08-31T00:00:00.000Z'),
+                reachStatus: 'IN_PROGRESS',
+                goalId: financialGoal.id,
+                scenarioId: baselineScenario.id,
+                settingId: projectionSetting.id,
+            },
+            {
+                projectionMonth: new Date('2026-07-31T00:00:00.000Z'),
+                projectedValue: 2131.12,
+                remainingAmount: 7868.88,
+                progressPercent: 21.31,
+                estimatedReachDate: new Date('2027-08-31T00:00:00.000Z'),
+                reachStatus: 'ON_TRACK',
+                goalId: financialGoal.id,
+                scenarioId: baselineScenario.id,
+                settingId: projectionSetting.id,
+            },
+        ],
+    })
+
     const seededTransactions = [
         {
             label: 'First income',
