@@ -2,6 +2,16 @@ const {PrismaClient} = require('@prisma/client')
 
 const prisma = new PrismaClient()
 
+const PROJECTION_SCENARIO_ASSUMPTION_COLUMNS = [
+    ['monthlySurplus', 'REAL NOT NULL DEFAULT 0'],
+    ['annualGrowthRate', 'REAL'],
+    ['annualInflationRate', 'REAL'],
+    ['horizonMonths', 'INTEGER NOT NULL DEFAULT 60'],
+    ['currency', "TEXT NOT NULL DEFAULT 'CAD'"],
+    ['isActive', 'BOOLEAN NOT NULL DEFAULT true'],
+    ['notes', 'TEXT'],
+]
+
 const DEMO_SCENARIOS = [
     {
         name: 'Demo pessimistic projection',
@@ -96,6 +106,19 @@ function sqlBoolean(value) {
     return value ? 'true' : 'false'
 }
 
+async function ensureProjectionScenarioAssumptionColumns() {
+    const rows = await prisma.$queryRawUnsafe('PRAGMA table_info("ProjectionScenario")')
+    const existingColumns = new Set(rows.map((row) => row.name))
+
+    for (const [columnName, columnDefinition] of PROJECTION_SCENARIO_ASSUMPTION_COLUMNS) {
+        if (!existingColumns.has(columnName)) {
+            await prisma.$executeRawUnsafe(
+                `ALTER TABLE "ProjectionScenario" ADD COLUMN "${columnName}" ${columnDefinition}`,
+            )
+        }
+    }
+}
+
 async function findScenarioByName(name) {
     const rows = await prisma.$queryRawUnsafe(
         `SELECT * FROM "ProjectionScenario" WHERE "name" = ${sqlString(name)} LIMIT 1`,
@@ -153,6 +176,8 @@ async function upsertGoal(goal) {
 }
 
 async function main() {
+    await ensureProjectionScenarioAssumptionColumns()
+
     const scenarios = []
     for (const scenario of DEMO_SCENARIOS) {
         scenarios.push(await upsertScenario(scenario))
