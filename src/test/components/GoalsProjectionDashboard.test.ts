@@ -163,13 +163,14 @@ describe('GoalsProjectionDashboard', () => {
         await flushPromises()
         await flushPromises()
 
-        expect(wrapper.text()).not.toContain('Montant restant')
+        expect(wrapper.find('table').exists()).toBe(false)
         const toggle = wrapper.findAll('button').find((button) => button.text() === 'Afficher le tableau mensuel')
         expect(toggle).toBeTruthy()
         await toggle!.trigger('click')
 
-        expect(wrapper.text()).toContain('Montant restant')
-        expect(wrapper.text()).toContain('Croissance estimée')
-        expect(wrapper.text()).toContain('Valeur projetée')
+        expect(wrapper.find('table').exists()).toBe(true)
+        expect(wrapper.find('table').text()).toContain('Montant restant')
+        expect(wrapper.find('table').text()).toContain('Croissance estimée')
+        expect(wrapper.find('table').text()).toContain('Valeur projetée')
     })
 })
