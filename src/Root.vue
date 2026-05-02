@@ -1,10 +1,22 @@
 <script setup lang="ts">
-import {ref} from 'vue'
+import {onBeforeUnmount, onMounted, ref} from 'vue'
 
 import App from './App.vue'
 import GoalsProjectionDashboard from './components/GoalsProjectionDashboard.vue'
 
 const goalsOpen = ref(false)
+
+function openGoals() {
+  goalsOpen.value = true
+}
+
+onMounted(() => {
+  window.addEventListener('budget:open-goals', openGoals)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('budget:open-goals', openGoals)
+})
 </script>
 
 <template>
@@ -14,7 +26,7 @@ const goalsOpen = ref(false)
       type="button"
       class="fixed bottom-5 right-5 z-50 inline-flex items-center gap-2 rounded-2xl border border-violet-500/80 bg-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-xl shadow-violet-950/30 transition hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-300"
       aria-label="Ouvrir les objectifs financiers"
-      @click="goalsOpen = true"
+      @click="openGoals"
   >
     <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/15 text-xs font-bold">GO</span>
     Objectifs
