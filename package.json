@@ -36,7 +36,7 @@
     "test:coverage": "vitest run --coverage",
     "validate:desktop-assets": "node scripts/validate-desktop-assets.js",
     "build:packaged-db": "node scripts/build-packaged-db.js",
-    "release:check": "npm run check && npm run validate:desktop-assets && npm run build-packaged-db",
+    "release:check": "npm run check && npm run validate:desktop-assets && npm run build:packaged-db",
     "prepackage:desktop": "npm run prisma:generate && npm run typecheck && npm run build:vite && npm run validate:desktop-assets && npm run build:packaged-db"
   },
   "dependencies": {
@@ -58,7 +58,9 @@
     "@electron-forge/maker-squirrel": "^7.11.1",
     "@electron-forge/maker-zip": "^7.11.1",
     "@electron-forge/plugin-auto-unpack-natives": "^7.11.1",
-    "@electron-forge/plugin-fuses": "^1.8.0",
+    "@electron-forge/plugin-fuses": "^7.11.1",
+    "@electron-forge/publisher-github": "^7.11.1",
+    "@electron/fuses": "^1.8.0",
     "@electron/rebuild": "^4.0.3",
     "@types/electron": "^1.4.38",
     "@types/node": "^25.6.0",
