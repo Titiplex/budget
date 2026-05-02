@@ -40,8 +40,13 @@ describe('monthly projection scenario fixtures', () => {
         expect(pessimistic.status).toBe('reachable')
         expect(base.status).toBe('reachable')
         expect(optimistic.status).toBe('reachable')
-        expect(String(optimistic.attainmentEstimate.estimatedReachDate)).toBeLessThanOrEqual(String(base.attainmentEstimate.estimatedReachDate))
-        expect(String(base.attainmentEstimate.estimatedReachDate)).toBeLessThanOrEqual(String(pessimistic.attainmentEstimate.estimatedReachDate))
+
+        const optimisticDate = String(optimistic.attainmentEstimate.estimatedReachDate)
+        const baseDate = String(base.attainmentEstimate.estimatedReachDate)
+        const pessimisticDate = String(pessimistic.attainmentEstimate.estimatedReachDate)
+
+        expect(optimisticDate <= baseDate).toBe(true)
+        expect(baseDate <= pessimisticDate).toBe(true)
     })
 
     it('covers already reached, unreachable, zero contribution and negative growth cases from fixtures', () => {
