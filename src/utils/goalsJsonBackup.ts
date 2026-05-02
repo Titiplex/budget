@@ -1,9 +1,16 @@
-import type {BudgetBackupSnapshot} from '../types/budget'
+import type {
+    Account,
+    BudgetBackupSnapshot,
+    BudgetTarget,
+    Category,
+    RecurringTransactionTemplate,
+    TaxProfile,
+    Transaction,
+} from '../types/budget'
 import {
     BUDGET_BACKUP_KIND,
     BudgetBackupParseError,
     parseBudgetBackup,
-    serializeBudgetBackup,
     createBudgetBackupSnapshot,
 } from './jsonBackup'
 
@@ -69,8 +76,6 @@ export type BudgetBackupWithGoalsSnapshot = Omit<BudgetBackupSnapshot, 'version'
         projectionSettings: BudgetBackupProjectionSettings | null
     }
 }
-
-type SnapshotBaseArgs = Parameters<typeof createBudgetBackupSnapshot>
 
 const FINANCIAL_GOAL_TYPES = ['SAVINGS', 'EMERGENCY_FUND', 'DEBT_PAYOFF', 'PURCHASE', 'INVESTMENT', 'RETIREMENT', 'NET_WORTH', 'OTHER'] as const
 const FINANCIAL_GOAL_STATUSES = ['ACTIVE', 'PAUSED', 'COMPLETED', 'ARCHIVED'] as const
@@ -302,15 +307,17 @@ function coreCompatibleSnapshot(parsed: Record<string, unknown>, version: number
 }
 
 export function createBudgetBackupSnapshotWithGoals(
-    ...args: [
-        ...SnapshotBaseArgs,
-        financialGoals?: BudgetBackupFinancialGoal[],
-        projectionScenarios?: BudgetBackupProjectionScenario[],
-        projectionSettings?: BudgetBackupProjectionSettings | null,
-    ]
+    accounts: Account[],
+    categories: Category[],
+    budgetTargets: BudgetTarget[],
+    recurringTemplates: RecurringTransactionTemplate[],
+    transactions: Transaction[],
+    taxProfiles: TaxProfile[] = [],
+    financialGoals: BudgetBackupFinancialGoal[] = [],
+    projectionScenarios: BudgetBackupProjectionScenario[] = [],
+    projectionSettings: BudgetBackupProjectionSettings | null = null,
 ): BudgetBackupWithGoalsSnapshot {
-    const baseArgs = args.slice(0, 6) as SnapshotBaseArgs
-    const financialGoals = (args[6] || []).map((goal) => ({
+    const normalizedGoals = financialGoals.map((goal) => ({
         ...goal,
         currency: goal.currency.toUpperCase(),
         targetDate: goal.targetDate ?? null,
@@ -322,7 +329,7 @@ export function createBudgetBackupSnapshotWithGoals(
         trackedLiabilityId: goal.trackedLiabilityId ?? null,
         baselineNetWorthSnapshotId: goal.baselineNetWorthSnapshotId ?? null,
     }))
-    const projectionScenarios = (args[7] || []).map((scenario) => ({
+    const normalizedScenarios = projectionScenarios.map((scenario) => ({
         ...scenario,
         currency: scenario.currency.toUpperCase(),
         description: scenario.description ?? null,
@@ -330,16 +337,22 @@ export function createBudgetBackupSnapshotWithGoals(
         annualInflationRate: scenario.annualInflationRate ?? null,
         notes: scenario.notes ?? null,
     }))
-    const projectionSettings = args[8] ?? null
-    const baseSnapshot = createBudgetBackupSnapshot(...baseArgs)
+    const baseSnapshot = createBudgetBackupSnapshot(
+        accounts,
+        categories,
+        budgetTargets,
+        recurringTemplates,
+        transactions,
+        taxProfiles,
+    )
 
     return {
         ...baseSnapshot,
         version: GOALS_BACKUP_FORMAT_VERSION,
         data: {
             ...baseSnapshot.data,
-            financialGoals,
-            projectionScenarios,
+            financialGoals: normalizedGoals,
+            projectionScenarios: normalizedScenarios,
             projectionSettings,
         },
     }
@@ -424,5 +437,3 @@ export function exportFinancialGoalsCsv(goals: BudgetBackupFinancialGoal[]) {
 
     return `${[header, ...rows].map((row) => row.map(escapeCsvCell).join(';')).join('\n')}\n`
 }
-
-export {serializeBudgetBackup}
