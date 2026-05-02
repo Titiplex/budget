@@ -1,6 +1,6 @@
 import './styles/output.css'
 import {createApp} from 'vue'
-import App from './App.vue'
+import Root from './Root.vue'
 import {i18n} from './i18n'
 
-createApp(App).use(i18n).mount('#app')
+createApp(Root).use(i18n).mount('#app')

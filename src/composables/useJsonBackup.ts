@@ -10,8 +10,17 @@ import type {
     Transaction,
 } from '../types/budget'
 import {tr} from '../i18n'
-import {createBudgetBackupSnapshot, parseBudgetBackup, serializeBudgetBackup} from '../utils/jsonBackup'
 import {validateBackupSnapshot, type BackupValidationResult} from '../utils/importValidation'
+import {
+    createBudgetBackupSnapshotWithGoals,
+    parseBudgetBackupWithGoals,
+    serializeBudgetBackupWithGoals,
+    type BudgetBackupFinancialGoal,
+    type BudgetBackupProjectionScenario,
+    type BudgetBackupProjectionSettings,
+    type BudgetBackupWithGoalsSnapshot,
+} from '../utils/goalsJsonBackup'
+import {restoreGoalsBackupSnapshot} from '../utils/goalsBackupRestore'
 
 interface UseJsonBackupOptions {
     accounts: Ref<Account[]>
@@ -32,10 +41,95 @@ function firstValidationError(validation: BackupValidationResult) {
     return validation.warnings[0] || tr('notices.jsonInvalid')
 }
 
+function unwrapIpcResult<T>(result: {ok: boolean; data: T | null; error?: {message?: string} | null}, fallback: string): T {
+    if (result.ok && result.data != null) return result.data
+    throw new Error(result.error?.message || fallback)
+}
+
+function normalizeGoalForBackup(goal: any): BudgetBackupFinancialGoal {
+    return {
+        id: Number(goal.id),
+        name: String(goal.name || '').trim(),
+        type: goal.type,
+        targetAmount: Number(goal.targetAmount || 0),
+        currency: String(goal.currency || 'CAD').toUpperCase(),
+        targetDate: goal.targetDate ? String(goal.targetDate).slice(0, 10) : null,
+        startingAmount: goal.startingAmount == null ? null : Number(goal.startingAmount),
+        status: goal.status || 'ACTIVE',
+        priority: goal.priority == null ? null : Number(goal.priority),
+        notes: goal.notes ?? null,
+        trackedAssetId: goal.trackedAssetId ?? null,
+        trackedPortfolioId: goal.trackedPortfolioId ?? null,
+        trackedLiabilityId: goal.trackedLiabilityId ?? null,
+        baselineNetWorthSnapshotId: goal.baselineNetWorthSnapshotId ?? null,
+    }
+}
+
+function normalizeScenarioForBackup(scenario: any): BudgetBackupProjectionScenario {
+    return {
+        id: Number(scenario.id),
+        name: String(scenario.name || '').trim(),
+        kind: scenario.kind,
+        description: scenario.description ?? null,
+        monthlySurplus: Number(scenario.monthlySurplus || 0),
+        annualGrowthRate: scenario.annualGrowthRate == null ? null : Number(scenario.annualGrowthRate),
+        annualInflationRate: scenario.annualInflationRate == null ? null : Number(scenario.annualInflationRate),
+        horizonMonths: Number(scenario.horizonMonths || 12),
+        currency: String(scenario.currency || 'CAD').toUpperCase(),
+        isDefault: Boolean(scenario.isDefault),
+        isActive: scenario.isActive !== false,
+        notes: scenario.notes ?? null,
+    }
+}
+
+function inferProjectionSettings(
+    scenarios: BudgetBackupProjectionScenario[],
+    accounts: Account[],
+): BudgetBackupProjectionSettings | null {
+    const defaultScenario = scenarios.find((scenario) => scenario.kind === 'BASE' && scenario.isActive)
+        || scenarios.find((scenario) => scenario.isActive)
+        || scenarios[0]
+
+    if (!defaultScenario) return null
+
+    return {
+        currency: defaultScenario.currency || accounts[0]?.currency || 'CAD',
+        defaultScenarioId: defaultScenario.id,
+        horizonMonths: defaultScenario.horizonMonths,
+        manualMonthlyContribution: null,
+    }
+}
+
+async function readGoalsBackupData(accounts: Account[]) {
+    const api = window.goals
+    if (!api) {
+        return {
+            financialGoals: [] as BudgetBackupFinancialGoal[],
+            projectionScenarios: [] as BudgetBackupProjectionScenario[],
+            projectionSettings: null as BudgetBackupProjectionSettings | null,
+        }
+    }
+
+    const [goalRows, scenarioRows] = await Promise.all([
+        api.listFinancialGoals({status: 'ALL'}),
+        api.listProjectionScenarios({isActive: 'ALL'}),
+    ])
+    const financialGoals = unwrapIpcResult(goalRows, 'Impossible de lire les objectifs pour le backup.')
+        .map(normalizeGoalForBackup)
+    const projectionScenarios = unwrapIpcResult(scenarioRows, 'Impossible de lire les scénarios pour le backup.')
+        .map(normalizeScenarioForBackup)
+
+    return {
+        financialGoals,
+        projectionScenarios,
+        projectionSettings: inferProjectionSettings(projectionScenarios, accounts),
+    }
+}
+
 export function useJsonBackup(options: UseJsonBackupOptions) {
     const restorePreviewOpen = ref(false)
     const restorePreviewPath = ref<string | null>(null)
-    const restorePreviewSnapshot = ref<BudgetBackupSnapshot | null>(null)
+    const restorePreviewSnapshot = ref<BudgetBackupWithGoalsSnapshot | null>(null)
     const restorePreviewValidation = ref<BackupValidationResult | null>(null)
 
     function closeRestorePreview() {
@@ -46,19 +140,23 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
     }
 
     async function exportBackupJson() {
-        const snapshot = createBudgetBackupSnapshot(
+        const goalsData = await readGoalsBackupData(options.accounts.value)
+        const snapshot = createBudgetBackupSnapshotWithGoals(
             options.accounts.value,
             options.categories.value,
             options.budgetTargets.value,
             options.recurringTemplates.value,
             options.transactions.value,
             options.taxProfiles?.value || [],
+            goalsData.financialGoals,
+            goalsData.projectionScenarios,
+            goalsData.projectionSettings,
         )
 
         const result = await window.file.saveText({
             title: `${tr('common.export')} JSON`,
             defaultPath: 'budget-backup.json',
-            content: serializeBudgetBackup(snapshot),
+            content: serializeBudgetBackupWithGoals(snapshot),
             filters: [{name: 'JSON', extensions: ['json']}],
         })
 
@@ -104,8 +202,8 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         }
 
         try {
-            const snapshot = parseBudgetBackup(result.content)
-            const validation = validateBackupSnapshot(snapshot)
+            const snapshot = parseBudgetBackupWithGoals(result.content)
+            const validation = validateBackupSnapshot(snapshot as BudgetBackupSnapshot)
 
             if (!validation.ok) {
                 throw new Error(firstValidationError(validation))
@@ -236,7 +334,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
 
         try {
             const snapshot = restorePreviewSnapshot.value
-            const validation = validateBackupSnapshot(snapshot)
+            const validation = validateBackupSnapshot(snapshot as BudgetBackupSnapshot)
 
             if (!validation.ok) {
                 throw new Error(firstValidationError(validation))
@@ -327,7 +425,11 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
                 })
             }
 
-            await restoreTransactions(snapshot, accountIdMap, categoryIdMap)
+            await restoreTransactions(snapshot as BudgetBackupSnapshot, accountIdMap, categoryIdMap)
+
+            if (window.goals && snapshot.data.financialGoals.length > 0) {
+                await restoreGoalsBackupSnapshot(snapshot, window.goals)
+            }
 
             await options.refreshAllData()
             closeRestorePreview()

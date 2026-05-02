@@ -98,3 +98,18 @@ contextBridge.exposeInMainWorld('wealth', {
   listNetWorthSnapshots: (filters) => ipcRenderer.invoke('db:netWorthSnapshot:list', filters),
   getPortfolioAnalyticsDashboard: (options) => ipcRenderer.invoke('db:portfolioAnalytics:dashboard', options),
 })
+
+contextBridge.exposeInMainWorld('goals', {
+  listFinancialGoals: (filters) => ipcRenderer.invoke('db:financialGoal:list', filters),
+  getFinancialGoal: (id) => ipcRenderer.invoke('db:financialGoal:get', id),
+  createFinancialGoal: (data) => ipcRenderer.invoke('db:financialGoal:create', data),
+  updateFinancialGoal: (id, data) => ipcRenderer.invoke('db:financialGoal:update', id, data),
+  deleteFinancialGoal: (id) => ipcRenderer.invoke('db:financialGoal:delete', id),
+  ensureDefaultProjectionScenarios: () => ipcRenderer.invoke('db:projectionScenario:ensureDefaults'),
+  listProjectionScenarios: (filters) => ipcRenderer.invoke('db:projectionScenario:list', filters),
+  getProjectionScenario: (id) => ipcRenderer.invoke('db:projectionScenario:get', id),
+  createProjectionScenario: (data) => ipcRenderer.invoke('db:projectionScenario:create', data),
+  updateProjectionScenario: (id, data) => ipcRenderer.invoke('db:projectionScenario:update', id, data),
+  removeProjectionScenario: (id) => ipcRenderer.invoke('db:projectionScenario:delete', id),
+  estimateMonthlySurplus: (options) => ipcRenderer.invoke('db:goalProjection:monthlySurplus:estimate', options),
+})
