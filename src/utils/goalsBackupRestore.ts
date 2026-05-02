@@ -11,13 +11,18 @@ export interface GoalsBackupApiResult<T> {
     error: {message?: string; code?: string} | null
 }
 
+type GoalFilters = {status?: string}
+type ScenarioFilters = {isActive?: boolean | 'ALL'}
+type GoalPayload = ReturnType<typeof goalPayload>
+type ScenarioPayload = ReturnType<typeof scenarioPayload>
+
 export interface GoalsBackupApi {
-    listFinancialGoals: (filters?: unknown) => Promise<GoalsBackupApiResult<Array<{id: number}>>>
+    listFinancialGoals: (filters?: GoalFilters) => Promise<GoalsBackupApiResult<Array<{id: number}>>>
     deleteFinancialGoal: (id: number) => Promise<GoalsBackupApiResult<unknown>>
-    createFinancialGoal: (data: Record<string, unknown>) => Promise<GoalsBackupApiResult<{id: number}>>
-    listProjectionScenarios: (filters?: unknown) => Promise<GoalsBackupApiResult<Array<{id: number; isDefault?: boolean}>>>
+    createFinancialGoal: (data: GoalPayload) => Promise<GoalsBackupApiResult<{id: number}>>
+    listProjectionScenarios: (filters?: ScenarioFilters) => Promise<GoalsBackupApiResult<Array<{id: number; isDefault?: boolean}>>>
     removeProjectionScenario: (id: number) => Promise<GoalsBackupApiResult<unknown>>
-    createProjectionScenario: (data: Record<string, unknown>) => Promise<GoalsBackupApiResult<{id: number}>>
+    createProjectionScenario: (data: ScenarioPayload) => Promise<GoalsBackupApiResult<{id: number}>>
 }
 
 export interface GoalsRestoreResult {
@@ -28,12 +33,12 @@ export interface GoalsRestoreResult {
     warnings: string[]
 }
 
-function unwrapResult<T>(result: GoalsBackupApiResult<T>, fallback: string): T {
+function unwrap<T>(result: GoalsBackupApiResult<T>, fallback: string): T {
     if (result.ok && result.data != null) return result.data
     throw new Error(result.error?.message || fallback)
 }
 
-function goalToCreatePayload(goal: BudgetBackupFinancialGoal) {
+function goalPayload(goal: BudgetBackupFinancialGoal) {
     return {
         name: goal.name,
         type: goal.type,
@@ -44,9 +49,6 @@ function goalToCreatePayload(goal: BudgetBackupFinancialGoal) {
         status: goal.status,
         priority: goal.priority,
         notes: goal.notes,
-        // Wealth objects are not part of the canonical goals backup yet. Keep
-        // the raw ids in JSON for future migration, but restore them detached
-        // so the projection remains usable even when wealth ids changed.
         trackedAssetId: null,
         trackedPortfolioId: null,
         trackedLiabilityId: null,
@@ -54,7 +56,7 @@ function goalToCreatePayload(goal: BudgetBackupFinancialGoal) {
     }
 }
 
-function scenarioToCreatePayload(scenario: BudgetBackupProjectionScenario) {
+function scenarioPayload(scenario: BudgetBackupProjectionScenario) {
     return {
         name: scenario.name,
         kind: scenario.kind,
@@ -70,26 +72,17 @@ function scenarioToCreatePayload(scenario: BudgetBackupProjectionScenario) {
     }
 }
 
-async function clearExistingGoals(api: GoalsBackupApi) {
-    const existingGoals = unwrapResult(
-        await api.listFinancialGoals({status: 'ALL'}),
-        'Impossible de lister les objectifs existants.',
-    )
-
-    for (const goal of existingGoals) {
-        unwrapResult(await api.deleteFinancialGoal(goal.id), 'Impossible de supprimer un objectif existant.')
+async function clearExisting(api: GoalsBackupApi) {
+    const goals = unwrap(await api.listFinancialGoals({status: 'ALL'}), 'Impossible de lister les objectifs existants.')
+    for (const goal of goals) {
+        unwrap(await api.deleteFinancialGoal(goal.id), 'Impossible de supprimer un objectif existant.')
     }
-}
 
-async function clearCustomScenarios(api: GoalsBackupApi) {
-    const existingScenarios = unwrapResult(
-        await api.listProjectionScenarios({isActive: 'ALL'}),
-        'Impossible de lister les scénarios existants.',
-    )
-
-    for (const scenario of existingScenarios) {
-        if (scenario.isDefault) continue
-        unwrapResult(await api.removeProjectionScenario(scenario.id), 'Impossible de supprimer un scénario existant.')
+    const scenarios = unwrap(await api.listProjectionScenarios({isActive: 'ALL'}), 'Impossible de lister les scénarios existants.')
+    for (const scenario of scenarios) {
+        if (!scenario.isDefault) {
+            unwrap(await api.removeProjectionScenario(scenario.id), 'Impossible de supprimer un scénario existant.')
+        }
     }
 }
 
@@ -98,12 +91,9 @@ export function remapProjectionSettings(
     scenarioIdMap: Map<number, number>,
 ): BudgetBackupProjectionSettings | null {
     if (!settings) return null
-
     return {
         ...settings,
-        defaultScenarioId: settings.defaultScenarioId == null
-            ? null
-            : scenarioIdMap.get(settings.defaultScenarioId) ?? null,
+        defaultScenarioId: settings.defaultScenarioId == null ? null : scenarioIdMap.get(settings.defaultScenarioId) ?? null,
     }
 }
 
@@ -112,21 +102,16 @@ export async function restoreGoalsBackupSnapshot(
     api: GoalsBackupApi,
     options: {replaceExisting?: boolean} = {},
 ): Promise<GoalsRestoreResult> {
-    const replaceExisting = options.replaceExisting ?? true
-    const warnings: string[] = []
     const scenarioIdMap = new Map<number, number>()
+    const warnings: string[] = []
 
-    if (replaceExisting) {
-        await clearExistingGoals(api)
-        await clearCustomScenarios(api)
+    if (options.replaceExisting ?? true) {
+        await clearExisting(api)
     }
 
     for (const scenario of snapshot.data.projectionScenarios) {
         try {
-            const created = unwrapResult(
-                await api.createProjectionScenario(scenarioToCreatePayload(scenario)),
-                `Impossible de restaurer le scénario "${scenario.name}".`,
-            )
+            const created = unwrap(await api.createProjectionScenario(scenarioPayload(scenario)), `Impossible de restaurer le scénario "${scenario.name}".`)
             scenarioIdMap.set(scenario.id, created.id)
         } catch (error) {
             warnings.push(error instanceof Error ? error.message : `Scénario "${scenario.name}" ignoré.`)
@@ -135,14 +120,8 @@ export async function restoreGoalsBackupSnapshot(
 
     let restoredGoals = 0
     for (const goal of snapshot.data.financialGoals) {
-        const created = unwrapResult(
-            await api.createFinancialGoal(goalToCreatePayload(goal)),
-            `Impossible de restaurer l’objectif "${goal.name}".`,
-        )
-
-        if (!created.id) {
-            throw new Error(`L’objectif "${goal.name}" a été restauré sans identifiant.`)
-        }
+        const created = unwrap(await api.createFinancialGoal(goalPayload(goal)), `Impossible de restaurer l’objectif "${goal.name}".`)
+        if (!created.id) throw new Error(`L’objectif "${goal.name}" a été restauré sans identifiant.`)
         restoredGoals += 1
     }
 
