@@ -2,7 +2,7 @@
 import {ref} from 'vue'
 
 import App from './App.vue'
-import GoalsSection from './components/GoalsSection.vue'
+import GoalsProjectionDashboard from './components/GoalsProjectionDashboard.vue'
 
 const goalsOpen = ref(false)
 </script>
@@ -46,7 +46,7 @@ const goalsOpen = ref(false)
             </button>
           </div>
 
-          <GoalsSection />
+          <GoalsProjectionDashboard />
         </div>
       </div>
     </Transition>
