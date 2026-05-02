@@ -8,6 +8,7 @@ Application desktop locale-first pour gérer :
 - des budgets par catégorie
 - des transactions récurrentes
 - des rapports avec comparaison intelligente
+- des objectifs financiers et projections locales
 - des sauvegardes / restaurations JSON
 
 Le projet est construit avec :
@@ -25,6 +26,7 @@ Le projet est construit avec :
 - **renderer léger** : pas d’accès direct Prisma dans Vue
 - **IPC étroit** : la logique base de données reste côté Electron main
 - **backup explicite** : export / restauration JSON pour sécuriser les données
+- **projections descriptives** : les calculs dépendent d’hypothèses visibles et ne sont pas des conseils financiers
 
 ## Fonctionnalités
 
@@ -54,6 +56,26 @@ Le projet est construit avec :
 - génération des occurrences dues
 - projection rapide sur 30 jours
 
+### Patrimoine
+
+- actifs, portefeuilles et passifs
+- snapshots de valeur nette
+- dashboard patrimoine
+- synthèse objectifs/projections accessible depuis l’app
+
+### Objectifs et projections
+
+- objectifs financiers locaux
+- scénarios pessimiste / base / optimiste / personnalisé
+- moteur pur de projection mensuelle
+- comparaison de trajectoires
+- date estimée d’atteinte si calculable
+- export / restore JSON des objectifs et scénarios
+
+Les projections sont déterministes : elles indiquent ce que donnent les hypothèses saisies, pas ce qui va forcément arriver. Elles ne remplacent pas un avis financier personnalisé.
+
+La documentation dédiée est disponible ici : [`docs/goals-projections.md`](docs/goals-projections.md).
+
 ### Rapports
 
 - résumé de période
@@ -69,13 +91,16 @@ Le projet est construit avec :
 - export JSON complet
 - restauration JSON validée
 - import / export CSV selon la section active
+- format backup v5 avec objectifs et scénarios documenté dans [`docs/backup-format.md`](docs/backup-format.md)
 
 ## Structure du projet
 
 ```text
 .
+├── docs/
 ├── electron/
 │   ├── db/
+│   ├── goals/
 │   ├── ipc/
 │   ├── main.js
 │   └── preload.js
