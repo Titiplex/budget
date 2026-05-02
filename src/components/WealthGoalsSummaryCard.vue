@@ -16,15 +16,7 @@ const props = withDefaults(
 )
 
 type GoalStatusDto = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED'
-type GoalTypeDto =
-    | 'SAVINGS'
-    | 'EMERGENCY_FUND'
-    | 'DEBT_PAYOFF'
-    | 'PURCHASE'
-    | 'INVESTMENT'
-    | 'RETIREMENT'
-    | 'NET_WORTH'
-    | 'OTHER'
+type GoalTypeDto = 'SAVINGS' | 'EMERGENCY_FUND' | 'DEBT_PAYOFF' | 'PURCHASE' | 'INVESTMENT' | 'RETIREMENT' | 'NET_WORTH' | 'OTHER'
 type ScenarioKindDto = 'PESSIMISTIC' | 'BASE' | 'OPTIMISTIC' | 'CUSTOM'
 
 type FinancialGoalRow = {
@@ -130,12 +122,8 @@ function mapScenarioKind(kind: ScenarioKindDto | null | undefined): ProjectionSc
   return 'custom'
 }
 
-function isNetWorthGoal(goal: FinancialGoalRow) {
-  return goal.type === 'NET_WORTH'
-}
-
 function currentValueForGoal(goal: FinancialGoalRow) {
-  if (isNetWorthGoal(goal)) return Math.max(0, Number(props.currentNetWorth || 0))
+  if (goal.type === 'NET_WORTH') return Math.max(0, Number(props.currentNetWorth || 0))
   return Math.max(0, Number(goal.startingAmount || 0))
 }
 
@@ -157,10 +145,10 @@ const baseScenario = computed(() => {
       || scenarios.value.find((scenario) => scenario.isActive !== false)
       || null
 })
+const contributionUsed = computed(() => surplusEstimate.value?.monthlyContributionUsed ?? baseScenario.value?.monthlySurplus ?? 0)
 
 const projectionRows = computed<GoalProjectionRow[]>(() => {
   const scenario = baseScenario.value
-  const contribution = surplusEstimate.value?.monthlyContributionUsed ?? scenario?.monthlySurplus ?? 0
 
   return activeGoals.value.map((goal) => {
     const currentValueUsed = currentValueForGoal(goal)
@@ -182,7 +170,7 @@ const projectionRows = computed<GoalProjectionRow[]>(() => {
       const projection = buildMonthlyProjection({
         initialValue: currentValueUsed,
         targetAmount: Number(goal.targetAmount || 0),
-        monthlyContribution: contribution,
+        monthlyContribution: contributionUsed.value,
         horizonMonths: scenario.horizonMonths || 12,
         annualGrowthRate: scenario.annualGrowthRate,
         annualInflationRate: scenario.annualInflationRate,
@@ -201,7 +189,7 @@ const projectionRows = computed<GoalProjectionRow[]>(() => {
         variation: projectedValue - currentValueUsed,
         progressPercent: projection.progress.progressPercent,
         estimatedReachDate: projection.attainmentEstimate.estimatedReachDate,
-        error: projection.status === 'invalidInput' ? projection.errors.map((error) => error.message).join(' ') : null,
+        error: projection.status === 'invalidInput' ? projection.errors.map((entry) => entry.message).join(' ') : null,
       }
     } catch (error) {
       return {
@@ -242,10 +230,27 @@ const selectedTrajectory = computed(() => projectionRows.value.find((row) => row
 const hypothesisSummary = computed(() => ({
   scenarioName: baseScenario.value?.name || '—',
   horizonMonths: baseScenario.value?.horizonMonths || 0,
-  contribution: surplusEstimate.value?.monthlyContributionUsed ?? baseScenario.value?.monthlySurplus ?? 0,
+  contribution: contributionUsed.value,
   annualGrowthRate: baseScenario.value?.annualGrowthRate ?? null,
   annualInflationRate: baseScenario.value?.annualInflationRate ?? null,
 }))
+
+const selectedTrajectoryPoints = computed(() => {
+  const row = selectedTrajectory.value
+  const projection = row?.projection
+  if (!row || !projection || projection.months.length === 0) return ''
+
+  const target = Math.max(1, Number(row.goal.targetAmount || 0))
+  const total = Math.max(1, projection.months.length - 1)
+
+  return projection.months
+      .map((month, index) => {
+        const x = 32 + index * (556 / total)
+        const y = 130 - Math.min(1, month.projectedValue / target) * 100
+        return `${x},${y}`
+      })
+      .join(' ')
+})
 
 async function loadGoalSummary() {
   const api = window.goals
@@ -307,11 +312,7 @@ onMounted(() => {
           Résumé descriptif des objectifs et de leur trajectoire. Les projections dépendent des hypothèses visibles et ne constituent pas une promesse.
         </p>
       </div>
-      <button
-          type="button"
-          class="inline-flex items-center justify-center rounded-2xl border border-violet-700 bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500"
-          @click="openGoalDetails()"
-      >
+      <button type="button" class="inline-flex items-center justify-center rounded-2xl border border-violet-700 bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500" @click="openGoalDetails()">
         Ouvrir le détail
       </button>
     </div>
@@ -359,9 +360,7 @@ onMounted(() => {
             <div>
               <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Carte où je vais</p>
               <h4 class="mt-2 text-lg font-semibold text-white">{{ selectedTrajectory?.goal.name || 'Trajectoire objectif' }}</h4>
-              <p class="mt-1 text-sm text-slate-400">
-                Valeur actuelle utilisée, valeur projetée à horizon et variation estimée.
-              </p>
+              <p class="mt-1 text-sm text-slate-400">Valeur actuelle utilisée, valeur projetée à horizon et variation estimée.</p>
             </div>
             <span class="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300">
               {{ selectedTrajectory?.projection?.status || '—' }}
@@ -383,16 +382,9 @@ onMounted(() => {
             </div>
           </div>
 
-          <div v-if="selectedTrajectory?.projection?.months.length" class="mt-5 overflow-hidden rounded-2xl border border-slate-800">
+          <div v-if="selectedTrajectoryPoints" class="mt-5 overflow-hidden rounded-2xl border border-slate-800">
             <svg viewBox="0 0 620 150" class="h-40 w-full bg-slate-950/70" role="img" aria-label="Trajectoire projetée objectif patrimoine">
-              <polyline
-                  :points="selectedTrajectory.projection.months.map((month, index) => `${32 + index * (556 / Math.max(1, selectedTrajectory!.projection!.months.length - 1))},${130 - Math.min(1, month.projectedValue / Math.max(1, selectedTrajectory!.goal.targetAmount)) * 100}`).join(' ')"
-                  fill="none"
-                  stroke="#8b5cf6"
-                  stroke-width="3"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-              />
+              <polyline :points="selectedTrajectoryPoints" fill="none" stroke="#8b5cf6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
               <line x1="32" y1="30" x2="588" y2="30" stroke="#94a3b8" stroke-dasharray="6 6" />
               <text x="38" y="24" fill="#cbd5e1" font-size="12">Cible</text>
             </svg>
@@ -402,26 +394,11 @@ onMounted(() => {
         <article class="rounded-3xl border border-slate-800 bg-slate-900/60 p-5">
           <h4 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Hypothèses principales</h4>
           <dl class="mt-4 space-y-3 text-sm">
-            <div class="flex justify-between gap-3">
-              <dt class="text-slate-500">Scénario</dt>
-              <dd class="font-semibold text-white">{{ hypothesisSummary.scenarioName }}</dd>
-            </div>
-            <div class="flex justify-between gap-3">
-              <dt class="text-slate-500">Contribution mensuelle</dt>
-              <dd class="font-semibold text-white">{{ formatMoney(hypothesisSummary.contribution, props.summaryCurrency) }}</dd>
-            </div>
-            <div class="flex justify-between gap-3">
-              <dt class="text-slate-500">Horizon</dt>
-              <dd class="font-semibold text-white">{{ hypothesisSummary.horizonMonths }} mois</dd>
-            </div>
-            <div class="flex justify-between gap-3">
-              <dt class="text-slate-500">Croissance</dt>
-              <dd class="font-semibold text-white">{{ formatRate(hypothesisSummary.annualGrowthRate) }}</dd>
-            </div>
-            <div class="flex justify-between gap-3">
-              <dt class="text-slate-500">Inflation</dt>
-              <dd class="font-semibold text-white">{{ formatRate(hypothesisSummary.annualInflationRate) }}</dd>
-            </div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Scénario</dt><dd class="font-semibold text-white">{{ hypothesisSummary.scenarioName }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Contribution mensuelle</dt><dd class="font-semibold text-white">{{ formatMoney(hypothesisSummary.contribution, props.summaryCurrency) }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Horizon</dt><dd class="font-semibold text-white">{{ hypothesisSummary.horizonMonths }} mois</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Croissance</dt><dd class="font-semibold text-white">{{ formatRate(hypothesisSummary.annualGrowthRate) }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Inflation</dt><dd class="font-semibold text-white">{{ formatRate(hypothesisSummary.annualInflationRate) }}</dd></div>
           </dl>
         </article>
       </div>
@@ -449,9 +426,7 @@ onMounted(() => {
             <td class="px-4 py-3 text-right text-slate-300">{{ formatDate(row.estimatedReachDate) }}</td>
             <td class="px-4 py-3 text-right text-slate-300">{{ formatPercent(row.progressPercent) }}</td>
             <td class="px-4 py-3 text-right">
-              <button type="button" class="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800" @click="openGoalDetails(row.goal.id)">
-                Détail
-              </button>
+              <button type="button" class="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800" @click="openGoalDetails(row.goal.id)">Détail</button>
             </td>
           </tr>
           </tbody>
