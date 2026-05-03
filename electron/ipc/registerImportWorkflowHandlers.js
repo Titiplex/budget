@@ -21,6 +21,10 @@ const {
     listImportAuditSources,
     toImportAuditIpcError,
 } = require('../import/importAuditService')
+const {
+    restoreImportAuditBackup,
+    toImportBackupRestoreIpcError,
+} = require('../import/importBackupRestoreService')
 
 const IMPORT_WORKFLOW_IPC_CHANNELS = Object.freeze({
     CREATE_BATCH: 'import:batch:create',
@@ -36,6 +40,7 @@ const IMPORT_WORKFLOW_IPC_CHANNELS = Object.freeze({
     AUDIT_SOURCES: 'import:audit:sources',
     AUDIT_DELETE: 'import:audit:delete',
     AUDIT_EXPORT: 'import:audit:export',
+    AUDIT_RESTORE_BACKUP: 'import:audit:restoreBackup',
 })
 
 function ok(data) {
@@ -43,7 +48,7 @@ function ok(data) {
 }
 
 function fail(error) {
-    return {ok: false, data: null, error: toImportAuditIpcError(error) || toImportWorkflowIpcError(error)}
+    return {ok: false, data: null, error: toImportBackupRestoreIpcError(error) || toImportAuditIpcError(error) || toImportWorkflowIpcError(error)}
 }
 
 function registerSafeImportWorkflowHandler(ipc, channel, handler) {
@@ -70,6 +75,7 @@ function registerImportWorkflowHandlers({ipc = ipcMain, store = defaultImportWor
     registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_SOURCES, () => listImportAuditSources(store))
     registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_DELETE, (batchId, options) => deleteImportAuditHistory(store, batchId, options))
     registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_EXPORT, (batchId, options) => exportImportAuditReport(store, batchId, options))
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_RESTORE_BACKUP, (input) => restoreImportAuditBackup(store, input))
 
     return {
         applyImport: (input) => applyImport(store, input),
@@ -87,6 +93,7 @@ function registerImportWorkflowHandlers({ipc = ipcMain, store = defaultImportWor
         listImportHistory: (filters) => listImportHistory(store, filters),
         parseImportFile: (input) => parseImportFile(store, input),
         previewImport: (input) => previewImport(store, input),
+        restoreImportAuditBackup: (input) => restoreImportAuditBackup(store, input),
     }
 }
 
