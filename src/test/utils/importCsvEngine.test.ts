@@ -61,7 +61,7 @@ describe('importCsvEngine', () => {
                     {sourceColumn: 'column7', targetField: 'symbol', fieldType: 'string'},
                     {sourceColumn: 'column8', targetField: 'operationType', fieldType: 'string'},
                 ],
-            },
+            } as any,
             {hasHeader: false, delimiter: '\t'},
         )
 
