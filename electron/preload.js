@@ -127,6 +127,7 @@ contextBridge.exposeInMainWorld('imports', {
   listSources: () => ipcRenderer.invoke('import:audit:sources'),
   deleteHistory: (batchId, options) => ipcRenderer.invoke('import:audit:delete', batchId, options),
   exportReport: (batchId, options) => ipcRenderer.invoke('import:audit:export', batchId, options),
+  restoreBackup: (input) => ipcRenderer.invoke('import:audit:restoreBackup', input),
   applyReconciliationDecisions: (input) => ipcRenderer.invoke('import:reconciliation:apply', input),
   mappingTemplate: {
     list: (filters) => ipcRenderer.invoke('import:mappingTemplate:list', filters),
