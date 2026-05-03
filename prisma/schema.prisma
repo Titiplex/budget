@@ -25,14 +25,12 @@ model Account {
   recurringTemplates  RecurringTransactionTemplate[]
   transferPeerForRows Transaction[]                  @relation("TransactionTransferPeer")
 
-  // Pont optionnel vers le domaine patrimoine. Les transactions budget restent
-  // la source de vérité du cash-flow; le patrimoine référence un compte uniquement
-  // pour faciliter la réconciliation.
   wealthPortfolio   Portfolio?
   wealthLiabilities Liability[]
 
   investmentPositions InvestmentPosition[]
   investmentMovements InvestmentMovement[]
+  importSources       ImportSource[]
 }
 
 model Category {
@@ -81,6 +79,9 @@ model Transaction {
   transferDirection     TransferDirection?
   transferPeerAccountId Int?
   transferPeerAccount   Account?           @relation("TransactionTransferPeer", fields: [transferPeerAccountId], references: [id], onDelete: SetNull)
+
+  importReconciliationCandidates ImportReconciliationDecision[] @relation("ImportDecisionCandidateTransaction")
+  importAppliedLinks             ImportAppliedLink[]            @relation("ImportAppliedTransaction")
 }
 
 model TaxProfile {
@@ -138,8 +139,6 @@ model RecurringTransactionTemplate {
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 }
 
-/// Actif patrimonial autonome suivi manuellement hors ledger de transactions budget.
-/// Exemples : immobilier, véhicule, parts privées, objet de collection, réserve cash.
 model Asset {
   id                 Int                 @id @default(autoincrement())
   name               String
@@ -162,12 +161,13 @@ model Asset {
 
   securedLiabilities Liability[]
 
-  // Lien optionnel vers un instrument coté/valorisable. currentValue reste le
-  // fallback manuel offline lorsque le prix de marché est absent ou obsolète.
   marketInstrumentId Int?
   marketInstrument   MarketInstrument? @relation("AssetMarketInstrument", fields: [marketInstrumentId], references: [id], onDelete: SetNull)
 
   financialGoals FinancialGoal[] @relation("FinancialGoalAsset")
+
+  importReconciliationCandidates ImportReconciliationDecision[] @relation("ImportDecisionCandidateAsset")
+  importAppliedLinks             ImportAppliedLink[]            @relation("ImportAppliedAsset")
 
   @@index([type])
   @@index([status])
@@ -175,8 +175,6 @@ model Asset {
   @@index([marketInstrumentId])
 }
 
-/// Conteneur d'investissement. Il est volontairement séparé de Account :
-/// Account stocke les flux budget, Portfolio stocke la valorisation patrimoniale.
 model Portfolio {
   id                 Int                 @id @default(autoincrement())
   name               String
@@ -211,15 +209,9 @@ model Portfolio {
   @@index([institutionCountry, institutionRegion])
 }
 
-/// Instrument de marché normalisé et provider-agnostic.
-/// Il stocke le dernier prix connu comme cache local, tandis que PriceSnapshot
-/// garde l'historique append-only exploitable offline.
 model MarketInstrument {
   id Int @id @default(autoincrement())
 
-  // Clé normalisée calculée côté application pour éviter les ambiguïtés SQLite
-  // liées aux colonnes nullable dans les contraintes uniques composites.
-  // Format conseillé : `${provider ?? 'manual'}:${symbol}:${exchange ?? 'none'}:${quoteCurrency}`.
   instrumentKey String @unique
 
   symbol               String
@@ -255,9 +247,6 @@ model MarketInstrument {
   @@index([freshnessStatus])
 }
 
-/// Lot/position manuel dans un portefeuille.
-/// Les champs unitPrice/marketValue restent le fallback manuel; marketInstrumentId
-/// permet de relier le lot à un instrument et à ses snapshots de prix.
 model HoldingLot {
   id          Int               @id @default(autoincrement())
   name        String
@@ -288,10 +277,6 @@ model HoldingLot {
   @@index([marketInstrumentId])
 }
 
-/// Snapshot local d'un prix connu.
-/// - marketInstrumentId : historique normalisé pour un instrument.
-/// - holdingLotId : compatibilité avec les snapshots manuels par position existants.
-/// - provider : source concrète et provider-agnostic (`manual`, `yahoo`, `import-csv`, etc.).
 model PriceSnapshot {
   id              Int                        @id @default(autoincrement())
   unitPrice       Float
@@ -323,8 +308,6 @@ model PriceSnapshot {
   @@index([investmentPositionId])
 }
 
-/// Investable instrument owned in one or more investment accounts.
-/// marketInstrumentId is optional and only bridges to the local market-data cache.
 model InvestmentInstrument {
   id               Int                        @id @default(autoincrement())
   instrumentKey    String                     @unique
@@ -355,8 +338,6 @@ model InvestmentInstrument {
   @@index([marketInstrumentId])
 }
 
-/// Current position for an instrument in an investment account.
-/// Quantity and cost fields are cached values; InvestmentMovement is auditable.
 model InvestmentPosition {
   id              Int                @id @default(autoincrement())
   status          WealthRecordStatus @default(ACTIVE)
@@ -388,8 +369,6 @@ model InvestmentPosition {
   @@index([status])
 }
 
-/// Auditable investment operation. BUY/SELL/MANUAL_ADJUSTMENT can use quantity
-/// and unitPrice; DIVIDEND/INTEREST/FEE/DEPOSIT/WITHDRAWAL can use cashAmount.
 model InvestmentMovement {
   id             Int                    @id @default(autoincrement())
   type           InvestmentMovementType
@@ -425,8 +404,6 @@ model InvestmentMovement {
   @@index([operationDate])
 }
 
-/// Dette/passif suivi dans le domaine patrimoine. Peut être lié optionnellement à un
-/// Account budget pour réconciliation, mais les remboursements restent des Transaction.
 model Liability {
   id                 Int                        @id @default(autoincrement())
   name               String
@@ -464,8 +441,6 @@ model Liability {
   @@index([accountId])
 }
 
-/// Agrégat persistant à date donnée pour historiser la valeur nette.
-/// Les breakdowns sont des chaînes JSON pour rester simples côté SQLite et auditables.
 model NetWorthSnapshot {
   id                     Int                    @id @default(autoincrement())
   snapshotDate           DateTime
@@ -490,8 +465,6 @@ model NetWorthSnapshot {
   @@index([currency])
 }
 
-/// Objectif financier local-first. Le modèle stocke un objectif et ses liens de
-/// contexte, mais aucune recommandation d'achat/vente ou de conseil financier.
 model FinancialGoal {
   id             Int                 @id @default(autoincrement())
   name           String
@@ -529,7 +502,6 @@ model FinancialGoal {
   @@index([baselineNetWorthSnapshotId])
 }
 
-/// Scénario réutilisable pour comparer plusieurs projections locales.
 model ProjectionScenario {
   id          Int                    @id @default(autoincrement())
   name        String                 @unique
@@ -546,7 +518,6 @@ model ProjectionScenario {
   @@index([isDefault])
 }
 
-/// Paramètres d'une projection pour un objectif et un scénario donnés.
 model ProjectionSetting {
   id                        Int      @id @default(autoincrement())
   projectionHorizonMonths   Int
@@ -571,8 +542,6 @@ model ProjectionSetting {
   @@index([displayCurrency])
 }
 
-/// Ligne mensuelle calculée pour une projection. Elle reste persistée localement
-/// afin de fonctionner offline et d'être recalculable sans service externe.
 model ProjectionResult {
   id                 Int                   @id @default(autoincrement())
   projectionMonth    DateTime
@@ -598,6 +567,320 @@ model ProjectionResult {
   @@index([settingId])
   @@index([projectionMonth])
   @@index([reachStatus])
+}
+
+model ImportSource {
+  id               Int              @id @default(autoincrement())
+  sourceKey        String           @unique
+  name             String
+  provider         String
+  sourceType       ImportSourceType @default(MANUAL_FILE)
+  importType       ImportType       @default(TRANSACTIONS)
+  defaultCurrency  String           @default("CAD")
+  externalSourceId String?
+  isActive         Boolean          @default(true)
+  metadataJson     String?
+  note             String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  defaultAccountId Int?
+  defaultAccount   Account? @relation(fields: [defaultAccountId], references: [id], onDelete: SetNull)
+
+  batches ImportBatch[]
+
+  @@index([provider])
+  @@index([sourceType])
+  @@index([importType])
+  @@index([defaultAccountId])
+  @@index([isActive])
+}
+
+model ImportBatch {
+  id                   Int          @id @default(autoincrement())
+  status               ImportStatus @default(DRAFT)
+  importType           ImportType   @default(TRANSACTIONS)
+  provider             String?
+  fileName             String?
+  fileHash             String?
+  defaultCurrency      String       @default("CAD")
+  parserVersion        String?
+  sourceMetadataJson   String?
+  retentionPolicyJson  String?
+  rowCount             Int          @default(0)
+  errorCount           Int          @default(0)
+  duplicateCount       Int          @default(0)
+  importedAt           DateTime     @default(now())
+  parsedAt             DateTime?
+  previewedAt          DateTime?
+  appliedAt            DateTime?
+  cancelledAt          DateTime?
+  note                 String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  sourceId Int?
+  source   ImportSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  rawRows        ImportRawRow[]
+  normalizedRows ImportNormalizedRow[]
+  errors         ImportError[]
+  decisions      ImportReconciliationDecision[]
+  appliedLinks   ImportAppliedLink[]
+
+  @@index([sourceId])
+  @@index([status])
+  @@index([importType])
+  @@index([provider])
+  @@index([fileHash])
+  @@index([importedAt])
+}
+
+model ImportRawRow {
+  id        Int             @id @default(autoincrement())
+  rowNumber Int
+  rawText   String?
+  rawJson   String
+  rawHash   String?
+  status    ImportRowStatus @default(RAW)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  batchId Int
+  batch   ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  normalizedRows ImportNormalizedRow[]
+  errors         ImportError[]
+
+  @@unique([batchId, rowNumber])
+  @@index([batchId])
+  @@index([status])
+  @@index([rawHash])
+}
+
+model ImportNormalizedRow {
+  id                  Int              @id @default(autoincrement())
+  rowNumber           Int
+  status              ImportRowStatus  @default(NORMALIZED)
+  targetKind          ImportTargetKind @default(TRANSACTION)
+  normalizedJson      String
+  transactionDate     DateTime?
+  label               String?
+  amount              Float?
+  currency            String?
+  accountName         String?
+  externalRef         String?
+  duplicateKey        String?
+  duplicateConfidence Float?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  batchId Int
+  batch   ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  rawRowId Int?
+  rawRow   ImportRawRow? @relation(fields: [rawRowId], references: [id], onDelete: SetNull)
+
+  errors       ImportError[]
+  decisions    ImportReconciliationDecision[]
+  appliedLinks ImportAppliedLink[]
+
+  @@unique([batchId, rowNumber])
+  @@index([batchId])
+  @@index([rawRowId])
+  @@index([status])
+  @@index([targetKind])
+  @@index([transactionDate])
+  @@index([duplicateKey])
+}
+
+model ImportError {
+  id          Int                 @id @default(autoincrement())
+  stage       ImportErrorStage
+  severity    ImportErrorSeverity @default(ERROR)
+  code        String
+  message     String
+  field       String?
+  detailsJson String?
+  createdAt   DateTime            @default(now())
+
+  batchId Int
+  batch   ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  rawRowId Int?
+  rawRow   ImportRawRow? @relation(fields: [rawRowId], references: [id], onDelete: SetNull)
+
+  normalizedRowId Int?
+  normalizedRow   ImportNormalizedRow? @relation(fields: [normalizedRowId], references: [id], onDelete: SetNull)
+
+  @@index([batchId])
+  @@index([rawRowId])
+  @@index([normalizedRowId])
+  @@index([stage])
+  @@index([severity])
+  @@index([code])
+}
+
+model ImportReconciliationDecision {
+  id            Int                 @id @default(autoincrement())
+  action        ImportReconciliationAction
+  status        ImportDecisionStatus @default(PENDING)
+  confidence    Float?
+  reason        String?
+  decisionJson  String?
+  decidedBy     String?
+  decidedAt     DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  batchId Int
+  batch   ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  normalizedRowId Int
+  normalizedRow   ImportNormalizedRow @relation(fields: [normalizedRowId], references: [id], onDelete: Cascade)
+
+  candidateTransactionId Int?
+  candidateTransaction   Transaction? @relation("ImportDecisionCandidateTransaction", fields: [candidateTransactionId], references: [id], onDelete: SetNull)
+
+  candidateAssetId Int?
+  candidateAsset   Asset? @relation("ImportDecisionCandidateAsset", fields: [candidateAssetId], references: [id], onDelete: SetNull)
+
+  appliedLinks ImportAppliedLink[]
+
+  @@index([batchId])
+  @@index([normalizedRowId])
+  @@index([candidateTransactionId])
+  @@index([candidateAssetId])
+  @@index([action])
+  @@index([status])
+  @@index([decidedAt])
+}
+
+model ImportAppliedLink {
+  id                 Int                     @id @default(autoincrement())
+  entityType         ImportAppliedEntityType
+  operation          ImportAppliedOperation
+  entitySnapshotJson String?
+  appliedAt          DateTime                @default(now())
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  batchId Int
+  batch   ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  normalizedRowId Int?
+  normalizedRow   ImportNormalizedRow? @relation(fields: [normalizedRowId], references: [id], onDelete: SetNull)
+
+  decisionId Int?
+  decision   ImportReconciliationDecision? @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+
+  transactionId Int?
+  transaction   Transaction? @relation("ImportAppliedTransaction", fields: [transactionId], references: [id], onDelete: SetNull)
+
+  assetId Int?
+  asset   Asset? @relation("ImportAppliedAsset", fields: [assetId], references: [id], onDelete: SetNull)
+
+  @@index([batchId])
+  @@index([normalizedRowId])
+  @@index([decisionId])
+  @@index([transactionId])
+  @@index([assetId])
+  @@index([entityType])
+  @@index([operation])
+  @@index([appliedAt])
+}
+
+enum ImportSourceType {
+  MANUAL_FILE
+  CSV_FILE
+  OFX_FILE
+  QIF_FILE
+  API
+  SYNC
+  OTHER
+}
+
+enum ImportType {
+  TRANSACTIONS
+  ASSETS
+  INVESTMENTS
+  NET_WORTH
+  MIXED
+  OTHER
+}
+
+enum ImportStatus {
+  DRAFT
+  PARSED
+  PREVIEWED
+  PARTIALLY_APPLIED
+  APPLIED
+  FAILED
+  CANCELLED
+}
+
+enum ImportRowStatus {
+  RAW
+  NORMALIZED
+  VALID
+  INVALID
+  DUPLICATE
+  RECONCILED
+  APPLIED
+  SKIPPED
+}
+
+enum ImportTargetKind {
+  TRANSACTION
+  ASSET
+  PORTFOLIO
+  HOLDING
+  INVESTMENT_MOVEMENT
+  PRICE_SNAPSHOT
+  UNKNOWN
+}
+
+enum ImportErrorStage {
+  PARSING
+  NORMALIZATION
+  VALIDATION
+  RECONCILIATION
+  APPLY
+}
+
+enum ImportErrorSeverity {
+  INFO
+  WARNING
+  ERROR
+}
+
+enum ImportDecisionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  APPLIED
+  SUPERSEDED
+}
+
+enum ImportReconciliationAction {
+  CREATE
+  UPDATE
+  LINK_EXISTING
+  SKIP_DUPLICATE
+  IGNORE
+  REVIEW_MANUALLY
+}
+
+enum ImportAppliedOperation {
+  CREATED
+  UPDATED
+  LINKED
+  SKIPPED
+}
+
+enum ImportAppliedEntityType {
+  TRANSACTION
+  ASSET
 }
 
 enum AccountType {
