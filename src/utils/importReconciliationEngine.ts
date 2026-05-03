@@ -104,13 +104,7 @@ function asTargetEntityType(value?: ImportReconciliationTargetType | null): Impo
 }
 
 function historyEntry(input: {actor?: string | null; status: ImportReconciliationDecisionStatus; message: string; at: string; metadata?: JsonObject | null}): ImportReconciliationHistoryEntry {
-    return {
-        at: input.at,
-        actor: input.actor || 'system',
-        status: input.status,
-        message: input.message,
-        metadata: input.metadata ?? null,
-    }
+    return {at: input.at, actor: input.actor || 'system', status: input.status, message: input.message, metadata: input.metadata ?? null}
 }
 
 export function createReconciliationDecision(input: CreateReconciliationDecisionInput): ImportReconciliationDecisionRecord {
@@ -136,42 +130,17 @@ export function createReconciliationDecision(input: CreateReconciliationDecision
 }
 
 function issue(input: {code: string; message: string; field?: string | null; rowNumber?: number | null; decisionId?: ImportEntityId | null}): ImportReconciliationValidationIssue {
-    return {
-        code: input.code,
-        message: input.message,
-        field: input.field ?? null,
-        rowNumber: input.rowNumber ?? null,
-        decisionId: input.decisionId ?? null,
-    }
+    return {code: input.code, message: input.message, field: input.field ?? null, rowNumber: input.rowNumber ?? null, decisionId: input.decisionId ?? null}
 }
 
 export function validateReconciliationDecision(decision: ImportReconciliationDecisionRecord, row?: ImportRowNormalized<JsonObject>): ImportReconciliationValidationResult {
     const issues: ImportReconciliationValidationIssue[] = []
-
-    if (!decision.reason?.trim()) {
-        issues.push(issue({code: 'missingDecisionReason', message: 'La décision doit conserver une raison compréhensible.', field: 'reason', rowNumber: decision.rowNumber, decisionId: decision.id}))
-    }
-
-    if (!['automatic', 'user', 'rule', 'template'].includes(decision.reasonSource)) {
-        issues.push(issue({code: 'invalidReasonSource', message: 'La source de la décision est invalide.', field: 'reasonSource', rowNumber: decision.rowNumber, decisionId: decision.id}))
-    }
-
-    if (['linkToExisting', 'updateExisting', 'markAsDuplicate'].includes(decision.kind) && (decision.targetEntityId == null || !decision.targetEntityType)) {
-        issues.push(issue({code: 'missingTargetEntity', message: 'Cette décision doit cibler une entité existante.', field: 'targetEntityId', rowNumber: decision.rowNumber, decisionId: decision.id}))
-    }
-
-    if (decision.kind === 'importAsNew' && decision.targetEntityId != null) {
-        issues.push(issue({code: 'unexpectedTargetForNewImport', message: 'Une création ne doit pas cibler une entité existante.', field: 'targetEntityId', rowNumber: decision.rowNumber, decisionId: decision.id}))
-    }
-
-    if (decision.kind === 'needsManualReview' && decision.reasonSource !== 'user' && !decision.reason.toLowerCase().includes('review')) {
-        issues.push(issue({code: 'manualReviewNeedsExplicitReason', message: 'Une revue manuelle doit expliquer pourquoi la ligne est ambiguë.', field: 'reason', rowNumber: decision.rowNumber, decisionId: decision.id}))
-    }
-
-    if (!row) {
-        issues.push(issue({code: 'missingImportedRow', message: 'La ligne importée associée à la décision est introuvable.', field: 'normalizedRowId', rowNumber: decision.rowNumber, decisionId: decision.id}))
-    }
-
+    if (!decision.reason?.trim()) issues.push(issue({code: 'missingDecisionReason', message: 'La décision doit conserver une raison compréhensible.', field: 'reason', rowNumber: decision.rowNumber, decisionId: decision.id}))
+    if (!['automatic', 'user', 'rule', 'template'].includes(decision.reasonSource)) issues.push(issue({code: 'invalidReasonSource', message: 'La source de la décision est invalide.', field: 'reasonSource', rowNumber: decision.rowNumber, decisionId: decision.id}))
+    if (['linkToExisting', 'updateExisting', 'markAsDuplicate'].includes(decision.kind) && (decision.targetEntityId == null || !decision.targetEntityType)) issues.push(issue({code: 'missingTargetEntity', message: 'Cette décision doit cibler une entité existante.', field: 'targetEntityId', rowNumber: decision.rowNumber, decisionId: decision.id}))
+    if (decision.kind === 'importAsNew' && decision.targetEntityId != null) issues.push(issue({code: 'unexpectedTargetForNewImport', message: 'Une création ne doit pas cibler une entité existante.', field: 'targetEntityId', rowNumber: decision.rowNumber, decisionId: decision.id}))
+    if (decision.kind === 'needsManualReview' && decision.reasonSource !== 'user' && !decision.reason.toLowerCase().includes('review')) issues.push(issue({code: 'manualReviewNeedsExplicitReason', message: 'Une revue manuelle doit expliquer pourquoi la ligne est ambiguë.', field: 'reason', rowNumber: decision.rowNumber, decisionId: decision.id}))
+    if (!row) issues.push(issue({code: 'missingImportedRow', message: 'La ligne importée associée à la décision est introuvable.', field: 'normalizedRowId', rowNumber: decision.rowNumber, decisionId: decision.id}))
     return {valid: issues.length === 0, issues}
 }
 
@@ -179,15 +148,11 @@ export function validateReconciliationDecisionSet(decisions: ImportReconciliatio
     const rowIndex = new Map(rows.map((row) => [String(row.id ?? row.rowNumber), row]))
     const issues = decisions.flatMap((decision) => validateReconciliationDecision(decision, rowIndex.get(String(decision.normalizedRowId ?? decision.rowNumber))).issues)
     const seenRows = new Set<string>()
-
     for (const decision of decisions) {
         const rowKey = String(decision.normalizedRowId ?? decision.rowNumber)
-        if (seenRows.has(rowKey)) {
-            issues.push(issue({code: 'multipleDecisionsForRow', message: 'Une ligne importée ne peut pas recevoir plusieurs décisions dans le même lot d’application.', field: 'normalizedRowId', rowNumber: decision.rowNumber, decisionId: decision.id}))
-        }
+        if (seenRows.has(rowKey)) issues.push(issue({code: 'multipleDecisionsForRow', message: 'Une ligne importée ne peut pas recevoir plusieurs décisions dans le même lot d’application.', field: 'normalizedRowId', rowNumber: decision.rowNumber, decisionId: decision.id}))
         seenRows.add(rowKey)
     }
-
     return {valid: issues.length === 0, issues}
 }
 
@@ -200,60 +165,43 @@ function decisionRowKey(decision: ImportReconciliationDecisionRecord) {
 }
 
 function withStatus(decision: ImportReconciliationDecisionRecord, status: ImportReconciliationDecisionStatus, message: string, at: string, actor = 'system', metadata?: JsonObject | null): ImportReconciliationDecisionRecord {
-    return {
-        ...decision,
-        status,
-        updatedAt: at,
-        history: [...decision.history, historyEntry({actor, status, message, at, metadata})],
-    }
+    return {...decision, status, updatedAt: at, history: [...decision.history, historyEntry({actor, status, message, at, metadata})]}
 }
 
-function buildAppliedLink(input: {
-    decision: ImportReconciliationDecisionRecord
-    row: ImportRowNormalized<JsonObject>
-    operation: ImportAppliedOperation
-    entityType: ImportTargetEntityType
-    entityId?: ImportEntityId | null
-    snapshot?: JsonObject | null
-    appliedAt: string
-}): ImportAppliedLink {
+function buildAppliedLink(input: {decision: ImportReconciliationDecisionRecord; row: ImportRowNormalized<JsonObject>; operation: ImportAppliedOperation; entityType: ImportTargetEntityType; entityId?: ImportEntityId | null; snapshot?: JsonObject | null; appliedAt: string}): ImportAppliedLink {
+    const entityType = input.entityType === ImportTargetEntityType.Asset ? ImportTargetEntityType.Asset : ImportTargetEntityType.Transaction
     return {
         batchId: input.decision.batchId ?? undefined,
         normalizedRowId: input.row.id ?? undefined,
         decisionId: input.decision.id,
-        entityType: input.entityType === ImportTargetEntityType.Asset ? ImportTargetEntityType.Asset : ImportTargetEntityType.Transaction,
+        entityType,
         operation: input.operation,
-        entityId: input.entityId ?? null,
+        transactionId: entityType === ImportTargetEntityType.Transaction ? input.entityId ?? null : undefined,
+        assetId: entityType === ImportTargetEntityType.Asset ? input.entityId ?? null : undefined,
         entitySnapshot: input.snapshot ?? null,
         appliedAt: input.appliedAt,
     }
 }
 
-async function applyOne(repository: ImportReconciliationRepository, decision: ImportReconciliationDecisionRecord, row: ImportRowNormalized<JsonObject>, appliedAt: string) {
-    const validated = withStatus(decision, 'validated', 'Décision validée avant application.', appliedAt)
-    const persistedDecision = await repository.persistDecision(validated)
+async function persistAppliedStatus(repository: ImportReconciliationRepository, decision: ImportReconciliationDecisionRecord, message: string, appliedAt: string, metadata?: JsonObject | null) {
+    return repository.persistDecision(withStatus(decision, 'applied', message, appliedAt, 'system', metadata))
+}
 
+async function applyOne(repository: ImportReconciliationRepository, decision: ImportReconciliationDecisionRecord, row: ImportRowNormalized<JsonObject>, appliedAt: string) {
+    const persistedDecision = await repository.persistDecision(withStatus(decision, 'validated', 'Décision validée avant application.', appliedAt))
     if (decision.kind === 'needsManualReview') return {decision: persistedDecision, link: null}
 
     if (decision.kind === 'skip' || decision.kind === 'markAsDuplicate') {
         await repository.markSkipped?.(row, persistedDecision)
-        const link = await repository.persistAppliedLink(buildAppliedLink({
-            decision: persistedDecision,
-            row,
-            operation: ImportAppliedOperation.Skipped,
-            entityType: asTargetEntityType(decision.targetEntityType),
-            entityId: decision.targetEntityId ?? null,
-            snapshot: {reason: decision.reason, kind: decision.kind},
-            appliedAt,
-        }))
-        return {decision: withStatus(persistedDecision, 'applied', 'Ligne ignorée et conservée dans l’historique.', appliedAt), link}
+        const link = await repository.persistAppliedLink(buildAppliedLink({decision: persistedDecision, row, operation: ImportAppliedOperation.Skipped, entityType: asTargetEntityType(decision.targetEntityType), entityId: decision.targetEntityId ?? null, snapshot: {reason: decision.reason, kind: decision.kind}, appliedAt}))
+        return {decision: await persistAppliedStatus(repository, persistedDecision, 'Ligne ignorée et conservée dans l’historique.', appliedAt), link}
     }
 
     if (decision.kind === 'importAsNew') {
         const created = await repository.createEntity?.(row, persistedDecision)
         if (!created) throw new Error('Repository createEntity is required to apply importAsNew.')
         const link = await repository.persistAppliedLink(buildAppliedLink({decision: persistedDecision, row, operation: ImportAppliedOperation.Created, entityType: created.entityType, entityId: created.entityId, snapshot: created.snapshot ?? null, appliedAt}))
-        return {decision: withStatus(persistedDecision, 'applied', 'Entité créée depuis la ligne importée.', appliedAt), link}
+        return {decision: await persistAppliedStatus(repository, persistedDecision, 'Entité créée depuis la ligne importée.', appliedAt, {entityId: created.entityId}), link}
     }
 
     if (decision.kind === 'linkToExisting') {
@@ -261,21 +209,16 @@ async function applyOne(repository: ImportReconciliationRepository, decision: Im
         const entityType = linked?.entityType ?? asTargetEntityType(decision.targetEntityType)
         const entityId = linked?.entityId ?? decision.targetEntityId ?? null
         const link = await repository.persistAppliedLink(buildAppliedLink({decision: persistedDecision, row, operation: ImportAppliedOperation.Linked, entityType, entityId, snapshot: linked?.snapshot ?? null, appliedAt}))
-        return {decision: withStatus(persistedDecision, 'applied', 'Ligne liée à une entité existante.', appliedAt), link}
+        return {decision: await persistAppliedStatus(repository, persistedDecision, 'Ligne liée à une entité existante.', appliedAt, {entityId}), link}
     }
 
     const updated = await repository.updateExisting?.(row, persistedDecision)
     if (!updated) throw new Error('Repository updateExisting is required to apply updateExisting.')
     const link = await repository.persistAppliedLink(buildAppliedLink({decision: persistedDecision, row, operation: ImportAppliedOperation.Updated, entityType: updated.entityType, entityId: updated.entityId, snapshot: updated.snapshot ?? null, appliedAt}))
-    return {decision: withStatus(persistedDecision, 'applied', 'Entité existante mise à jour depuis la ligne importée.', appliedAt), link}
+    return {decision: await persistAppliedStatus(repository, persistedDecision, 'Entité existante mise à jour depuis la ligne importée.', appliedAt, {entityId: updated.entityId}), link}
 }
 
-export async function applyReconciliationDecisions(input: {
-    repository: ImportReconciliationRepository
-    rows: Array<ImportRowNormalized<JsonObject>>
-    decisions: ImportReconciliationDecisionRecord[]
-    appliedAt?: string
-}): Promise<ImportReconciliationApplyResult> {
+export async function applyReconciliationDecisions(input: {repository: ImportReconciliationRepository; rows: Array<ImportRowNormalized<JsonObject>>; decisions: ImportReconciliationDecisionRecord[]; appliedAt?: string}): Promise<ImportReconciliationApplyResult> {
     const appliedAt = nowIso(input.appliedAt)
     const rowIndex = new Map(input.rows.map((row) => [rowKey(row), row]))
     const validation = validateReconciliationDecisionSet(input.decisions, input.rows)
@@ -284,7 +227,6 @@ export async function applyReconciliationDecisions(input: {
     const operation = async (repository: ImportReconciliationRepository) => {
         const appliedDecisions: ImportReconciliationDecisionRecord[] = []
         const appliedLinks: ImportAppliedLink[] = []
-
         for (const decision of input.decisions) {
             const row = rowIndex.get(decisionRowKey(decision))
             if (!row) throw new Error(`Missing row for decision ${decision.id}`)
@@ -292,10 +234,8 @@ export async function applyReconciliationDecisions(input: {
             appliedDecisions.push(applied.decision)
             if (applied.link) appliedLinks.push(applied.link)
         }
-
         return {ok: true, appliedAt, appliedDecisions, appliedLinks, errors: []}
     }
-
     return input.repository.transaction ? input.repository.transaction(operation) : operation(input.repository)
 }
 
