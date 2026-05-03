@@ -124,6 +124,9 @@ contextBridge.exposeInMainWorld('imports', {
   getDetail: (batchId) => ipcRenderer.invoke('import:detail:get', batchId),
   listErrors: (batchId) => ipcRenderer.invoke('import:errors:list', batchId),
   listDuplicateCandidates: (batchId) => ipcRenderer.invoke('import:duplicates:list', batchId),
+  listSources: () => ipcRenderer.invoke('import:audit:sources'),
+  deleteHistory: (batchId, options) => ipcRenderer.invoke('import:audit:delete', batchId, options),
+  exportReport: (batchId, options) => ipcRenderer.invoke('import:audit:export', batchId, options),
   applyReconciliationDecisions: (input) => ipcRenderer.invoke('import:reconciliation:apply', input),
   mappingTemplate: {
     list: (filters) => ipcRenderer.invoke('import:mappingTemplate:list', filters),
