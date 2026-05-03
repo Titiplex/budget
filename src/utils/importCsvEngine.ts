@@ -19,7 +19,23 @@ import {normalizeHeader} from './csv'
 export type CsvDelimiter = ',' | ';' | '\t'
 export type CsvDateFormat = 'auto' | 'yyyy-MM-dd' | 'yyyy/MM/dd' | 'dd/MM/yyyy' | 'MM/dd/yyyy' | 'dd-MM-yyyy' | 'yyyyMMdd'
 export type CsvDecimalSeparator = 'auto' | '.' | ','
-export type CsvNormalizedField = 'date' | 'label' | 'amount' | 'currency' | 'quantity' | 'unitPrice' | 'fees' | 'taxes' | 'symbol' | 'operationType' | 'accountName' | 'sourceName'
+export type CsvNormalizedField =
+    | 'date'
+    | 'label'
+    | 'amount'
+    | 'currency'
+    | 'quantity'
+    | 'unitPrice'
+    | 'fees'
+    | 'taxes'
+    | 'symbol'
+    | 'operationType'
+    | 'accountName'
+    | 'sourceName'
+    | 'isin'
+    | 'grossAmount'
+    | 'cashAmount'
+    | 'externalRef'
 export type CsvImportMapping = Partial<Record<CsvNormalizedField, string[]>>
 
 export interface CsvImportParseOptions {
@@ -48,6 +64,10 @@ export type NormalizedCsvImportData = JsonObject & {
     operationType?: string
     accountName?: string
     sourceName?: string
+    isin?: string
+    grossAmount?: number
+    cashAmount?: number
+    externalRef?: string
 }
 
 export interface CsvImportParseResult {
@@ -70,18 +90,22 @@ interface HeaderDescriptor { raw: string; key: string }
 const DELIMITERS: CsvDelimiter[] = [',', ';', '\t']
 const DEFAULT_CURRENCY = 'CAD'
 const DEFAULT_MAPPING: Required<CsvImportMapping> = {
-    date: ['date', 'transaction date', 'trade date', 'operation date', 'settlement date', 'posted date', 'jour', 'date operation', 'date opération'],
-    label: ['label', 'description', 'details', 'name', 'memo', 'libelle', 'libellé', 'operation', 'opération'],
-    amount: ['amount', 'net amount', 'total', 'value', 'montant', 'montant net'],
-    currency: ['currency', 'devise', 'ccy'],
-    quantity: ['quantity', 'qty', 'shares', 'units', 'quantite', 'quantité'],
-    unitPrice: ['unit price', 'price', 'prix unitaire', 'prix'],
-    fees: ['fees', 'fee', 'commission', 'commissions', 'frais'],
-    taxes: ['taxes', 'tax', 'withholding tax', 'taxe', 'impot', 'impôt'],
-    symbol: ['symbol', 'ticker', 'isin', 'instrument', 'symbole'],
-    operationType: ['type', 'operation type', 'transaction type', 'side', 'action', 'type operation', 'type opération'],
+    date: ['date', 'timestamp', 'transaction date', 'trade date', 'operation date', 'settlement date', 'payment date', 'as of date', 'posted date', 'jour', 'date operation', 'date opération'],
+    label: ['label', 'description', 'details', 'security name', 'name', 'memo', 'libelle', 'libellé', 'operation', 'opération'],
+    amount: ['amount', 'net amount', 'total', 'value', 'market value', 'montant', 'montant net'],
+    currency: ['currency', 'quote currency', 'devise', 'ccy'],
+    quantity: ['quantity', 'qty', 'shares', 'units', 'base quantity', 'quantite', 'quantité'],
+    unitPrice: ['unit price', 'price', 'market price', 'prix unitaire', 'prix'],
+    fees: ['fees', 'fee', 'fee amount', 'commission', 'commissions', 'frais'],
+    taxes: ['taxes', 'tax', 'withholding tax', 'network fee', 'taxe', 'impot', 'impôt'],
+    symbol: ['symbol', 'ticker', 'asset', 'base asset', 'instrument', 'symbole'],
+    operationType: ['type', 'operation type', 'transaction type', 'side', 'action', 'income type', 'type operation', 'type opération'],
     accountName: ['account', 'account name', 'compte', 'nom compte'],
     sourceName: ['source', 'provider', 'broker', 'exchange', 'courtier'],
+    isin: ['isin'],
+    grossAmount: ['gross amount', 'quote amount', 'gross proceeds', 'gross'],
+    cashAmount: ['cash amount', 'settlement amount', 'net cash', 'cash'],
+    externalRef: ['external id', 'trade id', 'transaction id', 'transaction hash', 'id', 'reference', 'ref'],
 }
 
 function error(input: {rowNumber?: number; stage: ImportErrorStage; severity: ImportErrorSeverity; code: ImportBusinessErrorCode | string; message: string; field?: string | null; details?: JsonObject | null}): ImportRowValidationError {
@@ -181,12 +205,32 @@ function mergeMappings(options: CsvImportParseOptions): Required<CsvImportMappin
     return merged
 }
 
+function requiredTemplateColumns(options: CsvImportParseOptions) {
+    return (options.mappingTemplate?.columnMappings ?? [])
+        .filter((mapping) => mapping.required)
+        .map((mapping) => ({sourceColumn: mapping.sourceColumn, targetField: mapping.targetField}))
+}
+
 function buildHeaders(headerRow: ParsedCsvRow | undefined, maxColumns: number, hasHeader: boolean): HeaderDescriptor[] {
     const rawHeaders = hasHeader && headerRow ? headerRow.cells : Array.from({length: maxColumns}, (_, index) => `column${index + 1}`)
     return rawHeaders.map((header, index) => {
         const raw = header.trim() || `column${index + 1}`
         return {raw, key: normalizeHeader(raw)}
     })
+}
+
+function missingRequiredColumnErrors(headers: HeaderDescriptor[], options: CsvImportParseOptions) {
+    const available = new Set(headers.map((header) => header.key))
+    return requiredTemplateColumns(options)
+        .filter((mapping) => !available.has(normalizeHeader(mapping.sourceColumn)))
+        .map((mapping) => error({
+            stage: ImportErrorStage.Validation,
+            severity: ImportErrorSeverity.Error,
+            code: ImportBusinessErrorCode.MissingColumn,
+            message: `Missing required column "${mapping.sourceColumn}" for preset field "${mapping.targetField}". Copy the preset and adapt the mapping if your export uses another column name.`,
+            field: mapping.targetField,
+            details: {sourceColumn: mapping.sourceColumn, targetField: mapping.targetField, availableColumns: headers.map((header) => header.raw)},
+        }))
 }
 
 function buildRecord(row: ParsedCsvRow, headers: HeaderDescriptor[]): Record<string, string> {
@@ -293,20 +337,22 @@ function normalizeRow(input: {batchId: string; row: ParsedCsvRow; rawRowId: stri
 
     let hasCoreNumericValue = false
     let hasCoreNumericCandidate = false
-    for (const field of ['amount', 'quantity', 'unitPrice', 'fees', 'taxes'] as CsvNormalizedField[]) {
+    for (const field of ['amount', 'quantity', 'unitPrice', 'fees', 'taxes', 'grossAmount', 'cashAmount'] as CsvNormalizedField[]) {
         const rawValue = read(record, mapping, field)
         if (!rawValue) continue
-        if (field === 'amount' || field === 'quantity' || field === 'unitPrice') hasCoreNumericCandidate = true
+        if (field === 'amount' || field === 'quantity' || field === 'unitPrice' || field === 'grossAmount' || field === 'cashAmount') hasCoreNumericCandidate = true
         const parsed = parseNumberValue(rawValue, options.decimalSeparator)
         if (parsed === null) errors.push(error({rowNumber: row.lineNumber, stage: ImportErrorStage.Validation, severity: ImportErrorSeverity.Error, code: ImportBusinessErrorCode.InvalidAmount, message: `Invalid numeric value for ${field}: ${rawValue}`, field, details: {received: rawValue}}))
         else {
-            if (field === 'amount' || field === 'quantity' || field === 'unitPrice') hasCoreNumericValue = true
+            if (field === 'amount' || field === 'quantity' || field === 'unitPrice' || field === 'grossAmount' || field === 'cashAmount') hasCoreNumericValue = true
             put(data, field, parsed)
         }
     }
-    if (!hasCoreNumericValue && !hasCoreNumericCandidate) errors.push(error({rowNumber: row.lineNumber, stage: ImportErrorStage.Validation, severity: ImportErrorSeverity.Error, code: ImportBusinessErrorCode.InvalidAmount, message: 'Missing amount, quantity or unit price. At least one numeric core value is required.', field: 'amount'}))
+    if (typeof data.amount !== 'number' && typeof data.cashAmount === 'number') put(data, 'amount', data.cashAmount)
+    if (typeof data.amount !== 'number' && typeof data.grossAmount === 'number') put(data, 'amount', data.grossAmount)
+    if (!hasCoreNumericValue && !hasCoreNumericCandidate) errors.push(error({rowNumber: row.lineNumber, stage: ImportErrorStage.Validation, severity: ImportErrorSeverity.Error, code: ImportBusinessErrorCode.InvalidAmount, message: 'Missing amount, quantity, unit price, gross amount or cash amount. At least one numeric core value is required.', field: 'amount'}))
 
-    for (const field of ['symbol', 'operationType', 'accountName', 'sourceName'] as CsvNormalizedField[]) {
+    for (const field of ['symbol', 'operationType', 'accountName', 'sourceName', 'isin', 'externalRef'] as CsvNormalizedField[]) {
         const raw = read(record, mapping, field)
         const normalized = field === 'symbol' ? raw.toUpperCase() : field === 'operationType' ? raw.trim().replace(/\s+/g, '_').toUpperCase() : raw
         if (normalized) put(data, field, normalized)
@@ -314,20 +360,21 @@ function normalizeRow(input: {batchId: string; row: ParsedCsvRow; rawRowId: stri
     if (options.sourceName && !data.sourceName) put(data, 'sourceName', options.sourceName)
 
     const amount = typeof data.amount === 'number' ? data.amount : null
-    const duplicateKey = parsedDate && amount !== null ? `${parsedDate.slice(0, 10)}:${amount}:${data.currency ?? options.defaultCurrency}:${data.label ?? ''}` : null
+    const isInvestmentLike = Boolean(data.symbol || data.quantity !== undefined || data.unitPrice !== undefined || data.isin)
+    const duplicateKey = parsedDate && (amount !== null || data.externalRef) ? `${data.externalRef ?? ''}:${parsedDate.slice(0, 10)}:${amount ?? ''}:${data.currency ?? options.defaultCurrency}:${data.label ?? data.symbol ?? ''}` : null
     return {
         batchId: input.batchId,
         rawRowId,
         rowNumber: row.lineNumber,
         status: errors.length ? ImportRowStatus.Invalid : ImportRowStatus.Valid,
-        targetKind: ImportTargetEntityType.Transaction,
+        targetKind: isInvestmentLike ? ImportTargetEntityType.InvestmentMovement : ImportTargetEntityType.Transaction,
         normalizedData: data,
         transactionDate: typeof data.date === 'string' ? data.date : null,
-        label: typeof data.label === 'string' ? data.label : null,
+        label: typeof data.label === 'string' ? data.label : typeof data.symbol === 'string' ? data.symbol : null,
         amount,
         currency: typeof data.currency === 'string' ? data.currency : null,
         accountName: typeof data.accountName === 'string' ? data.accountName : null,
-        externalRef: null,
+        externalRef: typeof data.externalRef === 'string' ? data.externalRef : null,
         duplicateKey,
         duplicateConfidence: duplicateKey ? 1 : null,
         validationErrors: [...errors, ...warnings],
@@ -335,9 +382,9 @@ function normalizeRow(input: {batchId: string; row: ParsedCsvRow; rawRowId: stri
     }
 }
 
-function blocked(errors: ImportRowValidationError[], delimiter: CsvDelimiter, hasHeader: boolean): CsvImportParseResult {
+function blocked(errors: ImportRowValidationError[], delimiter: CsvDelimiter, hasHeader: boolean, headers: string[] = []): CsvImportParseResult {
     const batch = {id: 'csv-preview', status: ImportBatchStatus.Failed, importType: ImportType.Mixed, defaultCurrency: DEFAULT_CURRENCY, rowCount: 0, errorCount: errors.length, duplicateCount: 0, importedAt: new Date(0).toISOString()}
-    return {delimiter, hasHeader, headers: [], rawRows: [], normalizedRows: [], validRows: [], invalidRows: [], warnings: [], blockingErrors: errors, preview: {batch, summary: {totalRows: 0, rawRows: 0, normalizedRows: 0, validRows: 0, invalidRows: 0, duplicateRows: 0, errorCount: errors.length, warningCount: 0}, rawRows: [], normalizedRows: [], errors, duplicateCandidates: [], decisions: [], canApply: false}}
+    return {delimiter, hasHeader, headers, rawRows: [], normalizedRows: [], validRows: [], invalidRows: [], warnings: [], blockingErrors: errors, preview: {batch, summary: {totalRows: 0, rawRows: 0, normalizedRows: 0, validRows: 0, invalidRows: 0, duplicateRows: 0, errorCount: errors.length, warningCount: 0}, rawRows: [], normalizedRows: [], errors, duplicateCandidates: [], decisions: [], canApply: false}}
 }
 
 export function parseCsvImport(content: string, options: CsvImportParseOptions = {}): CsvImportParseResult {
@@ -350,6 +397,10 @@ export function parseCsvImport(content: string, options: CsvImportParseOptions =
     const dataRows = hasHeader ? document.rows.slice(1) : document.rows
     const maxColumns = Math.max(...document.rows.map((row) => row.cells.length))
     const headers = buildHeaders(hasHeader ? document.rows[0] : undefined, maxColumns, hasHeader)
+    const headerNames = headers.map((header) => header.raw)
+    const missingColumnErrors = hasHeader ? missingRequiredColumnErrors(headers, options) : []
+    if (missingColumnErrors.length) return blocked(missingColumnErrors, delimiter, hasHeader, headerNames)
+
     const mapping = mergeMappings(options)
     const batchId = 'csv-preview'
     const defaultCurrency = options.defaultCurrency ?? DEFAULT_CURRENCY
@@ -377,7 +428,7 @@ export function parseCsvImport(content: string, options: CsvImportParseOptions =
     const batch = {id: batchId, status: invalidRows.length ? ImportBatchStatus.Parsed : ImportBatchStatus.Previewed, importType: ImportType.Mixed, defaultCurrency, rowCount: dataRows.length, errorCount: rowErrors.length, duplicateCount: duplicateRows, importedAt: new Date(0).toISOString()}
     const preview: ImportPreviewResult<NormalizedCsvImportData> = {batch, summary: {totalRows: dataRows.length, rawRows: rawRows.length, normalizedRows: normalizedRows.length, validRows: validRows.length, invalidRows: invalidRows.length, duplicateRows, errorCount: rowErrors.length, warningCount: warnings.length}, rawRows, normalizedRows, errors: rowErrors, duplicateCandidates: [], decisions: [], canApply: blockingErrors.length === 0 && validRows.length > 0}
 
-    return {delimiter, hasHeader, headers: headers.map((header) => header.raw), rawRows, normalizedRows, validRows, invalidRows, warnings, blockingErrors, preview}
+    return {delimiter, hasHeader, headers: headerNames, rawRows, normalizedRows, validRows, invalidRows, warnings, blockingErrors, preview}
 }
 
 export function parseCsvImportWithTemplate(content: string, mappingTemplate: Pick<ImportMappingTemplate, 'columnMappings' | 'defaultValues' | 'deduplicationStrategy'>, options: Omit<CsvImportParseOptions, 'mappingTemplate'> = {}) {
