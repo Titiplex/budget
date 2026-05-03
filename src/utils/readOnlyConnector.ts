@@ -141,7 +141,7 @@ export interface FetchStatementQuery extends ReadOnlyConnectorQuery {
     statementExternalId?: string
 }
 
-export interface ReadOnlyConnector<TConfig extends JsonObject = JsonObject> {
+export interface ReadOnlyConnector<TConfig extends object = JsonObject> {
     descriptor: ReadOnlyConnectorDescriptor
     getStatus(config?: TConfig): ReadOnlyConnectorStatus
     testConnection(config?: TConfig, context?: ReadOnlyConnectorContext): Promise<ReadOnlyConnectorResult<{status: ReadOnlyConnectorStatus; checkedAt: IsoDateString}>>
@@ -468,7 +468,8 @@ export class ReadOnlyConnectorRegistry {
                 message: `Connecteur ${connectorId} introuvable.`,
             })
         }
-        if (!connector.descriptor.capabilities.includes(capability) || typeof connector[capability] !== 'function') {
+        const method = connector[capability as keyof ReadOnlyConnector]
+        if (!connector.descriptor.capabilities.includes(capability) || typeof method !== 'function') {
             throw connectorError({
                 code: ReadOnlyConnectorErrorCode.UnsupportedOperation,
                 connectorId,
@@ -480,7 +481,7 @@ export class ReadOnlyConnectorRegistry {
     }
 }
 
-export interface MockReadOnlyConnectorConfig extends JsonObject {
+export interface MockReadOnlyConnectorConfig {
     enabled?: boolean
     requireAuth?: boolean
     rateLimited?: boolean
