@@ -8,6 +8,7 @@ import CategoriesSection from './components/CategoriesSection.vue'
 import DeleteDialog from './components/DeleteDialog.vue'
 import EntityDrawer from './components/EntityDrawer.vue'
 import ImportReviewDialog from './components/ImportReviewDialog.vue'
+import ImportWizardDialog from './components/ImportWizardDialog.vue'
 import OverviewSection from './components/OverviewSection.vue'
 import RecurringSection from './components/RecurringSection.vue'
 import ReportsSection from './components/ReportsSection.vue'
@@ -30,6 +31,7 @@ const appVersion = ref('')
 const taxProfiles = ref<TaxProfile[]>([])
 const analyticsPanelOpen = ref(false)
 const analyticsChromeReady = ref(false)
+const importWizardOpen = ref(false)
 
 function showNotice(type: 'success' | 'error', text: string) {
   notice.value = {type, text}
@@ -97,6 +99,15 @@ function refreshEverything() {
     recurring.refreshRecurringTemplates(),
     refreshTaxProfiles(),
   ])
+}
+
+function openImportWizard() {
+  importWizardOpen.value = true
+}
+
+async function handleImportWizardApplied() {
+  await refreshEverything()
+  showNotice('success', 'Import terminé. Les données et l’historique ont été rafraîchis.')
 }
 
 const jsonBackup = useJsonBackup({
@@ -237,7 +248,7 @@ function handleMenuCommand(rawCommand: unknown) {
       void reports.exportPeriodReport()
       break
     case 'import-csv':
-      void csv.beginImportCurrentCsv()
+      openImportWizard()
       break
     case 'export-csv':
       void csv.exportCurrentCsv()
@@ -371,6 +382,9 @@ onMounted(async () => {
           <button class="quick-create-btn-secondary !py-2.5 text-sm" @click="budget.openCreatePanel('category')">
             + {{ t('entities.singular.category') }}
           </button>
+          <button class="quick-create-btn-secondary !py-2.5 text-sm" @click="openImportWizard">
+            Import guidé CSV
+          </button>
         </div>
         <div class="mt-auto px-2 pt-6">
           <div
@@ -451,6 +465,9 @@ onMounted(async () => {
               </button>
               <button class="ghost-btn" @click="settings.toggleTheme">
                 {{ settings.darkMode.value ? t('common.lightMode') : t('common.darkMode') }}
+              </button>
+              <button class="ghost-btn" @click="openImportWizard">
+                Import CSV
               </button>
               <button class="primary-btn" @click="budget.openCreatePanel('transaction')">
                 {{ t('common.add') }}
@@ -720,6 +737,13 @@ onMounted(async () => {
         @close="settings.closeSettings"
         @update-locale="settings.setLocale"
         @update-theme="settings.setTheme"
+    />
+
+    <ImportWizardDialog
+        :open="importWizardOpen"
+        :accounts="budget.accounts.value"
+        @close="importWizardOpen = false"
+        @applied="handleImportWizardApplied"
     />
 
     <ImportReviewDialog
