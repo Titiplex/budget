@@ -34,10 +34,15 @@ export interface ImportHistoryItem {
     status: string
     importType: string
     provider?: string | null
+    source?: string | null
     fileName?: string | null
+    fileHash?: string | null
     rowCount: number
     errorCount: number
+    warningCount?: number
     duplicateCount: number
+    appliedRowCount?: number
+    decisionCount?: number
     importedAt: string
     parsedAt?: string | null
     previewedAt?: string | null
@@ -50,19 +55,24 @@ export interface ImportBatchDetail {
     status: string
     importType: string
     provider?: string | null
+    source?: string | null
     fileName?: string | null
     fileHash?: string | null
     defaultCurrency: string
     rowCount: number
     errorCount: number
+    warningCount?: number
     duplicateCount: number
     rawRows: unknown[]
     normalizedRows: unknown[]
     errors: ImportRowValidationError[]
+    warnings?: ImportRowValidationError[]
     duplicateCandidates: ImportDuplicateCandidate[]
     decisions: ImportReconciliationDecisionRecord[]
     appliedLinks: unknown[]
     preview?: ImportPreviewResult | null
+    fileMetadata?: unknown
+    template?: unknown
 }
 
 export interface ImportParseResult {
@@ -83,16 +93,30 @@ export interface ImportApplyResult {
     decisions: ImportReconciliationDecisionRecord[]
 }
 
+export interface ImportAuditRestoreResult {
+    ok: true
+    restoredBatchCount: number
+    skippedBatchCount: number
+    idMap: Record<string, string>
+    skippedBatches: Array<{id: ImportEntityId; reason: string}>
+    mode: 'merge' | 'replace'
+    auditOnly: true
+}
+
 export interface ImportWorkflowApi {
     createBatch(input: CreateImportBatchInput): Promise<ImportIpcResult<ImportBatchDetail>>
     parseFile(input: ParseImportFileInput): Promise<ImportIpcResult<ImportParseResult>>
     preview(input: PreviewImportInput): Promise<ImportIpcResult<ImportPreviewResult>>
     apply(input: ApplyImportInput): Promise<ImportIpcResult<ImportApplyResult>>
     cancel(batchId: ImportEntityId, reason?: string | null): Promise<ImportIpcResult<ImportBatchDetail>>
-    listHistory(filters?: {status?: string}): Promise<ImportIpcResult<ImportHistoryItem[]>>
+    listHistory(filters?: {status?: string; source?: string; importType?: string; from?: string; to?: string; search?: string}): Promise<ImportIpcResult<ImportHistoryItem[]>>
     getDetail(batchId: ImportEntityId): Promise<ImportIpcResult<ImportBatchDetail>>
     listErrors(batchId: ImportEntityId): Promise<ImportIpcResult<ImportRowValidationError[]>>
     listDuplicateCandidates(batchId: ImportEntityId): Promise<ImportIpcResult<ImportDuplicateCandidate[]>>
+    listSources(): Promise<ImportIpcResult<string[]>>
+    deleteHistory(batchId: ImportEntityId, options?: {preserveFinancialData?: boolean}): Promise<ImportIpcResult<unknown>>
+    exportReport(batchId: ImportEntityId, options?: {format?: 'markdown' | 'csv'}): Promise<ImportIpcResult<{batchId: ImportEntityId; format: string; fileName: string; mimeType: string; content: string}>>
+    restoreBackup(input: {importHistory: unknown[]; mode?: 'merge' | 'replace'}): Promise<ImportIpcResult<ImportAuditRestoreResult>>
     applyReconciliationDecisions(input: {batchId: ImportEntityId; decisions: ImportReconciliationDecisionRecord[]}): Promise<ImportIpcResult<ImportApplyResult>>
     mappingTemplate: {
         list(filters?: {sourceType?: string; importType?: string; search?: string; systemOnly?: boolean; userOnly?: boolean; includeInactive?: boolean}): Promise<ImportIpcResult<ImportMappingTemplate[]>>
