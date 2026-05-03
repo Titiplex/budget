@@ -1,13 +1,5 @@
-import {
-    ImportDeduplicationStrategy,
-    ImportTargetEntityType,
-} from '../types/imports'
-import type {
-    ImportDuplicateCandidate,
-    ImportEntityId,
-    ImportRowNormalized,
-    JsonObject,
-} from '../types/imports'
+import {ImportDeduplicationStrategy, ImportTargetEntityType} from '../types/imports'
+import type {ImportDuplicateCandidate, ImportEntityId, ImportRowNormalized, JsonObject} from '../types/imports'
 
 export type ImportDuplicateMatchKind = 'exactDuplicate' | 'probableDuplicate' | 'weakCollision' | 'notDuplicate'
 export type ImportDuplicateSource = 'normalizedHash' | 'externalId' | 'existingEntity' | 'sameBatch' | 'previousBatch'
@@ -23,6 +15,13 @@ export interface ImportDuplicateDetectionOptions {
     repeatedFileHash?: string | null
     includeSameBatchCandidates?: boolean
     labelSimilarityWeight?: number
+}
+
+interface ResolvedImportDuplicateDetectionOptions {
+    thresholds: ImportDuplicateDetectionThresholds
+    repeatedFileHash: string | null
+    includeSameBatchCandidates: boolean
+    labelSimilarityWeight: number
 }
 
 export interface ImportDuplicateReference {
@@ -70,16 +69,16 @@ export interface ImportDuplicateDetectionResult {
     rowsWithCandidates: Array<ImportRowNormalized<JsonObject>>
 }
 
-const DEFAULT_THRESHOLDS: ImportDuplicateDetectionThresholds = {
-    exact: 0.98,
-    probable: 0.82,
-    weak: 0.55,
-}
+const DEFAULT_THRESHOLDS: ImportDuplicateDetectionThresholds = {exact: 0.98, probable: 0.82, weak: 0.55}
+const LABEL_STOPWORDS = new Set(['the', 'and', 'of', 'for', 'payment', 'purchase', 'transaction', 'card', 'debit', 'credit', 'le', 'la', 'les', 'des', 'du', 'de', 'paiement', 'achat', 'transaction', 'carte'])
 
-const LABEL_STOPWORDS = new Set([
-    'the', 'and', 'of', 'for', 'payment', 'purchase', 'transaction', 'card', 'debit', 'credit',
-    'le', 'la', 'les', 'des', 'du', 'de', 'paiement', 'achat', 'transaction', 'carte',
-])
+type DuplicateScore = {
+    confidence: number
+    matchKind: ImportDuplicateMatchKind
+    source: ImportDuplicateSource
+    scoreBreakdown: Record<string, number>
+    normalizedHash: string
+}
 
 function getData(row: ImportRowNormalized<JsonObject>) {
     return row.normalizedData || {}
@@ -91,8 +90,7 @@ function asString(value: unknown) {
 
 function asIsoDay(value: unknown) {
     const raw = asString(value)
-    if (!raw) return ''
-    return raw.slice(0, 10)
+    return raw ? raw.slice(0, 10) : ''
 }
 
 function asNumber(value: unknown) {
@@ -103,8 +101,7 @@ function asNumber(value: unknown) {
 
 function roundNumber(value: unknown, precision = 6) {
     const parsed = asNumber(value)
-    if (parsed == null) return null
-    return Number(parsed.toFixed(precision))
+    return parsed == null ? null : Number(parsed.toFixed(precision))
 }
 
 function normalizeCurrency(value: unknown) {
@@ -134,10 +131,10 @@ function compactObject(value: Record<string, unknown>) {
 function stableStringify(value: unknown): string {
     if (value == null || typeof value !== 'object') return JSON.stringify(value)
     if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`
-    const entries = Object.entries(value as Record<string, unknown>)
+    return `{${Object.entries(value as Record<string, unknown>)
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`)
-    return `{${entries.join(',')}}`
+        .join(',')}}`
 }
 
 function hashString(value: string) {
@@ -216,8 +213,7 @@ function levenshtein(left: string, right: string) {
     for (let i = 1; i <= left.length; i += 1) {
         current[0] = i
         for (let j = 1; j <= right.length; j += 1) {
-            const cost = left[i - 1] === right[j - 1] ? 0 : 1
-            current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + cost)
+            current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + (left[i - 1] === right[j - 1] ? 0 : 1))
         }
         previous.splice(0, previous.length, ...current)
     }
@@ -234,8 +230,7 @@ function textSimilarity(left: string, right: string) {
     const intersection = [...leftTokens].filter((token) => rightTokens.has(token)).length
     const union = new Set([...leftTokens, ...rightTokens]).size || 1
     const tokenScore = intersection / union
-    const editDistance = levenshtein(a, b)
-    const editScore = 1 - editDistance / Math.max(a.length, b.length, 1)
+    const editScore = 1 - levenshtein(a, b) / Math.max(a.length, b.length, 1)
     return Math.max(0, Math.min(1, tokenScore * 0.6 + editScore * 0.4))
 }
 
@@ -245,9 +240,7 @@ function numberClose(left: unknown, right: unknown, tolerance = 0.01) {
     if (a == null || b == null) return 0
     const delta = Math.abs(a - b)
     if (delta <= tolerance) return 1
-    const scale = Math.max(Math.abs(a), Math.abs(b), 1)
-    if (delta / scale <= 0.01) return 0.7
-    return 0
+    return delta / Math.max(Math.abs(a), Math.abs(b), 1) <= 0.01 ? 0.7 : 0
 }
 
 function sameDay(left: unknown, right: unknown) {
@@ -258,22 +251,19 @@ function sameDay(left: unknown, right: unknown) {
     const leftTime = Date.parse(a)
     const rightTime = Date.parse(b)
     if (Number.isNaN(leftTime) || Number.isNaN(rightTime)) return 0
-    const dayDelta = Math.abs(leftTime - rightTime) / 86_400_000
-    return dayDelta <= 1 ? 0.55 : 0
+    return Math.abs(leftTime - rightTime) / 86_400_000 <= 1 ? 0.55 : 0
 }
 
 function sameText(left: unknown, right: unknown) {
     const a = normalizeLooseText(left)
     const b = normalizeLooseText(right)
-    if (!a || !b) return 0
-    return a === b ? 1 : 0
+    return a && b && a === b ? 1 : 0
 }
 
 function sameUpper(left: unknown, right: unknown) {
     const a = asString(left).toUpperCase()
     const b = asString(right).toUpperCase()
-    if (!a || !b) return 0
-    return a === b ? 1 : 0
+    return a && b && a === b ? 1 : 0
 }
 
 function classify(confidence: number, thresholds: ImportDuplicateDetectionThresholds): ImportDuplicateMatchKind {
@@ -283,7 +273,8 @@ function classify(confidence: number, thresholds: ImportDuplicateDetectionThresh
     return 'notDuplicate'
 }
 
-function scoreDuplicate(row: ImportRowNormalized<JsonObject>, reference: ImportDuplicateReference, options: Required<ImportDuplicateDetectionOptions>, thresholds: ImportDuplicateDetectionThresholds) {
+function scoreDuplicate(row: ImportRowNormalized<JsonObject>, reference: ImportDuplicateReference, options: ResolvedImportDuplicateDetectionOptions): DuplicateScore {
+    const thresholds = options.thresholds
     const fingerprint = buildImportNormalizedFingerprint(row)
     const referenceHash = reference.normalizedHash || hashString(stableStringify(referenceFingerprint(reference)))
     const rowHash = hashImportNormalizedRow(row)
@@ -291,87 +282,33 @@ function scoreDuplicate(row: ImportRowNormalized<JsonObject>, reference: ImportD
     const referenceExternalRef = asString(reference.externalRef)
 
     if (rowExternalRef && referenceExternalRef && rowExternalRef === referenceExternalRef) {
-        return {
-            confidence: 1,
-            matchKind: 'exactDuplicate' as ImportDuplicateMatchKind,
-            source: 'externalId' as ImportDuplicateSource,
-            scoreBreakdown: {externalRef: 1},
-            normalizedHash: rowHash,
-        }
+        return {confidence: 1, matchKind: 'exactDuplicate', source: 'externalId', scoreBreakdown: {externalRef: 1}, normalizedHash: rowHash}
     }
-
     if (referenceHash && rowHash === referenceHash) {
-        return {
-            confidence: 1,
-            matchKind: 'exactDuplicate' as ImportDuplicateMatchKind,
-            source: 'normalizedHash' as ImportDuplicateSource,
-            scoreBreakdown: {normalizedHash: 1},
-            normalizedHash: rowHash,
-        }
+        return {confidence: 1, matchKind: 'exactDuplicate', source: 'normalizedHash', scoreBreakdown: {normalizedHash: 1}, normalizedHash: rowHash}
     }
 
     const rowData = getData(row)
-    const labelScore = textSimilarity(asString(row.label || rowData.label), asString(reference.label))
     const scoreBreakdown = {
         date: sameDay(row.transactionDate || rowData.date, reference.date),
         amount: numberClose(row.amount ?? rowData.amount, reference.amount),
         currency: sameUpper(row.currency || rowData.currency, reference.currency),
-        accountOrSource: Math.max(
-            sameText(row.accountName || rowData.accountName, reference.accountName),
-            sameText(rowData.sourceName, reference.sourceName),
-        ),
-        label: labelScore,
+        accountOrSource: Math.max(sameText(row.accountName || rowData.accountName, reference.accountName), sameText(rowData.sourceName, reference.sourceName)),
+        label: textSimilarity(asString(row.label || rowData.label), asString(reference.label)),
         symbol: sameUpper(rowData.symbol, reference.symbol),
         quantity: numberClose(rowData.quantity, reference.quantity, 0.000001),
         unitPrice: numberClose(rowData.unitPrice, reference.unitPrice, 0.000001),
         fees: numberClose(rowData.fees, reference.fees, 0.01),
     }
-
     const hasInvestmentSignal = Boolean(fingerprint.symbol || fingerprint.quantity || fingerprint.unitPrice)
     const weights = hasInvestmentSignal
         ? {date: 0.18, amount: 0.14, currency: 0.08, accountOrSource: 0.08, label: options.labelSimilarityWeight, symbol: 0.18, quantity: 0.16, unitPrice: 0.12, fees: 0.04}
         : {date: 0.24, amount: 0.26, currency: 0.1, accountOrSource: 0.12, label: options.labelSimilarityWeight, symbol: 0, quantity: 0, unitPrice: 0, fees: 0.04}
-
-    const totalWeight = Object.entries(weights)
-        .filter(([key]) => scoreBreakdown[key as keyof typeof scoreBreakdown] > 0)
-        .reduce((sum, [, weight]) => sum + weight, 0)
-    const weightedScore = Object.entries(weights)
-        .reduce((sum, [key, weight]) => sum + scoreBreakdown[key as keyof typeof scoreBreakdown] * weight, 0)
+    const totalWeight = Object.entries(weights).filter(([key]) => scoreBreakdown[key as keyof typeof scoreBreakdown] > 0).reduce((sum, [, weight]) => sum + weight, 0)
+    const weightedScore = Object.entries(weights).reduce((sum, [key, weight]) => sum + scoreBreakdown[key as keyof typeof scoreBreakdown] * weight, 0)
     const confidence = totalWeight > 0 ? Math.min(1, weightedScore / Math.max(totalWeight, 0.65)) : 0
-    const matchKind = classify(confidence, thresholds)
-
-    return {
-        confidence: Number(confidence.toFixed(4)),
-        matchKind,
-        source: 'existingEntity' as ImportDuplicateSource,
-        scoreBreakdown,
-        normalizedHash: rowHash,
-    }
-}
-
-function toCandidate(
-    row: ImportRowNormalized<JsonObject>,
-    reference: ImportDuplicateReference,
-    score: ReturnType<typeof scoreDuplicate>,
-): ImportDuplicateDetectionCandidate {
-    return {
-        normalizedRowId: row.id,
-        entityType: reference.entityType,
-        entityId: reference.id,
-        confidence: score.confidence,
-        strategy: score.matchKind === 'exactDuplicate'
-            ? ImportDeduplicationStrategy.Strict
-            : score.matchKind === 'probableDuplicate'
-                ? ImportDeduplicationStrategy.Fuzzy
-                : ImportDeduplicationStrategy.ManualReview,
-        reason: reasonFor(score.matchKind, score.source, score.confidence),
-        matchFields: Object.entries(score.scoreBreakdown).filter(([, value]) => value > 0).map(([key]) => key),
-        candidateSnapshot: reference.snapshot || referenceFingerprint(reference),
-        matchKind: score.matchKind,
-        source: score.source,
-        scoreBreakdown: score.scoreBreakdown,
-        normalizedHash: score.normalizedHash,
-    }
+    const roundedConfidence = Number(confidence.toFixed(4))
+    return {confidence: roundedConfidence, matchKind: classify(roundedConfidence, thresholds), source: 'existingEntity', scoreBreakdown, normalizedHash: rowHash}
 }
 
 function reasonFor(matchKind: ImportDuplicateMatchKind, source: ImportDuplicateSource, confidence: number) {
@@ -383,7 +320,24 @@ function reasonFor(matchKind: ImportDuplicateMatchKind, source: ImportDuplicateS
     return 'Non-doublon.'
 }
 
-function normalizedOptions(options: ImportDuplicateDetectionOptions): Required<ImportDuplicateDetectionOptions> {
+function toCandidate(row: ImportRowNormalized<JsonObject>, reference: ImportDuplicateReference, score: DuplicateScore): ImportDuplicateDetectionCandidate {
+    return {
+        normalizedRowId: row.id,
+        entityType: reference.entityType,
+        entityId: reference.id,
+        confidence: score.confidence,
+        strategy: score.matchKind === 'exactDuplicate' ? ImportDeduplicationStrategy.Strict : score.matchKind === 'probableDuplicate' ? ImportDeduplicationStrategy.Fuzzy : ImportDeduplicationStrategy.ManualReview,
+        reason: reasonFor(score.matchKind, score.source, score.confidence),
+        matchFields: Object.entries(score.scoreBreakdown).filter(([, value]) => value > 0).map(([key]) => key),
+        candidateSnapshot: reference.snapshot || referenceFingerprint(reference),
+        matchKind: score.matchKind,
+        source: score.source,
+        scoreBreakdown: score.scoreBreakdown,
+        normalizedHash: score.normalizedHash,
+    }
+}
+
+function normalizedOptions(options: ImportDuplicateDetectionOptions): ResolvedImportDuplicateDetectionOptions {
     return {
         thresholds: {...DEFAULT_THRESHOLDS, ...(options.thresholds || {})},
         repeatedFileHash: options.repeatedFileHash ?? null,
@@ -392,13 +346,8 @@ function normalizedOptions(options: ImportDuplicateDetectionOptions): Required<I
     }
 }
 
-export function detectImportDuplicateCandidates(
-    rows: Array<ImportRowNormalized<JsonObject>>,
-    references: ImportDuplicateReference[] = [],
-    options: ImportDuplicateDetectionOptions = {},
-): ImportDuplicateDetectionResult {
+export function detectImportDuplicateCandidates(rows: Array<ImportRowNormalized<JsonObject>>, references: ImportDuplicateReference[] = [], options: ImportDuplicateDetectionOptions = {}): ImportDuplicateDetectionResult {
     const resolvedOptions = normalizedOptions(options)
-    const thresholds = resolvedOptions.thresholds
     const rowResults: ImportDuplicateDetectionRowResult[] = []
     const allCandidates: ImportDuplicateDetectionCandidate[] = []
     const sameBatchReferences: ImportDuplicateReference[] = []
@@ -407,11 +356,11 @@ export function detectImportDuplicateCandidates(
         const candidates: ImportDuplicateDetectionCandidate[] = []
         const referencesToCheck = [...references, ...(resolvedOptions.includeSameBatchCandidates ? sameBatchReferences : [])]
         for (const reference of referencesToCheck) {
-            const score = scoreDuplicate(row, reference, resolvedOptions, thresholds)
+            const score = scoreDuplicate(row, reference, resolvedOptions)
             if (score.matchKind === 'notDuplicate') continue
             const candidate = toCandidate(row, reference, score)
-            if (reference.fileHash && resolvedOptions.repeatedFileHash && reference.fileHash === resolvedOptions.repeatedFileHash && candidate.confidence >= thresholds.probable) {
-                candidate.confidence = Math.max(candidate.confidence, thresholds.exact)
+            if (reference.fileHash && resolvedOptions.repeatedFileHash && reference.fileHash === resolvedOptions.repeatedFileHash && candidate.confidence >= resolvedOptions.thresholds.probable) {
+                candidate.confidence = Math.max(candidate.confidence, resolvedOptions.thresholds.exact)
                 candidate.matchKind = 'exactDuplicate'
                 candidate.source = 'previousBatch'
                 candidate.reason = 'Même fichier déjà importé; doublon exact très probable.'
@@ -421,14 +370,7 @@ export function detectImportDuplicateCandidates(
         candidates.sort((left, right) => right.confidence - left.confidence)
         const top = candidates[0]
         const normalizedHash = hashImportNormalizedRow(row)
-        rowResults.push({
-            rowId: row.id ?? null,
-            rowNumber: row.rowNumber,
-            normalizedHash,
-            matchKind: top?.matchKind || 'notDuplicate',
-            confidence: top?.confidence || 0,
-            candidates,
-        })
+        rowResults.push({rowId: row.id ?? null, rowNumber: row.rowNumber, normalizedHash, matchKind: top?.matchKind || 'notDuplicate', confidence: top?.confidence || 0, candidates})
         allCandidates.push(...candidates)
         sameBatchReferences.push(importRowToDuplicateReference(row, row.id ?? `sameBatch:${row.rowNumber}`))
     }
@@ -444,7 +386,7 @@ export function detectImportDuplicateCandidates(
     })
 
     return {
-        thresholds,
+        thresholds: resolvedOptions.thresholds,
         rows: rowResults,
         candidates: allCandidates,
         exactDuplicates: allCandidates.filter((candidate) => candidate.matchKind === 'exactDuplicate'),
