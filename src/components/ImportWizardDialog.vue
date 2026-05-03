@@ -3,23 +3,48 @@ import {computed, ref, watch} from 'vue'
 import type {Account} from '../types/budget'
 import type {ImportEntityId, ImportMappingTemplate} from '../types/imports'
 
-type WizardStep = 'file' | 'mapping' | 'preview' | 'confirm' | 'summary'
-type WizardState = 'empty' | 'parsing' | 'preview' | 'applying' | 'applied' | 'failed'
+type WizardStep = 'file' | 'mapping' | 'preview' | 'reconciliation' | 'confirm' | 'summary'
+type WizardState = 'empty' | 'parsing' | 'preview' | 'reconciling' | 'applying' | 'applied' | 'failed'
 type PreviewFilter = 'all' | 'valid' | 'errors' | 'warnings' | 'duplicates' | 'needsReview'
+type ReconciliationDecisionKind = 'importAsNew' | 'linkToExisting' | 'updateExisting' | 'skip' | 'markAsDuplicate' | 'needsManualReview'
+
+interface DuplicateCandidate {
+  confidence: number
+  reason?: string | null
+  entityId?: ImportEntityId | null
+  entityType?: string | null
+  candidateSnapshot?: Record<string, unknown> | null
+  matchFields?: string[]
+}
 
 interface ImportPreviewRow {
   rowNumber: number
   rowId?: ImportEntityId | null
   status: string
   action: string
+  targetEntityType?: string | null
+  targetEntityId?: ImportEntityId | null
   reviewRequired: boolean
   reasons: string[]
   missingFields: string[]
   warnings: Array<{message: string; field?: string | null; code?: string}>
   errors: Array<{message: string; field?: string | null; code?: string}>
-  duplicateCandidates: Array<{confidence: number; reason?: string | null; entityId?: ImportEntityId | null}>
+  duplicateCandidates: DuplicateCandidate[]
   conflicts: Array<{message: string; field?: string | null; code?: string}>
   normalizedData: Record<string, unknown>
+}
+
+interface ReconciliationDecisionDraft {
+  id: string
+  normalizedRowId: ImportEntityId | null
+  rowNumber: number
+  kind: ReconciliationDecisionKind
+  targetEntityType: string | null
+  targetEntityId: ImportEntityId | null
+  reason: string
+  reasonSource: 'automatic' | 'user'
+  decidedBy: string
+  payload: Record<string, unknown>
 }
 
 const props = defineProps<{
@@ -36,6 +61,7 @@ const steps: Array<{key: WizardStep; label: string}> = [
   {key: 'file', label: 'Fichier'},
   {key: 'mapping', label: 'Mapping'},
   {key: 'preview', label: 'Preview'},
+  {key: 'reconciliation', label: 'Réconciliation'},
   {key: 'confirm', label: 'Confirmation'},
   {key: 'summary', label: 'Résumé'},
 ]
@@ -54,6 +80,15 @@ const filters: Array<{key: PreviewFilter; label: string}> = [
   {key: 'warnings', label: 'Warnings'},
   {key: 'duplicates', label: 'Doublons'},
   {key: 'needsReview', label: 'À revoir'},
+]
+
+const decisionOptions: Array<{value: ReconciliationDecisionKind; label: string}> = [
+  {value: 'importAsNew', label: 'Importer comme nouveau'},
+  {value: 'linkToExisting', label: 'Lier à l’existant'},
+  {value: 'updateExisting', label: 'Mettre à jour l’existant'},
+  {value: 'skip', label: 'Ignorer'},
+  {value: 'markAsDuplicate', label: 'Marquer comme doublon'},
+  {value: 'needsManualReview', label: 'Garder en revue manuelle'},
 ]
 
 const currentStep = ref<WizardStep>('file')
@@ -77,14 +112,16 @@ const previewFilter = ref<PreviewFilter>('all')
 const confirmChecked = ref(false)
 const creatingTemplate = ref(false)
 const templateName = ref('Template import CSV')
+const decisionByRow = ref<Record<string, ReconciliationDecisionDraft>>({})
+const reconciliationFilter = ref<'all' | 'review' | 'safe'>('all')
 
 const selectedTemplate = computed(() => mappingTemplates.value.find((template) => String(template.id) === selectedTemplateId.value) || null)
 const busy = computed(() => state.value === 'parsing' || state.value === 'applying')
 const canParse = computed(() => Boolean(rawText.value && importType.value && !busy.value))
-const canApply = computed(() => Boolean(preview.value?.canApply && confirmChecked.value && !busy.value))
 const previewRows = computed<ImportPreviewRow[]>(() => preview.value?.rows || [])
 const previewStats = computed(() => preview.value?.stats || null)
 const finalSummary = computed(() => applyResult.value?.batch || null)
+const decisions = computed(() => Object.values(decisionByRow.value))
 
 const filteredPreviewRows = computed(() => {
   return previewRows.value.filter((row) => {
@@ -96,6 +133,32 @@ const filteredPreviewRows = computed(() => {
     return true
   })
 })
+
+const reconciliationRows = computed(() => previewRows.value.filter((row) => row.action !== 'skip' || row.errors.length || row.duplicateCandidates.length || row.reviewRequired || row.conflicts.length || row.missingFields.length))
+const riskyRows = computed(() => reconciliationRows.value.filter((row) => isAmbiguousRow(row)))
+const unresolvedRows = computed(() => reconciliationRows.value.filter((row) => decisionRequiresManualResolution(row, getDecision(row))))
+const safeBulkRows = computed(() => reconciliationRows.value.filter((row) => !isAmbiguousRow(row) && ['createTransaction', 'updateTransaction', 'createAssetOperation', 'skip'].includes(row.action)))
+
+const filteredReconciliationRows = computed(() => reconciliationRows.value.filter((row) => {
+  if (reconciliationFilter.value === 'review') return isAmbiguousRow(row)
+  if (reconciliationFilter.value === 'safe') return !isAmbiguousRow(row)
+  return true
+}))
+
+const reconciliationSummary = computed(() => {
+  const entries = decisions.value
+  return {
+    importAsNew: entries.filter((decision) => decision.kind === 'importAsNew').length,
+    linkToExisting: entries.filter((decision) => decision.kind === 'linkToExisting').length,
+    updateExisting: entries.filter((decision) => decision.kind === 'updateExisting').length,
+    skip: entries.filter((decision) => decision.kind === 'skip').length,
+    markAsDuplicate: entries.filter((decision) => decision.kind === 'markAsDuplicate').length,
+    needsManualReview: entries.filter((decision) => decision.kind === 'needsManualReview').length,
+  }
+})
+
+const canProceedToConfirm = computed(() => Boolean(batchId.value && decisions.value.length && unresolvedRows.value.length === 0 && !busy.value))
+const canApply = computed(() => Boolean(preview.value?.canApply && confirmChecked.value && canProceedToConfirm.value && !busy.value))
 
 function resetWizard() {
   currentStep.value = 'file'
@@ -115,8 +178,10 @@ function resetWizard() {
   parseResult.value = null
   applyResult.value = null
   previewFilter.value = 'all'
+  reconciliationFilter.value = 'all'
   confirmChecked.value = false
   templateName.value = 'Template import CSV'
+  decisionByRow.value = {}
 }
 
 function normalizeIpcError(error: unknown) {
@@ -127,6 +192,91 @@ function normalizeIpcError(error: unknown) {
 function ensureOk<T>(result: {ok: boolean; data: T; error: unknown}): T {
   if (!result.ok) throw new Error(normalizeIpcError(result.error))
   return result.data
+}
+
+function rowKey(row: ImportPreviewRow) {
+  return String(row.rowId ?? row.rowNumber)
+}
+
+function getDecision(row: ImportPreviewRow) {
+  return decisionByRow.value[rowKey(row)]
+}
+
+function bestCandidate(row: ImportPreviewRow) {
+  return [...(row.duplicateCandidates || [])].sort((left, right) => right.confidence - left.confidence)[0] || null
+}
+
+function candidateScore(candidate: DuplicateCandidate | null) {
+  if (!candidate) return '—'
+  return `${Math.round(candidate.confidence * 100)} %`
+}
+
+function isAmbiguousRow(row: ImportPreviewRow) {
+  const candidate = bestCandidate(row)
+  return row.reviewRequired || row.action === 'needsReview' || row.conflicts.length > 0 || row.missingFields.length > 0 || Boolean(candidate && candidate.confidence < 0.98)
+}
+
+function decisionRequiresManualResolution(row: ImportPreviewRow, decision?: ReconciliationDecisionDraft) {
+  if (!decision) return true
+  if (!isAmbiguousRow(row)) return false
+  if (decision.kind === 'needsManualReview') return true
+  if (['linkToExisting', 'updateExisting', 'markAsDuplicate'].includes(decision.kind) && !decision.targetEntityId) return true
+  return false
+}
+
+function defaultDecisionKindForRow(row: ImportPreviewRow): ReconciliationDecisionKind {
+  const candidate = bestCandidate(row)
+  if (row.action === 'skip') return 'skip'
+  if (row.action === 'updateTransaction' && candidate?.entityId && candidate.confidence >= 0.98) return 'updateExisting'
+  if (row.action === 'createTransaction' || row.action === 'createAssetOperation') return 'importAsNew'
+  return 'needsManualReview'
+}
+
+function buildDecisionForRow(row: ImportPreviewRow, kind: ReconciliationDecisionKind = defaultDecisionKindForRow(row)): ReconciliationDecisionDraft {
+  const candidate = bestCandidate(row)
+  const requiresExisting = ['linkToExisting', 'updateExisting', 'markAsDuplicate'].includes(kind)
+  return {
+    id: `decision-${rowKey(row)}`,
+    normalizedRowId: row.rowId ?? row.rowNumber,
+    rowNumber: row.rowNumber,
+    kind,
+    targetEntityType: requiresExisting ? (candidate?.entityType || row.targetEntityType || 'transaction') : row.targetEntityType || null,
+    targetEntityId: requiresExisting ? candidate?.entityId ?? row.targetEntityId ?? null : null,
+    reason: row.reasons[0] || candidate?.reason || 'Décision construite depuis la preview.',
+    reasonSource: isAmbiguousRow(row) ? 'user' : 'automatic',
+    decidedBy: isAmbiguousRow(row) ? 'user' : 'system',
+    payload: {
+      previewAction: row.action,
+      missingFields: row.missingFields,
+      conflicts: row.conflicts,
+      candidateConfidence: candidate?.confidence ?? null,
+    },
+  }
+}
+
+function initializeDecisions() {
+  const next: Record<string, ReconciliationDecisionDraft> = {}
+  for (const row of previewRows.value) {
+    next[rowKey(row)] = buildDecisionForRow(row)
+  }
+  decisionByRow.value = next
+  reconciliationFilter.value = riskyRows.value.length ? 'review' : 'all'
+}
+
+function updateDecision(row: ImportPreviewRow, kind: ReconciliationDecisionKind) {
+  decisionByRow.value = {
+    ...decisionByRow.value,
+    [rowKey(row)]: buildDecisionForRow(row, kind),
+  }
+}
+
+function applySafeBulkDecision() {
+  const next = {...decisionByRow.value}
+  for (const row of safeBulkRows.value) {
+    next[rowKey(row)] = buildDecisionForRow(row)
+  }
+  decisionByRow.value = next
+  warningMessage.value = `${safeBulkRows.value.length} ligne(s) sûre(s) préparée(s) pour application en masse. Les cas ambigus restent bloqués.`
 }
 
 function detectColumnsFromRawText(content: string) {
@@ -267,6 +417,7 @@ async function parseAndPreview() {
     } as any)) as any
 
     preview.value = previewResult
+    initializeDecisions()
     currentStep.value = 'preview'
     state.value = 'preview'
     confirmChecked.value = false
@@ -276,17 +427,52 @@ async function parseAndPreview() {
   }
 }
 
+function goToReconciliation() {
+  initializeDecisions()
+  currentStep.value = 'reconciliation'
+  state.value = 'reconciling'
+  if (unresolvedRows.value.length) {
+    warningMessage.value = `${unresolvedRows.value.length} ligne(s) ambiguë(s) doivent être résolues avant confirmation.`
+  }
+}
+
 function goToConfirm() {
+  if (!canProceedToConfirm.value) {
+    warningMessage.value = 'Résous les lignes ambiguës avant de confirmer l’import.'
+    return
+  }
   confirmChecked.value = false
   currentStep.value = 'confirm'
 }
 
+function decisionPayloads() {
+  const timestamp = new Date().toISOString()
+  return decisions.value.map((decision) => ({
+    ...decision,
+    batchId: batchId.value,
+    status: 'pending',
+    decidedAt: decision.reasonSource === 'user' ? timestamp : null,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    history: [{
+      at: timestamp,
+      actor: decision.decidedBy,
+      status: 'pending',
+      message: decision.reason,
+      metadata: {reasonSource: decision.reasonSource},
+    }],
+  }))
+}
+
 async function applyImport() {
-  if (!batchId.value || !confirmChecked.value) return
+  if (!batchId.value || !confirmChecked.value || !canProceedToConfirm.value) return
   errorMessage.value = null
   state.value = 'applying'
   try {
-    const result = ensureOk(await window.imports.apply({batchId: batchId.value} as any)) as any
+    const result = ensureOk(await window.imports.applyReconciliationDecisions({
+      batchId: batchId.value,
+      decisions: decisionPayloads(),
+    } as any)) as any
     applyResult.value = result
     state.value = 'applied'
     currentStep.value = 'summary'
@@ -317,6 +503,10 @@ function actionLabel(action: string) {
   return action
 }
 
+function decisionLabel(kind: ReconciliationDecisionKind) {
+  return decisionOptions.find((option) => option.value === kind)?.label || kind
+}
+
 function actionClass(action: string) {
   if (action === 'skip') return 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/30 dark:text-rose-200 dark:ring-rose-900'
   if (action === 'needsReview') return 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-200 dark:ring-amber-900'
@@ -343,13 +533,13 @@ watch(() => props.open, async (open) => {
         leave-to-class="opacity-0"
     >
       <div v-if="open" class="fixed inset-0 z-[70] overflow-y-auto bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
-        <div class="mx-auto flex min-h-full w-full max-w-6xl items-center justify-center">
+        <div class="mx-auto flex min-h-full w-full max-w-7xl items-center justify-center">
           <section class="w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <header class="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.22em] text-violet-500">Import guidé</p>
                 <h2 class="mt-1 text-2xl font-bold text-slate-950 dark:text-white">Importer un CSV sans surprise</h2>
-                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Choisis le fichier, vérifie le mapping, lis la preview, puis confirme explicitement l’écriture.</p>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Choisis le fichier, vérifie le mapping, résous les doublons, puis confirme explicitement l’écriture.</p>
               </div>
               <button class="ghost-btn" :disabled="busy" @click="cancelImport">Fermer</button>
             </header>
@@ -367,6 +557,7 @@ watch(() => props.open, async (open) => {
                   <p class="font-semibold text-slate-700 dark:text-slate-200">État</p>
                   <p class="mt-1">{{ state }}</p>
                   <p v-if="fileName" class="mt-3 break-all">{{ fileName }}</p>
+                  <p v-if="currentStep === 'reconciliation'" class="mt-3 text-amber-600 dark:text-amber-300">{{ unresolvedRows.length }} cas à résoudre</p>
                 </div>
               </aside>
 
@@ -387,7 +578,7 @@ watch(() => props.open, async (open) => {
                   <div class="grid gap-3 sm:grid-cols-3">
                     <div class="panel p-4"><p class="text-sm font-semibold">1. Fichier</p><p class="mt-1 text-xs text-slate-500">Aucune écriture.</p></div>
                     <div class="panel p-4"><p class="text-sm font-semibold">2. Preview</p><p class="mt-1 text-xs text-slate-500">Doublons et erreurs visibles.</p></div>
-                    <div class="panel p-4"><p class="text-sm font-semibold">3. Confirmation</p><p class="mt-1 text-xs text-slate-500">Application explicite seulement.</p></div>
+                    <div class="panel p-4"><p class="text-sm font-semibold">3. Réconciliation</p><p class="mt-1 text-xs text-slate-500">Aucun cas ambigu silencieux.</p></div>
                   </div>
                 </section>
 
@@ -490,22 +681,118 @@ watch(() => props.open, async (open) => {
 
                   <div class="flex justify-between gap-3">
                     <button class="ghost-btn" @click="currentStep = 'mapping'">Retour mapping</button>
-                    <button class="primary-btn" :disabled="!preview?.canApply" @click="goToConfirm">Continuer vers confirmation</button>
+                    <button class="primary-btn" :disabled="!preview?.canApply" @click="goToReconciliation">Résoudre les décisions</button>
+                  </div>
+                </section>
+
+                <section v-else-if="currentStep === 'reconciliation'" class="space-y-4">
+                  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+                    <div class="panel p-3"><p class="text-xs text-slate-500">À résoudre</p><p class="text-xl font-bold">{{ unresolvedRows.length }}</p></div>
+                    <div class="panel p-3"><p class="text-xs text-slate-500">Sûres bulk</p><p class="text-xl font-bold">{{ safeBulkRows.length }}</p></div>
+                    <div class="panel p-3"><p class="text-xs text-slate-500">Nouveau</p><p class="text-xl font-bold">{{ reconciliationSummary.importAsNew }}</p></div>
+                    <div class="panel p-3"><p class="text-xs text-slate-500">Lier</p><p class="text-xl font-bold">{{ reconciliationSummary.linkToExisting }}</p></div>
+                    <div class="panel p-3"><p class="text-xs text-slate-500">MAJ</p><p class="text-xl font-bold">{{ reconciliationSummary.updateExisting }}</p></div>
+                    <div class="panel p-3"><p class="text-xs text-slate-500">Ignorer</p><p class="text-xl font-bold">{{ reconciliationSummary.skip + reconciliationSummary.markAsDuplicate }}</p></div>
+                  </div>
+
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex flex-wrap gap-2">
+                      <button class="rounded-xl px-3 py-2 text-xs font-bold ring-1 ring-inset" :class="reconciliationFilter === 'all' ? 'bg-violet-600 text-white ring-violet-600' : 'bg-white text-slate-600 ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800'" @click="reconciliationFilter = 'all'">Toutes</button>
+                      <button class="rounded-xl px-3 py-2 text-xs font-bold ring-1 ring-inset" :class="reconciliationFilter === 'review' ? 'bg-violet-600 text-white ring-violet-600' : 'bg-white text-slate-600 ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800'" @click="reconciliationFilter = 'review'">Ambiguës</button>
+                      <button class="rounded-xl px-3 py-2 text-xs font-bold ring-1 ring-inset" :class="reconciliationFilter === 'safe' ? 'bg-violet-600 text-white ring-violet-600' : 'bg-white text-slate-600 ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800'" @click="reconciliationFilter = 'safe'">Sûres</button>
+                    </div>
+                    <button class="secondary-btn" :disabled="!safeBulkRows.length" @click="applySafeBulkDecision">Appliquer décisions sûres en masse</button>
+                  </div>
+
+                  <div v-if="unresolvedRows.length" class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                    {{ unresolvedRows.length }} ligne(s) restent trop ambiguës. Elles ne seront pas appliquées silencieusement : choisis une décision explicite ou ignore-les.
+                  </div>
+
+                  <div class="max-h-[28rem] space-y-3 overflow-auto pr-1">
+                    <article v-for="row in filteredReconciliationRows" :key="rowKey(row)" class="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                      <div class="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr]">
+                        <div>
+                          <div class="flex flex-wrap items-center gap-2">
+                            <p class="text-sm font-bold text-slate-900 dark:text-white">Ligne {{ row.rowNumber }}</p>
+                            <span class="rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset" :class="actionClass(row.action)">{{ actionLabel(row.action) }}</span>
+                            <span v-if="isAmbiguousRow(row)" class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-200 dark:ring-amber-900">ambigu</span>
+                          </div>
+                          <dl class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                            <div><dt class="text-slate-400">Libellé</dt><dd class="font-semibold">{{ row.normalizedData.label || row.normalizedData.symbol || '—' }}</dd></div>
+                            <div><dt class="text-slate-400">Date</dt><dd class="font-semibold">{{ row.normalizedData.date ? String(row.normalizedData.date).slice(0, 10) : '—' }}</dd></div>
+                            <div><dt class="text-slate-400">Montant/qté</dt><dd class="font-semibold">{{ row.normalizedData.amount ?? row.normalizedData.quantity ?? '—' }}</dd></div>
+                            <div><dt class="text-slate-400">Devise</dt><dd class="font-semibold">{{ row.normalizedData.currency || '—' }}</dd></div>
+                          </dl>
+                          <ul class="mt-3 space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                            <li v-for="reason in row.reasons" :key="reason">{{ reason }}</li>
+                            <li v-for="conflict in row.conflicts" :key="conflict.message" class="text-rose-600 dark:text-rose-300">{{ conflict.message }}</li>
+                          </ul>
+                        </div>
+
+                        <div class="rounded-2xl bg-slate-50 p-3 text-xs dark:bg-slate-950/40">
+                          <p class="font-bold text-slate-700 dark:text-slate-200">Candidat existant</p>
+                          <template v-if="bestCandidate(row)">
+                            <p class="mt-2">Score : <strong>{{ candidateScore(bestCandidate(row)) }}</strong></p>
+                            <p class="mt-1">ID : <strong>{{ bestCandidate(row)?.entityId || '—' }}</strong></p>
+                            <p class="mt-1 text-slate-500 dark:text-slate-400">{{ bestCandidate(row)?.reason || 'Match probable détecté.' }}</p>
+                          </template>
+                          <p v-else class="mt-2 text-slate-500 dark:text-slate-400">Aucun candidat existant détecté.</p>
+                        </div>
+
+                        <div>
+                          <label class="space-y-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                            Décision
+                            <select class="form-input" :value="getDecision(row)?.kind" @change="updateDecision(row, ($event.target as HTMLSelectElement).value as ReconciliationDecisionKind)">
+                              <option v-for="option in decisionOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                            </select>
+                          </label>
+                          <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{{ getDecision(row)?.reason }}</p>
+                          <p v-if="decisionRequiresManualResolution(row, getDecision(row))" class="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 dark:bg-amber-950/30 dark:text-amber-200">
+                            Décision incomplète pour ce cas ambigu.
+                          </p>
+                        </div>
+                      </div>
+                    </article>
+                    <div v-if="!filteredReconciliationRows.length" class="rounded-2xl border border-slate-200 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-800">Aucune ligne pour ce filtre.</div>
+                  </div>
+
+                  <div class="flex justify-between gap-3">
+                    <button class="ghost-btn" @click="currentStep = 'preview'">Retour preview</button>
+                    <button class="primary-btn" :disabled="!canProceedToConfirm" @click="goToConfirm">Voir le résumé des décisions</button>
                   </div>
                 </section>
 
                 <section v-else-if="currentStep === 'confirm'" class="space-y-5">
                   <div class="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
                     <h3 class="text-lg font-bold">Confirmation explicite requise</h3>
-                    <p class="mt-2 text-sm">Cette étape va appliquer les lignes prêtes. Les lignes ignorées et les doublons resteront visibles dans l’historique d’import.</p>
+                    <p class="mt-2 text-sm">Cette étape envoie les décisions visibles ci-dessous au moteur de réconciliation. Aucun cas ambigu non résolu ne sera appliqué.</p>
                     <label class="mt-4 flex items-start gap-3 text-sm font-semibold">
                       <input v-model="confirmChecked" type="checkbox" class="mt-1 h-4 w-4 rounded border-amber-300" />
-                      <span>J’ai vérifié la preview, les erreurs et les doublons probables.</span>
+                      <span>J’ai vérifié la preview, les erreurs, les doublons probables et les décisions de réconciliation.</span>
                     </label>
                   </div>
+
+                  <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                    <div class="panel p-3"><p class="text-xs text-slate-500">Nouveau</p><p class="text-xl font-bold">{{ reconciliationSummary.importAsNew }}</p></div>
+                    <div class="panel p-3"><p class="text-xs text-slate-500">Lier</p><p class="text-xl font-bold">{{ reconciliationSummary.linkToExisting }}</p></div>
+                    <div class="panel p-3"><p class="text-xs text-slate-500">Mettre à jour</p><p class="text-xl font-bold">{{ reconciliationSummary.updateExisting }}</p></div>
+                    <div class="panel p-3"><p class="text-xs text-slate-500">Ignorer</p><p class="text-xl font-bold">{{ reconciliationSummary.skip }}</p></div>
+                    <div class="panel p-3"><p class="text-xs text-slate-500">Doublon</p><p class="text-xl font-bold">{{ reconciliationSummary.markAsDuplicate }}</p></div>
+                    <div class="panel p-3"><p class="text-xs text-slate-500">Non résolu</p><p class="text-xl font-bold">{{ unresolvedRows.length }}</p></div>
+                  </div>
+
+                  <div class="max-h-56 overflow-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+                      <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-950 dark:text-slate-400"><tr><th class="px-3 py-2">Ligne</th><th class="px-3 py-2">Décision</th><th class="px-3 py-2">Raison</th></tr></thead>
+                      <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        <tr v-for="decision in decisions" :key="decision.id"><td class="px-3 py-2 font-semibold">{{ decision.rowNumber }}</td><td class="px-3 py-2">{{ decisionLabel(decision.kind) }}</td><td class="px-3 py-2 text-xs text-slate-500">{{ decision.reason }}</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+
                   <div class="flex justify-between gap-3">
-                    <button class="ghost-btn" :disabled="busy" @click="currentStep = 'preview'">Retour preview</button>
-                    <button class="primary-btn" :disabled="!canApply" @click="applyImport">{{ state === 'applying' ? 'Application…' : 'Appliquer l’import' }}</button>
+                    <button class="ghost-btn" :disabled="busy" @click="currentStep = 'reconciliation'">Retour réconciliation</button>
+                    <button class="primary-btn" :disabled="!canApply" @click="applyImport">{{ state === 'applying' ? 'Application…' : 'Appliquer les décisions' }}</button>
                   </div>
                 </section>
 
