@@ -22,6 +22,7 @@
     "db:studio": "prisma studio",
     "db:seed": "node prisma/seed.js",
     "db:seed:goals": "node prisma/seedGoalsDemo.js",
+    "db:seed:imports": "node prisma/seedImportDemo.js",
     "check": "npm run prisma:generate && npm run typecheck && npm run test:run",
     "start": "npm run prisma:generate && npm run typecheck && npm run build:vite && electron-forge start",
     "package": "npm run prepackage:desktop && electron-forge package",
@@ -36,7 +37,7 @@
     "test:coverage": "vitest run --coverage",
     "validate:desktop-assets": "node scripts/validate-desktop-assets.js",
     "build:packaged-db": "node scripts/build-packaged-db.js",
-    "release:check": "npm run check && npm run validate:desktop-assets && npm run build:packaged-db",
+    "release:check": "npm run check && npm run validate:desktop-assets && npm run build-packaged-db",
     "prepackage:desktop": "npm run prisma:generate && npm run typecheck && npm run build:vite && npm run validate:desktop-assets && npm run build:packaged-db"
   },
   "dependencies": {
