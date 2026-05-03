@@ -115,6 +115,16 @@ contextBridge.exposeInMainWorld('goals', {
 })
 
 contextBridge.exposeInMainWorld('imports', {
+  createBatch: (input) => ipcRenderer.invoke('import:batch:create', input),
+  parseFile: (input) => ipcRenderer.invoke('import:file:parse', input),
+  preview: (input) => ipcRenderer.invoke('import:preview:create', input),
+  apply: (input) => ipcRenderer.invoke('import:apply', input),
+  cancel: (batchId, reason) => ipcRenderer.invoke('import:cancel', batchId, reason),
+  listHistory: (filters) => ipcRenderer.invoke('import:history:list', filters),
+  getDetail: (batchId) => ipcRenderer.invoke('import:detail:get', batchId),
+  listErrors: (batchId) => ipcRenderer.invoke('import:errors:list', batchId),
+  listDuplicateCandidates: (batchId) => ipcRenderer.invoke('import:duplicates:list', batchId),
+  applyReconciliationDecisions: (input) => ipcRenderer.invoke('import:reconciliation:apply', input),
   mappingTemplate: {
     list: (filters) => ipcRenderer.invoke('import:mappingTemplate:list', filters),
     get: (id) => ipcRenderer.invoke('import:mappingTemplate:get', id),
