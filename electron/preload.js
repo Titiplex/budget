@@ -113,3 +113,16 @@ contextBridge.exposeInMainWorld('goals', {
   removeProjectionScenario: (id) => ipcRenderer.invoke('db:projectionScenario:delete', id),
   estimateMonthlySurplus: (options) => ipcRenderer.invoke('db:goalProjection:monthlySurplus:estimate', options),
 })
+
+contextBridge.exposeInMainWorld('imports', {
+  mappingTemplate: {
+    list: (filters) => ipcRenderer.invoke('import:mappingTemplate:list', filters),
+    get: (id) => ipcRenderer.invoke('import:mappingTemplate:get', id),
+    create: (data) => ipcRenderer.invoke('import:mappingTemplate:create', data),
+    update: (id, data) => ipcRenderer.invoke('import:mappingTemplate:update', id, data),
+    delete: (id) => ipcRenderer.invoke('import:mappingTemplate:delete', id),
+    duplicate: (id, overrides) => ipcRenderer.invoke('import:mappingTemplate:duplicate', id, overrides),
+    validate: (data) => ipcRenderer.invoke('import:mappingTemplate:validate', data),
+    saveFromImport: (input) => ipcRenderer.invoke('import:mappingTemplate:saveFromImport', input),
+  },
+})
