@@ -13,6 +13,14 @@ const {
     previewImport,
     toImportWorkflowIpcError,
 } = require('../import/importWorkflowService')
+const {
+    deleteImportAuditHistory,
+    exportImportAuditReport,
+    getImportAuditDetail,
+    listImportAuditHistory,
+    listImportAuditSources,
+    toImportAuditIpcError,
+} = require('../import/importAuditService')
 
 const IMPORT_WORKFLOW_IPC_CHANNELS = Object.freeze({
     CREATE_BATCH: 'import:batch:create',
@@ -25,6 +33,9 @@ const IMPORT_WORKFLOW_IPC_CHANNELS = Object.freeze({
     ERRORS: 'import:errors:list',
     DUPLICATES: 'import:duplicates:list',
     RECONCILE: 'import:reconciliation:apply',
+    AUDIT_SOURCES: 'import:audit:sources',
+    AUDIT_DELETE: 'import:audit:delete',
+    AUDIT_EXPORT: 'import:audit:export',
 })
 
 function ok(data) {
@@ -32,7 +43,7 @@ function ok(data) {
 }
 
 function fail(error) {
-    return {ok: false, data: null, error: toImportWorkflowIpcError(error)}
+    return {ok: false, data: null, error: toImportAuditIpcError(error) || toImportWorkflowIpcError(error)}
 }
 
 function registerSafeImportWorkflowHandler(ipc, channel, handler) {
@@ -51,19 +62,27 @@ function registerImportWorkflowHandlers({ipc = ipcMain, store = defaultImportWor
     registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.PREVIEW, (input) => previewImport(store, input))
     registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.APPLY, (input) => applyImport(store, input))
     registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.CANCEL, (batchId, reason) => cancelImport(store, batchId, reason))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.HISTORY, (filters) => listImportHistory(store, filters))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.DETAIL, (batchId) => getImportDetail(store, batchId))
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.HISTORY, (filters) => listImportAuditHistory(store, filters))
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.DETAIL, (batchId) => getImportAuditDetail(store, batchId))
     registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.ERRORS, (batchId) => listImportErrors(store, batchId))
     registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.DUPLICATES, (batchId) => listDuplicateCandidates(store, batchId))
     registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.RECONCILE, (input) => applyReconciliationDecisions(store, input))
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_SOURCES, () => listImportAuditSources(store))
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_DELETE, (batchId, options) => deleteImportAuditHistory(store, batchId, options))
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_EXPORT, (batchId, options) => exportImportAuditReport(store, batchId, options))
 
     return {
         applyImport: (input) => applyImport(store, input),
         applyReconciliationDecisions: (input) => applyReconciliationDecisions(store, input),
         cancelImport: (batchId, reason) => cancelImport(store, batchId, reason),
         createImportBatch: (input) => createImportBatch(store, input),
+        deleteImportAuditHistory: (batchId, options) => deleteImportAuditHistory(store, batchId, options),
+        exportImportAuditReport: (batchId, options) => exportImportAuditReport(store, batchId, options),
+        getImportAuditDetail: (batchId) => getImportAuditDetail(store, batchId),
         getImportDetail: (batchId) => getImportDetail(store, batchId),
         listDuplicateCandidates: (batchId) => listDuplicateCandidates(store, batchId),
+        listImportAuditHistory: (filters) => listImportAuditHistory(store, filters),
+        listImportAuditSources: () => listImportAuditSources(store),
         listImportErrors: (batchId) => listImportErrors(store, batchId),
         listImportHistory: (filters) => listImportHistory(store, filters),
         parseImportFile: (input) => parseImportFile(store, input),
