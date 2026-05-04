@@ -104,7 +104,10 @@ function asTargetEntityType(value?: ImportReconciliationTargetType | null): Impo
 }
 
 function toJsonValue(value: unknown): JsonValue {
-    if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value
+    if (value === null) return null
+    if (typeof value === 'string') return value
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null
+    if (typeof value === 'boolean') return value
     if (Array.isArray(value)) return value.map(toJsonValue)
     if (typeof value === 'object') {
         return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, entry]) => [key, toJsonValue(entry)]))
