@@ -66,6 +66,24 @@ const DEFAULT_SCENARIOS = Object.freeze([
     },
 ])
 
+const REQUIRED_SCENARIO_COLUMNS = Object.freeze([
+    ['monthlySurplus', '"monthlySurplus" REAL NOT NULL DEFAULT 0'],
+    ['annualGrowthRate', '"annualGrowthRate" REAL'],
+    ['annualInflationRate', '"annualInflationRate" REAL'],
+    ['horizonMonths', '"horizonMonths" INTEGER NOT NULL DEFAULT 12'],
+    ['currency', '"currency" TEXT NOT NULL DEFAULT \'CAD\''],
+    ['isActive', '"isActive" BOOLEAN NOT NULL DEFAULT true'],
+    ['notes', '"notes" TEXT'],
+])
+
+const REQUIRED_SCENARIO_INDEXES = Object.freeze([
+    'CREATE INDEX IF NOT EXISTS "ProjectionScenario_currency_idx" ON "ProjectionScenario"("currency")',
+    'CREATE INDEX IF NOT EXISTS "ProjectionScenario_isActive_idx" ON "ProjectionScenario"("isActive")',
+    'CREATE INDEX IF NOT EXISTS "ProjectionScenario_horizonMonths_idx" ON "ProjectionScenario"("horizonMonths")',
+])
+
+const schemaReadyClients = new WeakSet()
+
 class ProjectionScenarioServiceError extends Error {
     constructor(code, message, options = {}) {
         super(message)
@@ -280,7 +298,7 @@ function rowToScenario(row) {
         horizonYears: Number(row.horizonMonths || 12) / 12,
         currency: row.currency || 'CAD',
         isDefault: Boolean(row.isDefault),
-        isActive: Boolean(row.isActive),
+        isActive: row.isActive == null ? true : Boolean(row.isActive),
         notes: row.notes || null,
         createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt || null,
         updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt || null,
@@ -309,6 +327,33 @@ async function queryRows(prisma, sql) {
 
 async function execute(prisma, sql) {
     return prisma.$executeRawUnsafe(sql)
+}
+
+async function ensureProjectionScenarioStorage(prisma) {
+    if (schemaReadyClients.has(prisma)) return
+
+    const columns = await queryRows(prisma, 'PRAGMA table_info("ProjectionScenario")')
+    const columnNames = new Set((columns || []).map((column) => String(column.name || '')))
+
+    if (!columnNames.has('id')) {
+        throw new ProjectionScenarioServiceError(
+            SCENARIO_ERROR_CODES.SCENARIO_NOT_FOUND,
+            'La table des scénarios de projection est absente. Lance les migrations Prisma avant d’utiliser les projections.',
+            {field: 'ProjectionScenario', recoverable: false},
+        )
+    }
+
+    for (const [columnName, definition] of REQUIRED_SCENARIO_COLUMNS) {
+        if (!columnNames.has(columnName)) {
+            await execute(prisma, `ALTER TABLE "ProjectionScenario" ADD COLUMN ${definition}`)
+        }
+    }
+
+    for (const sql of REQUIRED_SCENARIO_INDEXES) {
+        await execute(prisma, sql)
+    }
+
+    schemaReadyClients.add(prisma)
 }
 
 async function getRawScenarioById(prisma, id) {
@@ -363,6 +408,8 @@ function updateScenarioSql(id, payload) {
 }
 
 async function ensureDefaultProjectionScenarios(prisma) {
+    await ensureProjectionScenarioStorage(prisma)
+
     const scenarios = []
 
     for (const defaultScenario of DEFAULT_SCENARIOS) {
@@ -413,6 +460,8 @@ async function listProjectionScenarios(prisma, filters = {}) {
 }
 
 async function getProjectionScenarioById(prisma, id) {
+    await ensureProjectionScenarioStorage(prisma)
+
     const scenarioId = requireId(id)
     const row = await getRawScenarioById(prisma, scenarioId)
 
@@ -428,6 +477,8 @@ async function getProjectionScenarioById(prisma, id) {
 }
 
 async function createProjectionScenario(prisma, data) {
+    await ensureProjectionScenarioStorage(prisma)
+
     const payload = buildProjectionScenarioPayload(data)
 
     await execute(prisma, insertScenarioSql(payload))
@@ -436,6 +487,8 @@ async function createProjectionScenario(prisma, data) {
 }
 
 async function updateProjectionScenario(prisma, id, data) {
+    await ensureProjectionScenarioStorage(prisma)
+
     const scenarioId = requireId(id)
 
     await getProjectionScenarioById(prisma, scenarioId)
@@ -447,6 +500,8 @@ async function updateProjectionScenario(prisma, id, data) {
 }
 
 async function deleteProjectionScenario(prisma, id) {
+    await ensureProjectionScenarioStorage(prisma)
+
     const scenarioId = requireId(id)
     const scenario = await getProjectionScenarioById(prisma, scenarioId)
 
@@ -493,6 +548,7 @@ module.exports = {
     createProjectionScenario,
     deleteProjectionScenario,
     ensureDefaultProjectionScenarios,
+    ensureProjectionScenarioStorage,
     getProjectionScenarioById,
     listProjectionScenarios,
     normalizeCurrency,
