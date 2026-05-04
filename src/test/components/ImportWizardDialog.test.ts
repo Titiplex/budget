@@ -77,6 +77,18 @@ function mockWindowApis(previewRows = [basePreviewRow()]) {
     return {createBatch, parseFile, preview, applyReconciliationDecisions}
 }
 
+function mountWizard(props: {open: boolean; accounts: any[]}) {
+    return mount(ImportWizardDialog, {
+        props,
+        attachTo: document.body,
+        global: {
+            stubs: {
+                Teleport: true,
+            },
+        },
+    })
+}
+
 async function chooseFileAndPreview(wrapper: ReturnType<typeof mount>) {
     await wrapper.find('button.primary-btn').trigger('click')
     await wrapper.vm.$nextTick()
@@ -90,17 +102,15 @@ async function chooseFileAndPreview(wrapper: ReturnType<typeof mount>) {
 describe('ImportWizardDialog', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        document.body.innerHTML = ''
         mockWindowApis()
     })
 
     it('guides a CSV import through preview, reconciliation and explicit confirmation', async () => {
         mockWindowApis([basePreviewRow()])
-        const wrapper = mount(ImportWizardDialog, {
-            props: {
-                open: true,
-                accounts: [{id: 1, name: 'Main', type: 'BANK', currency: 'CAD', description: null}],
-            },
-            attachTo: document.body,
+        const wrapper = mountWizard({
+            open: true,
+            accounts: [{id: 1, name: 'Main', type: 'BANK', currency: 'CAD', description: null}],
         })
 
         await chooseFileAndPreview(wrapper)
@@ -146,7 +156,7 @@ describe('ImportWizardDialog', () => {
             }),
         ])
 
-        const wrapper = mount(ImportWizardDialog, {props: {open: true, accounts: []}, attachTo: document.body})
+        const wrapper = mountWizard({open: true, accounts: []})
         await chooseFileAndPreview(wrapper)
 
         expect(wrapper.text()).toContain('Doublons')
@@ -169,7 +179,7 @@ describe('ImportWizardDialog', () => {
                 duplicateCandidates: [{confidence: 0.76, reason: 'Similar transaction', entityId: 42, entityType: 'transaction'}],
             }),
         ])
-        const wrapper = mount(ImportWizardDialog, {props: {open: true, accounts: []}, attachTo: document.body})
+        const wrapper = mountWizard({open: true, accounts: []})
         await chooseFileAndPreview(wrapper)
 
         const reconcileButton = wrapper.findAll('button').find((button) => button.text().includes('Résoudre les décisions'))
@@ -204,7 +214,7 @@ describe('ImportWizardDialog', () => {
                 duplicateCandidates: [{confidence: 0.7, reason: 'Similar transaction', entityId: 99, entityType: 'transaction'}],
             }),
         ])
-        const wrapper = mount(ImportWizardDialog, {props: {open: true, accounts: []}, attachTo: document.body})
+        const wrapper = mountWizard({open: true, accounts: []})
         await chooseFileAndPreview(wrapper)
 
         const reconcileButton = wrapper.findAll('button').find((button) => button.text().includes('Résoudre les décisions'))
