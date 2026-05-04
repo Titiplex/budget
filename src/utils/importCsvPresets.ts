@@ -184,7 +184,7 @@ export function getBrokerExchangeCsvPreset(id: CsvPresetId | string) {
 export function copyCsvPresetToUserTemplate(id: CsvPresetId | string, overrides: Partial<ImportMappingTemplate> = {}): ImportMappingTemplate {
     const preset = getBrokerExchangeCsvPreset(id)
     if (!preset) throw new Error(`CSV preset not found: ${id}`)
-    const {isPreset: _isPreset, universalCompatibility: _universalCompatibility, notes, ...template} = preset
+    const {isSystem: _isSystem, isPreset: _isPreset, universalCompatibility: _universalCompatibility, notes, ...template} = preset
     return {
         ...template,
         ...overrides,
