@@ -34,14 +34,22 @@ function row(overrides: Partial<ImportRowNormalized<JsonObject>> = {}): ImportRo
     }
 }
 
+function hasOwn<T extends object>(value: T, key: keyof T) {
+    return Object.prototype.hasOwnProperty.call(value, key)
+}
+
 function decisionFor(kind: ImportReconciliationDecisionRecord['kind'], importedRow = row(), overrides: Partial<ImportReconciliationDecisionRecord> = {}) {
     return createReconciliationDecision({
         id: overrides.id,
         batchId: 7,
         row: importedRow,
         kind,
-        targetEntityType: overrides.targetEntityType ?? (['linkToExisting', 'updateExisting', 'markAsDuplicate'].includes(kind) ? ImportTargetEntityType.Transaction : null),
-        targetEntityId: overrides.targetEntityId ?? (['linkToExisting', 'updateExisting', 'markAsDuplicate'].includes(kind) ? 42 : null),
+        targetEntityType: hasOwn(overrides, 'targetEntityType')
+            ? overrides.targetEntityType
+            : (['linkToExisting', 'updateExisting', 'markAsDuplicate'].includes(kind) ? ImportTargetEntityType.Transaction : null),
+        targetEntityId: hasOwn(overrides, 'targetEntityId')
+            ? overrides.targetEntityId
+            : (['linkToExisting', 'updateExisting', 'markAsDuplicate'].includes(kind) ? 42 : null),
         reason: overrides.reason ?? `${kind} test reason`,
         reasonSource: overrides.reasonSource ?? 'user',
         decidedBy: 'tester',
