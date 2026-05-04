@@ -1,5 +1,5 @@
 import {ImportDeduplicationStrategy, ImportTargetEntityType} from '../types/imports'
-import type {ImportDuplicateCandidate, ImportEntityId, ImportRowNormalized, JsonObject} from '../types/imports'
+import type {ImportDuplicateCandidate, ImportEntityId, ImportRowNormalized, JsonObject, JsonValue} from '../types/imports'
 
 export type ImportDuplicateMatchKind = 'exactDuplicate' | 'probableDuplicate' | 'weakCollision' | 'notDuplicate'
 export type ImportDuplicateSource = 'normalizedHash' | 'externalId' | 'existingEntity' | 'sameBatch' | 'previousBatch'
@@ -124,8 +124,9 @@ function normalizeLooseText(value: unknown) {
         .join(' ')
 }
 
-function compactObject(value: Record<string, unknown>) {
-    return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== '' && entry !== null && entry !== undefined))
+function compactObject(value: Record<string, unknown>): JsonObject {
+    const entries = Object.entries(value).filter(([, entry]) => entry !== '' && entry !== null && entry !== undefined)
+    return Object.fromEntries(entries.map(([key, entry]) => [key, entry as JsonValue]))
 }
 
 function stableStringify(value: unknown): string {
