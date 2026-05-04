@@ -5,7 +5,7 @@ Budget uses a JSON backup as its canonical portable format. The root object keep
 ```json
 {
   "kind": "budget-backup",
-  "version": 5,
+  "version": 6,
   "exportedAt": "2026-05-01T00:00:00.000Z",
   "data": {}
 }
@@ -13,9 +13,9 @@ Budget uses a JSON backup as its canonical portable format. The root object keep
 
 ## Supported versions
 
-The parser supports versions `2`, `3`, `4` and `5`.
+The parser supports versions `2`, `3`, `4`, `5` and `6`.
 
-Version `5` adds goals and projections while keeping the existing core sections:
+Version `5` added goals and projections. Version `6` adds import pipeline data while keeping the existing core sections:
 
 - `accounts`
 - `categories`
@@ -26,8 +26,9 @@ Version `5` adds goals and projections while keeping the existing core sections:
 - `financialGoals`
 - `projectionScenarios`
 - `projectionSettings`
+- `importBackup`
 
-Legacy versions are normalized with empty goal/projection arrays so older backups remain restorable.
+Legacy versions are normalized with empty goal/projection/import arrays so older backups remain restorable.
 
 ## Goals
 
@@ -86,6 +87,30 @@ Validation rejects negative monthly surplus, invalid currencies, invalid kinds, 
 - `manualMonthlyContribution`
 
 On restore, `defaultScenarioId` is remapped to the newly created scenario id. If the referenced scenario cannot be recreated, it is set to `null`.
+
+## Import backup extension
+
+`data.importBackup` stores import-pipeline data introduced in backup version `6`.
+
+Included:
+
+- user mapping templates;
+- known import sources;
+- import audit history;
+- reconciliation decisions;
+- useful metadata such as file name, file hash, status, timestamps, errors, warnings and applied links.
+
+Excluded:
+
+- system templates and presets;
+- real connector secrets or API tokens;
+- PDF/OCR import data;
+- rollback state;
+- direct recreation of financial rows from import history.
+
+Restore mode is audit-only for import history. Financial transactions/assets are restored from the canonical financial sections of the backup. Import history is restored only so the user can inspect past batches, decisions, errors and applied links.
+
+The full import flow is documented in [`docs/import-pipeline.md`](import-pipeline.md).
 
 ## Simple exports
 

@@ -1,0 +1,6 @@
+Date,Description,Amount,Currency,Account
+2026-05-01,Coffee,-4.50,CAD,Main
+not-a-date,Broken date,-9.99,CAD,Main
+2026-05-03,Broken amount,abc,CAD,Main
+2026-05-04,Broken currency,-12.00,INVALID,Main
+,Missing date,-7.00,CAD,Main

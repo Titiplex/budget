@@ -9,6 +9,23 @@ const ipcMain = {
     }),
 }
 
+const projectionScenarioColumns = [
+    'id',
+    'name',
+    'kind',
+    'description',
+    'isDefault',
+    'createdAt',
+    'updatedAt',
+    'monthlySurplus',
+    'annualGrowthRate',
+    'annualInflationRate',
+    'horizonMonths',
+    'currency',
+    'isActive',
+    'notes',
+]
+
 function clearCommonJsCache() {
     for (const modulePath of [
         '../../../electron/ipc/registerProjectionScenarioHandlers',
@@ -43,12 +60,17 @@ afterEach(() => {
 
 function createSqlPrisma() {
     const rows = []
+    const columns = new Set(projectionScenarioColumns)
     let nextId = 1
 
     return {
         rows,
         prisma: {
             async $queryRawUnsafe(sql) {
+                if (sql.startsWith('PRAGMA table_info("ProjectionScenario")')) {
+                    return [...columns].map((name, index) => ({cid: index, name}))
+                }
+
                 if (sql.includes('WHERE "id" =')) {
                     const id = Number(sql.match(/WHERE "id" = (\d+)/)?.[1])
                     return rows.filter((row) => row.id === id)
@@ -62,6 +84,14 @@ function createSqlPrisma() {
                 return [...rows]
             },
             async $executeRawUnsafe(sql) {
+                if (sql.startsWith('ALTER TABLE "ProjectionScenario" ADD COLUMN')) {
+                    const columnName = sql.match(/ADD COLUMN "([^"]+)"/)?.[1]
+                    if (columnName) columns.add(columnName)
+                    return 1
+                }
+
+                if (sql.startsWith('CREATE INDEX IF NOT EXISTS')) return 1
+
                 if (sql.startsWith('INSERT INTO "ProjectionScenario"')) {
                     const valuesBlock = sql.match(/VALUES\s*\(([\s\S]+)\)\s*$/)?.[1]
                     const values = valuesBlock.split(/,\s*(?=(?:[^']*'[^']*')*[^']*$)/).map((value) => value.trim())

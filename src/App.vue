@@ -7,7 +7,9 @@ import BudgetsSection from './components/BudgetsSection.vue'
 import CategoriesSection from './components/CategoriesSection.vue'
 import DeleteDialog from './components/DeleteDialog.vue'
 import EntityDrawer from './components/EntityDrawer.vue'
+import ImportHistorySection from './components/ImportHistorySection.vue'
 import ImportReviewDialog from './components/ImportReviewDialog.vue'
+import ImportWizardDialog from './components/ImportWizardDialog.vue'
 import OverviewSection from './components/OverviewSection.vue'
 import RecurringSection from './components/RecurringSection.vue'
 import ReportsSection from './components/ReportsSection.vue'
@@ -30,6 +32,8 @@ const appVersion = ref('')
 const taxProfiles = ref<TaxProfile[]>([])
 const analyticsPanelOpen = ref(false)
 const analyticsChromeReady = ref(false)
+const importWizardOpen = ref(false)
+const importHistorySectionKey = 'imports' as SectionKey
 
 function showNotice(type: 'success' | 'error', text: string) {
   notice.value = {type, text}
@@ -99,6 +103,16 @@ function refreshEverything() {
   ])
 }
 
+function openImportWizard() {
+  importWizardOpen.value = true
+}
+
+async function handleImportWizardApplied() {
+  await refreshEverything()
+  budget.selectSection(importHistorySectionKey)
+  showNotice('success', 'Import terminé. Les données et l’historique ont été rafraîchis.')
+}
+
 const jsonBackup = useJsonBackup({
   accounts: budget.accounts,
   categories: budget.categories,
@@ -119,41 +133,21 @@ const navigation = computed(() => [
   {key: 'recurring' as SectionKey, label: t('nav.recurring'), marker: 'RC'},
   {key: 'reports' as SectionKey, label: t('nav.reports'), marker: 'RP'},
   {key: 'wealth' as SectionKey, label: t('nav.wealth'), marker: 'WL'},
+  {key: importHistorySectionKey, label: 'Imports', marker: 'IM'},
 ])
 
 const sectionMeta = computed<Record<SectionKey, { title: string; description: string }>>(() => ({
-  overview: {
-    title: t('sections.overview.title'),
-    description: t('sections.overview.description'),
-  },
-  transactions: {
-    title: t('sections.transactions.title'),
-    description: t('sections.transactions.description'),
-  },
-  accounts: {
-    title: t('sections.accounts.title'),
-    description: t('sections.accounts.description'),
-  },
-  categories: {
-    title: t('sections.categories.title'),
-    description: t('sections.categories.description'),
-  },
-  budgets: {
-    title: t('sections.budgets.title'),
-    description: t('sections.budgets.description'),
-  },
-  recurring: {
-    title: t('sections.recurring.title'),
-    description: t('sections.recurring.description'),
-  },
-  reports: {
-    title: t('sections.reports.title'),
-    description: t('sections.reports.description'),
-  },
-
-  wealth: {
-    title: t('wealth.section.title'),
-    description: t('wealth.section.description'),
+  overview: {title: t('sections.overview.title'), description: t('sections.overview.description')},
+  transactions: {title: t('sections.transactions.title'), description: t('sections.transactions.description')},
+  accounts: {title: t('sections.accounts.title'), description: t('sections.accounts.description')},
+  categories: {title: t('sections.categories.title'), description: t('sections.categories.description')},
+  budgets: {title: t('sections.budgets.title'), description: t('sections.budgets.description')},
+  recurring: {title: t('sections.recurring.title'), description: t('sections.recurring.description')},
+  reports: {title: t('sections.reports.title'), description: t('sections.reports.description')},
+  wealth: {title: t('wealth.section.title'), description: t('wealth.section.description')},
+  [importHistorySectionKey]: {
+    title: 'Historique d’import',
+    description: 'Audit trail des imports CSV, décisions de réconciliation, erreurs et exports de rapport.',
   },
 }))
 
@@ -221,23 +215,20 @@ function handleMenuCommand(rawCommand: unknown) {
       void recurring.generateDueRecurring()
       break
     case 'open-wealth':
-
       budget.selectSection('wealth')
-
       break
-
-
+    case 'open-import-history':
+      budget.selectSection(importHistorySectionKey)
+      break
     case 'open-reports':
-
       budget.selectSection('reports')
-
       break
     case 'export-period-report':
       budget.selectSection('reports')
       void reports.exportPeriodReport()
       break
     case 'import-csv':
-      void csv.beginImportCurrentCsv()
+      openImportWizard()
       break
     case 'export-csv':
       void csv.exportCurrentCsv()
@@ -371,6 +362,12 @@ onMounted(async () => {
           <button class="quick-create-btn-secondary !py-2.5 text-sm" @click="budget.openCreatePanel('category')">
             + {{ t('entities.singular.category') }}
           </button>
+          <button class="quick-create-btn-secondary !py-2.5 text-sm" @click="openImportWizard">
+            Import guidé CSV
+          </button>
+          <button class="quick-create-btn-secondary !py-2.5 text-sm" @click="budget.selectSection(importHistorySectionKey)">
+            Historique imports
+          </button>
         </div>
         <div class="mt-auto px-2 pt-6">
           <div
@@ -451,6 +448,12 @@ onMounted(async () => {
               </button>
               <button class="ghost-btn" @click="settings.toggleTheme">
                 {{ settings.darkMode.value ? t('common.lightMode') : t('common.darkMode') }}
+              </button>
+              <button class="ghost-btn" @click="openImportWizard">
+                Import CSV
+              </button>
+              <button class="ghost-btn" @click="budget.selectSection(importHistorySectionKey)">
+                Historique imports
               </button>
               <button class="primary-btn" @click="budget.openCreatePanel('transaction')">
                 {{ t('common.add') }}
@@ -618,20 +621,16 @@ onMounted(async () => {
           />
 
           <WealthSection
-
-
               v-else-if="budget.activeSection.value === 'wealth'"
-
-
               :summary-currency="budget.summaryCurrency.value"
-
-
           />
 
+          <ImportHistorySection
+              v-else-if="budget.activeSection.value === importHistorySectionKey"
+              @notice="showNotice"
+          />
 
           <template v-else>
-
-
             <ReportsSection
                 :preset="reports.reportPreset.value"
                 :start-date="reports.reportStartDate.value"
@@ -720,6 +719,13 @@ onMounted(async () => {
         @close="settings.closeSettings"
         @update-locale="settings.setLocale"
         @update-theme="settings.setTheme"
+    />
+
+    <ImportWizardDialog
+        :open="importWizardOpen"
+        :accounts="budget.accounts.value"
+        @close="importWizardOpen = false"
+        @applied="handleImportWizardApplied"
     />
 
     <ImportReviewDialog

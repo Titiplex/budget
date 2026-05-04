@@ -9,6 +9,7 @@ Application desktop locale-first pour gérer :
 - des transactions récurrentes
 - des rapports avec comparaison intelligente
 - des objectifs financiers et projections locales
+- des imports CSV guidés et auditables
 - des sauvegardes / restaurations JSON
 
 Le projet est construit avec :
@@ -26,6 +27,8 @@ Le projet est construit avec :
 - **renderer léger** : pas d’accès direct Prisma dans Vue
 - **IPC étroit** : la logique base de données reste côté Electron main
 - **backup explicite** : export / restauration JSON pour sécuriser les données
+- **imports défensifs** : preview dry-run, détection de doublons, réconciliation et audit avant/après application
+- **sync externe read-only/future** : pas d’écriture vers comptes externes dans le MVP
 - **projections descriptives** : les calculs dépendent d’hypothèses visibles et ne sont pas des conseils financiers
 
 ## Fonctionnalités
@@ -76,6 +79,21 @@ Les projections sont déterministes : elles indiquent ce que donnent les hypoth�
 
 La documentation dédiée est disponible ici : [`docs/goals-projections.md`](docs/goals-projections.md).
 
+### Import CSV guidé
+
+- imports CSV locaux sans service externe
+- templates et presets broker/exchange copiables
+- preview dry-run avant écriture locale
+- détection de doublons exacts, probables et dans le même batch
+- décisions de réconciliation traçables
+- historique d’import consultable dans l’app
+- export d’audit Markdown/CSV
+- fixtures et fichiers démo sans compte externe
+
+Documentation dédiée : [`docs/import-pipeline.md`](docs/import-pipeline.md).
+
+Fichiers de démonstration : [`docs/demo/imports`](docs/demo/imports).
+
 ### Rapports
 
 - résumé de période
@@ -91,7 +109,8 @@ La documentation dédiée est disponible ici : [`docs/goals-projections.md`](doc
 - export JSON complet
 - restauration JSON validée
 - import / export CSV selon la section active
-- format backup v5 avec objectifs et scénarios documenté dans [`docs/backup-format.md`](docs/backup-format.md)
+- import CSV guidé avec preview, dédoublonnage, réconciliation et audit
+- format backup v6 avec objectifs, scénarios et données d’import documenté dans [`docs/backup-format.md`](docs/backup-format.md)
 
 ## Structure du projet
 
@@ -170,6 +189,12 @@ npm run start
 
 ````shell
 npm run test:run
+````
+
+Tests ciblés import :
+
+````shell
+npm run test:run -- src/test/electron/importPipelineFixtures.test.js src/test/electron/importWorkflowIpc.test.js src/test/utils/importCsvPresets.test.ts
 ````
 
 ## Vérification TypeScript

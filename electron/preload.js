@@ -113,3 +113,30 @@ contextBridge.exposeInMainWorld('goals', {
   removeProjectionScenario: (id) => ipcRenderer.invoke('db:projectionScenario:delete', id),
   estimateMonthlySurplus: (options) => ipcRenderer.invoke('db:goalProjection:monthlySurplus:estimate', options),
 })
+
+contextBridge.exposeInMainWorld('imports', {
+  createBatch: (input) => ipcRenderer.invoke('import:batch:create', input),
+  parseFile: (input) => ipcRenderer.invoke('import:file:parse', input),
+  preview: (input) => ipcRenderer.invoke('import:preview:create', input),
+  apply: (input) => ipcRenderer.invoke('import:apply', input),
+  cancel: (batchId, reason) => ipcRenderer.invoke('import:cancel', batchId, reason),
+  listHistory: (filters) => ipcRenderer.invoke('import:history:list', filters),
+  getDetail: (batchId) => ipcRenderer.invoke('import:detail:get', batchId),
+  listErrors: (batchId) => ipcRenderer.invoke('import:errors:list', batchId),
+  listDuplicateCandidates: (batchId) => ipcRenderer.invoke('import:duplicates:list', batchId),
+  listSources: () => ipcRenderer.invoke('import:audit:sources'),
+  deleteHistory: (batchId, options) => ipcRenderer.invoke('import:audit:delete', batchId, options),
+  exportReport: (batchId, options) => ipcRenderer.invoke('import:audit:export', batchId, options),
+  restoreBackup: (input) => ipcRenderer.invoke('import:audit:restoreBackup', input),
+  applyReconciliationDecisions: (input) => ipcRenderer.invoke('import:reconciliation:apply', input),
+  mappingTemplate: {
+    list: (filters) => ipcRenderer.invoke('import:mappingTemplate:list', filters),
+    get: (id) => ipcRenderer.invoke('import:mappingTemplate:get', id),
+    create: (data) => ipcRenderer.invoke('import:mappingTemplate:create', data),
+    update: (id, data) => ipcRenderer.invoke('import:mappingTemplate:update', id, data),
+    delete: (id) => ipcRenderer.invoke('import:mappingTemplate:delete', id),
+    duplicate: (id, overrides) => ipcRenderer.invoke('import:mappingTemplate:duplicate', id, overrides),
+    validate: (data) => ipcRenderer.invoke('import:mappingTemplate:validate', data),
+    saveFromImport: (input) => ipcRenderer.invoke('import:mappingTemplate:saveFromImport', input),
+  },
+})

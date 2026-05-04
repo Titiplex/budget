@@ -22,6 +22,7 @@
     "db:studio": "prisma studio",
     "db:seed": "node prisma/seed.js",
     "db:seed:goals": "node prisma/seedGoalsDemo.js",
+    "db:seed:imports": "node prisma/seedImportDemo.js",
     "check": "npm run prisma:generate && npm run typecheck && npm run test:run",
     "start": "npm run prisma:generate && npm run typecheck && npm run build:vite && electron-forge start",
     "package": "npm run prepackage:desktop && electron-forge package",
