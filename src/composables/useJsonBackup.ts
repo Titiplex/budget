@@ -16,6 +16,7 @@ import {
     type BudgetBackupFinancialGoal,
     type BudgetBackupProjectionScenario,
     type BudgetBackupProjectionSettings,
+    type BudgetBackupWithGoalsSnapshot,
 } from '../utils/goalsJsonBackup'
 import {
     createBudgetBackupSnapshotWithImportData,
@@ -43,6 +44,14 @@ function absAmount(value: number | null | undefined) {
 
 function firstValidationError(validation: BackupValidationResult) {
     return validation.warnings[0] || tr('notices.jsonInvalid')
+}
+
+function asLegacyBackupSnapshot(snapshot: BudgetBackupWithImportDataSnapshot): BudgetBackupSnapshot {
+    return snapshot as unknown as BudgetBackupSnapshot
+}
+
+function asGoalsBackupSnapshot(snapshot: BudgetBackupWithImportDataSnapshot): BudgetBackupWithGoalsSnapshot {
+    return snapshot as unknown as BudgetBackupWithGoalsSnapshot
 }
 
 function unwrapIpcResult<T>(result: {ok?: boolean; data?: T | null; error?: {message?: string} | null} | T, fallback: string): T {
@@ -204,7 +213,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         if (!result || result.canceled || !result.content) return
         try {
             const snapshot = parseBudgetBackupWithImportData(result.content)
-            const validation = validateBackupSnapshot(snapshot as BudgetBackupSnapshot)
+            const validation = validateBackupSnapshot(asLegacyBackupSnapshot(snapshot))
             if (!validation.ok) throw new Error(firstValidationError(validation))
             restorePreviewSnapshot.value = snapshot
             restorePreviewValidation.value = validation
@@ -272,7 +281,8 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         if (!restorePreviewSnapshot.value) return
         try {
             const snapshot = restorePreviewSnapshot.value
-            const validation = validateBackupSnapshot(snapshot as BudgetBackupSnapshot)
+            const legacySnapshot = asLegacyBackupSnapshot(snapshot)
+            const validation = validateBackupSnapshot(legacySnapshot)
             if (!validation.ok) throw new Error(firstValidationError(validation))
             await replaceAllData()
             const accountIdMap = new Map<number, number>()
@@ -298,9 +308,10 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
                 const mappedCategoryId = template.categoryId == null ? null : (categoryIdMap.get(template.categoryId) ?? null)
                 await window.db.recurringTemplate.create({label: template.label, sourceAmount: template.sourceAmount, sourceCurrency: template.sourceCurrency, accountAmount: template.accountAmount, conversionMode: template.conversionMode, exchangeRate: template.exchangeRate, exchangeProvider: template.exchangeProvider, kind: template.kind, note: template.note, frequency: template.frequency, intervalCount: template.intervalCount, startDate: template.startDate, nextOccurrenceDate: template.nextOccurrenceDate, endDate: template.endDate, isActive: template.isActive, accountId: mappedAccountId, categoryId: mappedCategoryId})
             }
-            await restoreTransactions(snapshot as BudgetBackupSnapshot, accountIdMap, categoryIdMap)
-            if (window.goals && snapshot.data.financialGoals.length > 0) await restoreGoalsBackupSnapshot(snapshot, window.goals)
-            await restoreImportBackupData(snapshot.data.importBackup)
+            await restoreTransactions(legacySnapshot, accountIdMap, categoryIdMap)
+            if (window.goals && snapshot.data.financialGoals.length > 0) await restoreGoalsBackupSnapshot(asGoalsBackupSnapshot(snapshot), window.goals)
+            const importBackup: BudgetBackupImportData = (snapshot as unknown as {data: {importBackup: BudgetBackupImportData}}).data.importBackup
+            await restoreImportBackupData(importBackup)
             await options.refreshAllData()
             closeRestorePreview()
             options.showNotice('success', tr('notices.jsonRestored'))
