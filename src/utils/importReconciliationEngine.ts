@@ -1,5 +1,5 @@
 import {ImportAppliedOperation, ImportTargetEntityType} from '../types/imports'
-import type {ImportAppliedLink, ImportEntityId, ImportRowNormalized, JsonObject} from '../types/imports'
+import type {ImportAppliedLink, ImportEntityId, ImportRowNormalized, JsonObject, JsonValue} from '../types/imports'
 import type {ImportDryRunPreview, ImportDryRunPreviewRow} from './importPreviewService'
 
 export type ImportReconciliationDecisionKind =
@@ -103,6 +103,15 @@ function asTargetEntityType(value?: ImportReconciliationTargetType | null): Impo
     return ImportTargetEntityType.Transaction
 }
 
+function toJsonValue(value: unknown): JsonValue {
+    if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value
+    if (Array.isArray(value)) return value.map(toJsonValue)
+    if (typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, entry]) => [key, toJsonValue(entry)]))
+    }
+    return null
+}
+
 function historyEntry(input: {actor?: string | null; status: ImportReconciliationDecisionStatus; message: string; at: string; metadata?: JsonObject | null}): ImportReconciliationHistoryEntry {
     return {at: input.at, actor: input.actor || 'system', status: input.status, message: input.message, metadata: input.metadata ?? null}
 }
@@ -176,6 +185,7 @@ function buildAppliedLink(input: {decision: ImportReconciliationDecisionRecord; 
         decisionId: input.decision.id,
         entityType,
         operation: input.operation,
+        entityId: input.entityId ?? null,
         transactionId: entityType === ImportTargetEntityType.Transaction ? input.entityId ?? null : undefined,
         assetId: entityType === ImportTargetEntityType.Asset ? input.entityId ?? null : undefined,
         entitySnapshot: input.snapshot ?? null,
@@ -253,7 +263,11 @@ export function buildReconciliationDecisionsFromPreview(preview: ImportDryRunPre
         kind: row.duplicateCandidates.some((candidate) => candidate.confidence >= 0.98) && row.action === 'needsReview' ? 'markAsDuplicate' : decisionKindFromPreviewAction(row),
         targetEntityType: row.targetEntityType,
         targetEntityId: row.targetEntityId ?? null,
-        payload: {previewAction: row.action, missingFields: row.missingFields, conflicts: row.conflicts},
+        payload: {
+            previewAction: row.action,
+            missingFields: row.missingFields,
+            conflicts: row.conflicts.map((conflict) => toJsonValue(conflict)),
+        },
         reason: row.reasons[0] || 'Décision générée depuis la preview.',
         reasonSource: options.reasonSource || 'automatic',
         decidedBy: options.decidedBy || 'system',
