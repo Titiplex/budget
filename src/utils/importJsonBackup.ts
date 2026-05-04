@@ -152,6 +152,12 @@ function clone<T>(value: T): T {
     return JSON.parse(JSON.stringify(value))
 }
 
+function isUserMappingTemplate(template: unknown): template is ImportMappingTemplate {
+    if (!isRecord(template)) return false
+    const id = typeof template.id === 'string' ? template.id : ''
+    return !id.startsWith('system:') && template.isSystem !== true && template.isPreset !== true
+}
+
 function normalizeTemplate(value: unknown, index: number): ImportMappingTemplate {
     const path = `data.importBackup.mappingTemplates[${index}]`
     const template = requireRecord(value, path)
@@ -288,6 +294,7 @@ export function createBudgetBackupSnapshotWithImportData(
     snapshot: BudgetBackupWithGoalsSnapshot,
     importBackup: Partial<BudgetBackupImportData> = {},
 ): BudgetBackupWithImportDataSnapshot {
+    const userMappingTemplates = (importBackup.mappingTemplates || []).filter(isUserMappingTemplate)
     const normalizedImportBackup: BudgetBackupImportData = {
         ...clone(EMPTY_IMPORT_BACKUP),
         ...importBackup,
@@ -295,7 +302,7 @@ export function createBudgetBackupSnapshotWithImportData(
             ...EMPTY_IMPORT_BACKUP.documentation,
             ...(importBackup.documentation || {}),
         },
-        mappingTemplates: clone(importBackup.mappingTemplates || []),
+        mappingTemplates: clone(userMappingTemplates),
         importSources: [...new Set(importBackup.importSources || [])].sort(),
         importHistory: clone(importBackup.importHistory || []),
         metadata: {
