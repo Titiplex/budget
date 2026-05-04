@@ -19,6 +19,18 @@ function fixture(name) {
     return readFileSync(join(process.cwd(), 'src/test/fixtures/import-presets', name), 'utf8')
 }
 
+const bankCsvTemplate = {
+    importType: 'transactions',
+    defaultCurrency: 'CAD',
+    columnMappings: [
+        {sourceColumn: 'Date', targetField: 'date'},
+        {sourceColumn: 'Description', targetField: 'label'},
+        {sourceColumn: 'Amount', targetField: 'amount'},
+        {sourceColumn: 'Currency', targetField: 'currency'},
+        {sourceColumn: 'Account', targetField: 'accountName'},
+    ],
+}
+
 describe('import pipeline fixtures', () => {
     it('runs a local dry-run and apply flow using a normal bank CSV fixture', async () => {
         const store = createMemoryImportWorkflowStore()
@@ -26,6 +38,7 @@ describe('import pipeline fixtures', () => {
             importType: 'transactions',
             defaultCurrency: 'CAD',
             fileMetadata: {fileName: 'bank-transactions.csv', provider: 'demo-bank'},
+            template: bankCsvTemplate,
         })
 
         const parsed = await parseImportFile(store, {
@@ -50,6 +63,7 @@ describe('import pipeline fixtures', () => {
             importType: 'transactions',
             defaultCurrency: 'CAD',
             fileMetadata: {fileName: 'broken-import.csv', provider: 'demo-bank'},
+            template: bankCsvTemplate,
         })
 
         const parsed = await parseImportFile(store, {batchId: batch.id, rawText: fixture('broken-import.csv'), defaultCurrency: 'CAD'})
@@ -73,6 +87,7 @@ describe('import pipeline fixtures', () => {
             importType: 'transactions',
             defaultCurrency: 'CAD',
             fileMetadata: {fileName: 'duplicate-transactions.csv', provider: 'demo-bank'},
+            template: bankCsvTemplate,
         })
 
         await parseImportFile(store, {batchId: batch.id, rawText: fixture('duplicate-transactions.csv'), defaultCurrency: 'CAD'})
