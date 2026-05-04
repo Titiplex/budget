@@ -127,9 +127,9 @@ function categoryLabel(transaction: Transaction) {
                 />
                 <span>{{ item.name }}</span>
               </div>
-              <div class="expense-item-values">
-                <span>{{ formatMoney(item.total, summaryCurrency) }}</span>
-                <span class="expense-item-percent">{{ item.percent.toFixed(1) }}%</span>
+              <div class="expense-item-values mt-1 flex items-baseline gap-2 text-sm">
+                <span class="font-medium text-white">{{ formatMoney(item.total, summaryCurrency) }}</span>
+                <span class="expense-item-percent text-slate-400">{{ item.percent.toFixed(1) }}%</span>
               </div>
             </div>
 
