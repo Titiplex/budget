@@ -11,8 +11,26 @@ const {
     updateProjectionScenario,
 } = require('../../../electron/goals/projectionScenarioService.js')
 
-function createFakePrisma(seed = []) {
+const baseScenarioColumns = [
+    'id',
+    'name',
+    'kind',
+    'description',
+    'isDefault',
+    'createdAt',
+    'updatedAt',
+    'monthlySurplus',
+    'annualGrowthRate',
+    'annualInflationRate',
+    'horizonMonths',
+    'currency',
+    'isActive',
+    'notes',
+]
+
+function createFakePrisma(seed = [], options = {}) {
     const rows = seed.map((row) => ({...row}))
+    const columns = new Set(options.columns || baseScenarioColumns)
     let nextId = 1 + Math.max(0, ...rows.map((row) => Number(row.id) || 0))
 
     function normalizeSqlValue(value) {
@@ -39,10 +57,31 @@ function createFakePrisma(seed = []) {
         )
     }
 
+    function assertKnownColumns(sql) {
+        const insertColumnsMatch = sql.match(/INSERT INTO "ProjectionScenario"\s*\(([\s\S]+?)\)\s*VALUES/i)
+        if (insertColumnsMatch) {
+            for (const column of [...insertColumnsMatch[1].matchAll(/"([^"]+)"/g)].map((match) => match[1])) {
+                if (!columns.has(column)) throw new Error(`table ProjectionScenario has no column named ${column}`)
+            }
+        }
+
+        const updateColumnsMatch = sql.match(/UPDATE "ProjectionScenario" SET ([\s\S]+?) WHERE/i)
+        if (updateColumnsMatch) {
+            for (const column of [...updateColumnsMatch[1].matchAll(/"([^"]+)"\s*=/g)].map((match) => match[1])) {
+                if (!columns.has(column)) throw new Error(`table ProjectionScenario has no column named ${column}`)
+            }
+        }
+    }
+
     return {
         rows,
+        columns,
         prisma: {
             async $queryRawUnsafe(sql) {
+                if (sql.startsWith('PRAGMA table_info("ProjectionScenario")')) {
+                    return [...columns].map((name, index) => ({cid: index, name}))
+                }
+
                 if (sql.includes('WHERE "id" =')) {
                     const id = Number(sql.match(/WHERE "id" = (\d+)/)?.[1])
                     return rows.filter((row) => row.id === id)
@@ -74,6 +113,16 @@ function createFakePrisma(seed = []) {
                 return result.sort((left, right) => Number(right.isDefault) - Number(left.isDefault) || left.kind.localeCompare(right.kind) || left.name.localeCompare(right.name))
             },
             async $executeRawUnsafe(sql) {
+                if (sql.startsWith('ALTER TABLE "ProjectionScenario" ADD COLUMN')) {
+                    const columnName = sql.match(/ADD COLUMN "([^"]+)"/)?.[1]
+                    if (columnName) columns.add(columnName)
+                    return 1
+                }
+
+                if (sql.startsWith('CREATE INDEX IF NOT EXISTS')) return 1
+
+                assertKnownColumns(sql)
+
                 if (sql.startsWith('INSERT INTO "ProjectionScenario"')) {
                     const valuesBlock = sql.match(/VALUES\s*\(([\s\S]+)\)\s*$/)?.[1]
                     const values = valuesBlock
@@ -130,6 +179,25 @@ describe('projection scenario service', () => {
         expect(defaults.every((scenario) => scenario.isDefault)).toBe(true)
         expect(defaults.every((scenario) => scenario.isActive)).toBe(true)
         expect(rows).toHaveLength(3)
+    })
+
+    it('heals legacy scenario tables missing assumption columns before querying', async () => {
+        const legacyColumns = ['id', 'name', 'kind', 'description', 'isDefault', 'createdAt', 'updatedAt']
+        const {columns, prisma} = createFakePrisma([], {columns: legacyColumns})
+
+        const defaults = await ensureDefaultProjectionScenarios(prisma)
+
+        expect(defaults).toHaveLength(3)
+        expect(columns).toEqual(expect.objectContaining ? columns : columns)
+        expect([...columns]).toEqual(expect.arrayContaining([
+            'monthlySurplus',
+            'annualGrowthRate',
+            'annualInflationRate',
+            'horizonMonths',
+            'currency',
+            'isActive',
+            'notes',
+        ]))
     })
 
     it('creates, lists, fetches and updates custom scenario assumptions', async () => {
