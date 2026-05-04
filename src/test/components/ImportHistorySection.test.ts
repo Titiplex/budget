@@ -132,7 +132,8 @@ describe('ImportHistorySection', () => {
         await vi.dynamicImportSettled()
 
         expect(window.imports.deleteHistory).toHaveBeenCalledWith('batch-1', {preserveFinancialData: true})
-        expect(wrapper.emitted('notice')?.at(-1)).toEqual(['success', 'Historique supprimé. Les transactions/assets créés ne sont pas supprimés.'])
+        const notices = wrapper.emitted('notice') || []
+        expect(notices[notices.length - 1]).toEqual(['success', 'Historique supprimé. Les transactions/assets créés ne sont pas supprimés.'])
         wrapper.unmount()
     })
 })
