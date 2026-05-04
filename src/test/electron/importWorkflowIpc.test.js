@@ -99,7 +99,10 @@ describe('import workflow IPC handlers', () => {
         })
         expect(parsed.ok).toBe(true)
         expect(parsed.data.batch.rowCount).toBe(2)
-        expect(parsed.data.parsed.errors).toHaveLength(2)
+        expect(parsed.data.parsed.errors).toEqual(expect.arrayContaining([
+            expect.objectContaining({code: 'invalidDate'}),
+            expect.objectContaining({code: 'invalidAmount'}),
+        ]))
 
         const preview = await handlers.get('import:preview:create')({}, {
             batchId: created.data.id,
