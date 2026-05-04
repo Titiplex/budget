@@ -187,6 +187,10 @@ export interface ImportBatch {
     appliedAt?: IsoDateString | null
     cancelledAt?: IsoDateString | null
     note?: string | null
+    restoredFromBackup?: boolean
+    restoredAt?: IsoDateString
+    restoredAsAuditOnly?: boolean
+    originalBackupBatchId?: ImportEntityId
 }
 
 export interface ImportRetentionPolicy {
@@ -283,6 +287,8 @@ export interface ImportAppliedLink {
     entityType: ImportTargetEntityType.Transaction | ImportTargetEntityType.Asset
     operation: ImportAppliedOperation
     entityId?: ImportEntityId | null
+    transactionId?: ImportEntityId | null
+    assetId?: ImportEntityId | null
     entitySnapshot?: JsonObject | null
     appliedAt: IsoDateString
     createdAt?: IsoDateString
@@ -347,11 +353,19 @@ export interface ImportMappingTemplate {
     provider?: string | null
     delimiter?: string | null
     hasHeader?: boolean
+    defaultCurrency?: string
+    dateFormat?: string
+    decimalSeparator?: string
     columnMappings: ImportColumnMapping[]
     defaultValues?: JsonObject
     deduplicationStrategy: ImportDeduplicationStrategy
     metadata?: JsonObject | null
     version?: number
+    isSystem?: boolean
+    isPreset?: boolean
+    isActive?: boolean
+    notes?: string
+    universalCompatibility?: boolean
     createdAt?: IsoDateString
     updatedAt?: IsoDateString
 }
@@ -426,6 +440,9 @@ export interface CreateMappingTemplateInput {
     provider?: string | null
     delimiter?: string | null
     hasHeader?: boolean
+    defaultCurrency?: string
+    dateFormat?: string
+    decimalSeparator?: string
     columnMappings: ImportColumnMapping[]
     defaultValues?: JsonObject
     deduplicationStrategy?: ImportDeduplicationStrategy
@@ -438,6 +455,9 @@ export interface UpdateMappingTemplateInput {
     provider?: string | null
     delimiter?: string | null
     hasHeader?: boolean
+    defaultCurrency?: string
+    dateFormat?: string
+    decimalSeparator?: string
     columnMappings?: ImportColumnMapping[]
     defaultValues?: JsonObject
     deduplicationStrategy?: ImportDeduplicationStrategy
