@@ -98,7 +98,7 @@ describe('ImportWizardDialog', () => {
         const wrapper = mount(ImportWizardDialog, {
             props: {
                 open: true,
-                accounts: [{id: 1, name: 'Main', type: 'BANK', currency: 'CAD', description: null, createdAt: '', updatedAt: ''}],
+                accounts: [{id: 1, name: 'Main', type: 'BANK', currency: 'CAD', description: null}],
             },
             attachTo: document.body,
         })
