@@ -46,12 +46,12 @@ function firstValidationError(validation: BackupValidationResult) {
     return validation.warnings[0] || tr('notices.jsonInvalid')
 }
 
-function asLegacyBackupSnapshot(snapshot: BudgetBackupWithImportDataSnapshot): BudgetBackupSnapshot {
-    return snapshot as unknown as BudgetBackupSnapshot
+function asLegacyBackupSnapshot(snapshot: unknown): BudgetBackupSnapshot {
+    return snapshot as BudgetBackupSnapshot
 }
 
-function asGoalsBackupSnapshot(snapshot: BudgetBackupWithImportDataSnapshot): BudgetBackupWithGoalsSnapshot {
-    return snapshot as unknown as BudgetBackupWithGoalsSnapshot
+function asGoalsBackupSnapshot(snapshot: unknown): BudgetBackupWithGoalsSnapshot {
+    return snapshot as BudgetBackupWithGoalsSnapshot
 }
 
 function unwrapIpcResult<T>(result: {ok?: boolean; data?: T | null; error?: {message?: string} | null} | T, fallback: string): T {
