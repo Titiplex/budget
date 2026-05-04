@@ -2,9 +2,9 @@ export type ImportEntityId = string | number
 export type IsoDateString = string
 
 export type JsonPrimitive = string | number | boolean | null
-export type JsonValue = JsonPrimitive | JsonObject | JsonArray
-export type JsonObject = {[key: string]: JsonValue}
-export type JsonArray = JsonValue[]
+export type JsonValue = unknown
+export type JsonObject = Record<string, unknown>
+export type JsonArray = unknown[]
 
 export enum ImportSourceType {
     ManualFile = 'manualFile',
@@ -340,9 +340,9 @@ export interface ImportColumnMapping {
     targetField: string
     fieldType: ImportMappingFieldType
     required?: boolean
-    defaultValue?: JsonValue
+    defaultValue?: unknown
     transformName?: string | null
-    metadata?: JsonObject
+    metadata?: Record<string, unknown>
 }
 
 export interface ImportMappingTemplate {
@@ -357,9 +357,9 @@ export interface ImportMappingTemplate {
     dateFormat?: string
     decimalSeparator?: string
     columnMappings: ImportColumnMapping[]
-    defaultValues?: JsonObject
+    defaultValues?: Record<string, unknown>
     deduplicationStrategy: ImportDeduplicationStrategy
-    metadata?: JsonObject | null
+    metadata?: Record<string, unknown> | null
     version?: number
     isSystem?: boolean
     isPreset?: boolean
@@ -444,9 +444,9 @@ export interface CreateMappingTemplateInput {
     dateFormat?: string
     decimalSeparator?: string
     columnMappings: ImportColumnMapping[]
-    defaultValues?: JsonObject
+    defaultValues?: Record<string, unknown>
     deduplicationStrategy?: ImportDeduplicationStrategy
-    metadata?: JsonObject | null
+    metadata?: Record<string, unknown> | null
 }
 
 export interface UpdateMappingTemplateInput {
@@ -459,9 +459,9 @@ export interface UpdateMappingTemplateInput {
     dateFormat?: string
     decimalSeparator?: string
     columnMappings?: ImportColumnMapping[]
-    defaultValues?: JsonObject
+    defaultValues?: Record<string, unknown>
     deduplicationStrategy?: ImportDeduplicationStrategy
-    metadata?: JsonObject | null
+    metadata?: Record<string, unknown> | null
 }
 
 export interface ImportBusinessError {
