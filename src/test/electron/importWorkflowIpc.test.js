@@ -9,6 +9,18 @@ const ipcMain = {
     }),
 }
 
+const bankCsvTemplate = {
+    importType: 'transactions',
+    defaultCurrency: 'CAD',
+    columnMappings: [
+        {sourceColumn: 'Date', targetField: 'date'},
+        {sourceColumn: 'Description', targetField: 'label'},
+        {sourceColumn: 'Amount', targetField: 'amount'},
+        {sourceColumn: 'Currency', targetField: 'currency'},
+        {sourceColumn: 'Account', targetField: 'accountName'},
+    ],
+}
+
 function clearCommonJsCache() {
     for (const modulePath of [
         '../../../electron/ipc/registerImportWorkflowHandlers',
@@ -76,6 +88,7 @@ describe('import workflow IPC handlers', () => {
             importType: 'transactions',
             defaultCurrency: 'CAD',
             fileMetadata: {fileName: 'transactions.csv', provider: 'test-bank'},
+            template: bankCsvTemplate,
         })
         expect(created).toMatchObject({ok: true, data: {status: 'draft', fileName: 'transactions.csv'}, error: null})
 
@@ -133,7 +146,7 @@ describe('import workflow IPC handlers', () => {
         })
 
         registerImportWorkflowHandlers({ipc: ipcMain, store})
-        const created = await handlers.get('import:batch:create')({}, {defaultCurrency: 'CAD'})
+        const created = await handlers.get('import:batch:create')({}, {defaultCurrency: 'CAD', template: bankCsvTemplate})
         await handlers.get('import:file:parse')({}, {batchId: created.data.id, rawText: csvFixture(), defaultCurrency: 'CAD'})
         await handlers.get('import:preview:create')({}, {batchId: created.data.id, targetAccountId: 1})
 
@@ -182,9 +195,10 @@ describe('import workflow IPC handlers', () => {
         const store = createMemoryImportWorkflowStore()
 
         registerImportWorkflowHandlers({ipc: ipcMain, store})
-        const created = await handlers.get('import:batch:create')({}, {defaultCurrency: 'CAD'})
+        const created = await handlers.get('import:batch:create')({}, {defaultCurrency: 'CAD', template: bankCsvTemplate})
         await handlers.get('import:file:parse')({}, {batchId: created.data.id, rawText: 'Date,Description,Amount,Currency\n2026-05-01,Coffee,-4.50,CAD', defaultCurrency: 'CAD'})
         const preview = await handlers.get('import:preview:create')({}, {batchId: created.data.id, targetAccountId: 1})
+        expect(preview.ok).toBe(true)
         const decision = {
             id: 'decision-user-1',
             batchId: created.data.id,
