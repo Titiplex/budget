@@ -1,0 +1,3 @@
+Payment Date,Income Type,Symbol,ISIN,Description,Gross Amount,Withholding Tax,Cash Amount,Amount,Currency,Account,External ID
+2026-05-04,DIVIDEND,XEQT,CA46436J1012,XEQT dividend,12.50,1.50,11.00,11.00,CAD,RRSP,DIV-DEMO-001
+2026-05-05,INTEREST,,,Cash interest,4.25,0,4.25,4.25,CAD,RRSP,INT-DEMO-001
