@@ -78,7 +78,12 @@ describe('import pipeline fixtures', () => {
         ]))
         expect(preview.stats).toMatchObject({totalRows: 5, createTransactionRows: 1, skippedRows: 4})
         expect(applied.appliedLinks.map((link) => link.operation)).toEqual(['created', 'skipped', 'skipped', 'skipped', 'skipped'])
-        expect(detail.errors).toHaveLength(4)
+        expect(detail.errors).toEqual(parsed.parsed.errors)
+        expect(detail.errors).toEqual(expect.arrayContaining([
+            expect.objectContaining({code: 'invalidDate'}),
+            expect.objectContaining({code: 'invalidAmount'}),
+            expect.objectContaining({code: 'invalidCurrency'}),
+        ]))
     })
 
     it('detects repeated rows in the same CSV before apply', async () => {
