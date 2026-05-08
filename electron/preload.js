@@ -114,6 +114,15 @@ contextBridge.exposeInMainWorld('goals', {
   estimateMonthlySurplus: (options) => ipcRenderer.invoke('db:goalProjection:monthlySurplus:estimate', options),
 })
 
+contextBridge.exposeInMainWorld('secrets', {
+  getStorageInfo: () => ipcRenderer.invoke('secret:storage:info'),
+  saveSecret: (input) => ipcRenderer.invoke('secret:save', input),
+  hasSecret: (input) => ipcRenderer.invoke('secret:has', input),
+  listSecretMetadata: (filters) => ipcRenderer.invoke('secret:metadata:list', filters),
+  deleteSecret: (input) => ipcRenderer.invoke('secret:delete', input),
+  clearSecrets: (filters) => ipcRenderer.invoke('secret:clear', filters),
+})
+
 contextBridge.exposeInMainWorld('imports', {
   createBatch: (input) => ipcRenderer.invoke('import:batch:create', input),
   parseFile: (input) => ipcRenderer.invoke('import:file:parse', input),
