@@ -31,6 +31,8 @@ Le projet est construit avec :
 - **sync externe read-only/future** : pas d’écriture vers comptes externes dans le MVP
 - **projections descriptives** : les calculs dépendent d’hypothèses visibles et ne sont pas des conseils financiers
 
+Le modèle de sécurité et de récupération local est documenté dans [`docs/security-model.md`](docs/security-model.md).
+
 ## Fonctionnalités
 
 ### Comptes
