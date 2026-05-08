@@ -11,6 +11,7 @@ const {registerMarketDataHandlers} = require('./ipc/registerMarketDataHandlers')
 const {registerWealthHandlers} = require('./ipc/registerWealthHandlers')
 const {registerImportMappingTemplateHandlers} = require('./ipc/registerImportMappingTemplateHandlers')
 const {registerImportWorkflowHandlers} = require('./ipc/registerImportWorkflowHandlers')
+const {registerSecretHandlers} = require('./ipc/registerSecretHandlers')
 const {disconnectPrisma} = require('./db')
 const {getMenuMessages, normalizeMenuLocale} = require('./menuI18n')
 
@@ -259,6 +260,7 @@ app.whenReady().then(() => {
     registerWealthHandlers()
     registerImportMappingTemplateHandlers()
     registerImportWorkflowHandlers()
+    registerSecretHandlers()
 
     Menu.setApplicationMenu(buildAppMenu(currentMenuLocale))
     createWindow()
