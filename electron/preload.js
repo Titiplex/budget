@@ -129,6 +129,14 @@ contextBridge.exposeInMainWorld('backupEncryption', {
   inspect: (input) => ipcRenderer.invoke('backup:encrypted:inspect', input),
 })
 
+contextBridge.exposeInMainWorld('auditLog', {
+  logBackupExported: (input) => ipcRenderer.invoke('audit:backup:exported', input),
+  logRestoreDryRun: (input) => ipcRenderer.invoke('audit:restore:dryRun', input),
+  logRestoreApplied: (input) => ipcRenderer.invoke('audit:restore:applied', input),
+  logRestoreFailed: (input) => ipcRenderer.invoke('audit:restore:failed', input),
+  getRetentionPolicy: () => ipcRenderer.invoke('audit:retention:policy'),
+})
+
 contextBridge.exposeInMainWorld('imports', {
   createBatch: (input) => ipcRenderer.invoke('import:batch:create', input),
   parseFile: (input) => ipcRenderer.invoke('import:file:parse', input),

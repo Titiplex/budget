@@ -1,5 +1,7 @@
 const {app, ipcMain, safeStorage} = require('electron')
 
+const {createAuditLogService} = require('../audit/auditLogService')
+const {getPrisma} = require('../db')
 const {
     createSecretStore,
     toSecretStoreIpcError,
@@ -41,19 +43,49 @@ function getDefaultSecretStore() {
     return defaultSecretStore
 }
 
-function createSecretHandlers({store = getDefaultSecretStore()} = {}) {
+function createSecretHandlers({store = getDefaultSecretStore(), auditLog = createAuditLogService({prisma: getPrisma()})} = {}) {
     return {
         getStorageInfo: () => store.getStorageInfo(),
-        saveSecret: (input) => store.saveSecret(input),
+        async saveSecret(input) {
+            const result = await store.saveSecret(input)
+            await auditLog.logSecretChange({
+                action: 'create',
+                key: input?.key,
+                service: input?.service,
+                provider: input?.provider,
+                source: 'secret:save',
+            })
+            return result
+        },
         hasSecret: (input) => store.hasSecret(input),
         listSecretMetadata: (input) => store.listSecretMetadata(input),
-        deleteSecret: (input) => store.deleteSecret(input),
-        clearSecrets: (input) => store.clearSecrets(input),
+        async deleteSecret(input) {
+            const result = await store.deleteSecret(input)
+            await auditLog.logSecretChange({
+                action: 'delete',
+                key: input?.key,
+                service: input?.service,
+                provider: input?.provider,
+                source: 'secret:delete',
+            })
+            return result
+        },
+        async clearSecrets(input) {
+            const result = await store.clearSecrets(input)
+            await auditLog.logSecretChange({
+                action: 'clear',
+                service: input?.service,
+                provider: input?.provider,
+                clearedCount: Array.isArray(result) ? result.length : result?.deletedCount,
+                source: 'secret:clear',
+            })
+            return result
+        },
     }
 }
 
-function registerSecretHandlers({ipc = ipcMain, store = getDefaultSecretStore()} = {}) {
-    const handlers = createSecretHandlers({store})
+function registerSecretHandlers({ipc = ipcMain, store = getDefaultSecretStore(), auditLog = createAuditLogService({prisma: getPrisma()})} = {}) {
+    const handlers = createSecretHandlers({store, auditLog})
 
     registerSafeSecretHandler(ipc, SECRET_IPC_CHANNELS.GET_STORAGE_INFO, handlers.getStorageInfo)
     registerSafeSecretHandler(ipc, SECRET_IPC_CHANNELS.SAVE, handlers.saveSecret)
