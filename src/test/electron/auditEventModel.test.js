@@ -99,24 +99,34 @@ describe('audit event model helpers', () => {
         })).toThrow(/action/)
     })
 
-    it('creates and lists chronological audit events through a prisma-compatible repository', async () => {
+    it('creates and lists chronological audit events through migration-backed SQL', async () => {
         const {createAuditEventRepository} = loadAuditEventModel()
         const rows = []
         const prisma = {
-            auditEvent: {
-                create: vi.fn(async ({data}) => {
-                    const row = {id: rows.length + 1, ...data}
-                    rows.push(row)
-                    return row
-                }),
-                findMany: vi.fn(async ({where, orderBy, take}) => {
-                    expect(orderBy).toEqual({timestamp: 'desc'})
-                    expect(take).toBe(10)
-                    return rows
-                        .filter((row) => !where.eventType || row.eventType === where.eventType)
-                        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-                }),
-            },
+            $executeRawUnsafe: vi.fn(async (_sql, ...params) => {
+                rows.push({
+                    id: rows.length + 1,
+                    eventType: params[0],
+                    timestamp: params[1],
+                    domain: params[2],
+                    action: params[3],
+                    severity: params[4],
+                    summary: params[5],
+                    entityIdsJson: params[6],
+                    metadataJson: params[7],
+                    source: params[8],
+                    status: params[9],
+                })
+            }),
+            $queryRawUnsafe: vi.fn(async (sql, ...params) => {
+                if (sql.includes('last_insert_rowid')) return [rows[rows.length - 1]]
+                expect(sql).toContain('FROM "AuditEvent"')
+                expect(sql).toContain('ORDER BY "timestamp" DESC, "id" DESC')
+                expect(params).toEqual(['backupExported', 10])
+                return rows
+                    .filter((row) => row.eventType === 'backupExported')
+                    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+            }),
         }
         const repo = createAuditEventRepository(prisma)
 
@@ -141,10 +151,8 @@ describe('audit event model helpers', () => {
 
         const listed = await repo.list({eventType: 'backupExported', limit: 10})
 
-        expect(prisma.auditEvent.create).toHaveBeenCalledTimes(2)
-        expect(prisma.auditEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({
-            where: {eventType: 'backupExported'},
-        }))
+        expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(2)
+        expect(prisma.$queryRawUnsafe).toHaveBeenCalledTimes(3)
         expect(listed).toEqual([
             expect.objectContaining({
                 id: 1,
