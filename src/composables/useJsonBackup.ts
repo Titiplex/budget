@@ -10,7 +10,11 @@ import type {
     Transaction,
 } from '../types/budget'
 import {tr} from '../i18n'
-import {validateBackupSnapshot, type BackupValidationResult} from '../utils/importValidation'
+import {
+    createRestoreDryRunReport,
+    markRecoveryBackupCreated,
+    type RestoreDryRunReport,
+} from '../utils/restoreDryRun'
 import {
     createBudgetBackupSnapshotWithGoals,
     type BudgetBackupFinancialGoal,
@@ -45,10 +49,6 @@ const JSON_BACKUP_FILTERS = [{name: 'JSON', extensions: ['json']}]
 
 function absAmount(value: number | null | undefined) {
     return Math.abs(value ?? 0)
-}
-
-function firstValidationError(validation: BackupValidationResult) {
-    return validation.warnings[0] || tr('notices.jsonInvalid')
 }
 
 function asLegacyBackupSnapshot(snapshot: unknown): BudgetBackupSnapshot {
@@ -186,13 +186,13 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
     const restorePreviewOpen = ref(false)
     const restorePreviewPath = ref<string | null>(null)
     const restorePreviewSnapshot = ref<BudgetBackupWithImportDataSnapshot | null>(null)
-    const restorePreviewValidation = ref<BackupValidationResult | null>(null)
+    const restorePreviewReport = ref<RestoreDryRunReport | null>(null)
 
     function closeRestorePreview() {
         restorePreviewOpen.value = false
         restorePreviewPath.value = null
         restorePreviewSnapshot.value = null
-        restorePreviewValidation.value = null
+        restorePreviewReport.value = null
     }
 
     async function createCanonicalBackupContent() {
@@ -213,6 +213,17 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         )
         const snapshot = createBudgetBackupSnapshotWithImportData(goalsSnapshot, importData)
         return serializeBudgetBackupWithImportData(snapshot)
+    }
+
+    function currentRestoreState() {
+        return {
+            accounts: options.accounts.value,
+            categories: options.categories.value,
+            budgetTargets: options.budgetTargets.value,
+            recurringTemplates: options.recurringTemplates.value,
+            transactions: options.transactions.value,
+            taxProfiles: options.taxProfiles?.value || [],
+        }
     }
 
     function requestEncryptedExportPassword() {
@@ -282,12 +293,14 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
 
     function prepareRestorePreview(content: string, filePath: string | null) {
         const snapshot = parseBudgetBackupWithImportData(content)
-        const validation = validateBackupSnapshot(asLegacyBackupSnapshot(snapshot))
-        if (!validation.ok) throw new Error(firstValidationError(validation))
+        const report = createRestoreDryRunReport(snapshot, currentRestoreState())
         restorePreviewSnapshot.value = snapshot
-        restorePreviewValidation.value = validation
+        restorePreviewReport.value = report
         restorePreviewPath.value = filePath
         restorePreviewOpen.value = true
+        if (!report.canApply) {
+            options.showNotice('error', 'Le dry-run de restauration a détecté des erreurs bloquantes. Aucune donnée n’a été modifiée.')
+        }
     }
 
     async function beginRestoreBackupJson() {
@@ -375,13 +388,35 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         }
     }
 
+    async function createPreRestoreBackup() {
+        const content = await createCanonicalBackupContent()
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').replace('Z', '')
+        const result = await window.file.saveText({
+            title: 'Sauvegarde automatique avant restauration',
+            defaultPath: `pre-restore-backup-${timestamp}.json`,
+            content,
+            filters: JSON_BACKUP_FILTERS,
+        })
+        if (!result || result.canceled || !result.filePath) {
+            throw new Error('Restauration annulée : la sauvegarde pré-restore doit être créée avant toute modification.')
+        }
+        return result.filePath
+    }
+
     async function confirmRestoreBackupJson() {
         if (!restorePreviewSnapshot.value) return
         try {
             const snapshot = restorePreviewSnapshot.value
+            const report = createRestoreDryRunReport(snapshot, currentRestoreState())
+            restorePreviewReport.value = report
+            if (!report.canApply) {
+                throw new Error('Restauration bloquée : corrige les erreurs du dry-run avant de restaurer.')
+            }
+            const accepted = window.confirm('La restauration va remplacer toutes les données actuelles. Une sauvegarde pré-restore sera créée avant modification. Continuer ?')
+            if (!accepted) return
+            const recoveryPath = await createPreRestoreBackup()
+            restorePreviewReport.value = markRecoveryBackupCreated(report, recoveryPath)
             const legacySnapshot = asLegacyBackupSnapshot(snapshot)
-            const validation = validateBackupSnapshot(legacySnapshot)
-            if (!validation.ok) throw new Error(firstValidationError(validation))
             await replaceAllData()
             const accountIdMap = new Map<number, number>()
             const categoryIdMap = new Map<number, number>()
@@ -412,7 +447,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
             await restoreImportBackupData(importBackup)
             await options.refreshAllData()
             closeRestorePreview()
-            options.showNotice('success', tr('notices.jsonRestored'))
+            options.showNotice('success', `${tr('notices.jsonRestored')} Sauvegarde pré-restore : ${recoveryPath}`)
         } catch (error) {
             options.showNotice('error', error instanceof Error ? error.message : tr('notices.jsonRestoreFailed'))
         }
@@ -427,6 +462,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         closeRestorePreview,
         restorePreviewOpen,
         restorePreviewPath,
-        restorePreviewValidation,
+        restorePreviewReport,
+        restorePreviewValidation: restorePreviewReport,
     }
 }
