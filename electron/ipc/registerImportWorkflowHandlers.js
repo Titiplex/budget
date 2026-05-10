@@ -1,4 +1,7 @@
 const {app, ipcMain} = require('electron')
+const {createAuditLogService} = require('../audit/auditLogService')
+const {createAuditedImportWorkflow} = require('../audit/auditedImportWorkflow')
+const {getPrisma} = require('../db')
 const {
     applyImport,
     applyReconciliationDecisions,
@@ -61,22 +64,7 @@ function registerSafeImportWorkflowHandler(ipc, channel, handler) {
     })
 }
 
-function registerImportWorkflowHandlers({ipc = ipcMain, store = defaultImportWorkflowStore(app)} = {}) {
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.CREATE_BATCH, (input) => createImportBatch(store, input))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.PARSE_FILE, (input) => parseImportFile(store, input))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.PREVIEW, (input) => previewImport(store, input))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.APPLY, (input) => applyImport(store, input))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.CANCEL, (batchId, reason) => cancelImport(store, batchId, reason))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.HISTORY, (filters) => listImportAuditHistory(store, filters))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.DETAIL, (batchId) => getImportAuditDetail(store, batchId))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.ERRORS, (batchId) => listImportErrors(store, batchId))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.DUPLICATES, (batchId) => listDuplicateCandidates(store, batchId))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.RECONCILE, (input) => applyReconciliationDecisions(store, input))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_SOURCES, () => listImportAuditSources(store))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_DELETE, (batchId, options) => deleteImportAuditHistory(store, batchId, options))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_EXPORT, (batchId, options) => exportImportAuditReport(store, batchId, options))
-    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_RESTORE_BACKUP, (input) => restoreImportAuditBackup(store, input))
-
+function createBaseImportWorkflow(store) {
     return {
         applyImport: (input) => applyImport(store, input),
         applyReconciliationDecisions: (input) => applyReconciliationDecisions(store, input),
@@ -97,8 +85,33 @@ function registerImportWorkflowHandlers({ipc = ipcMain, store = defaultImportWor
     }
 }
 
+function registerImportWorkflowHandlers({ipc = ipcMain, store = defaultImportWorkflowStore(app), auditLog = createAuditLogService({prisma: getPrisma()})} = {}) {
+    const handlers = createAuditedImportWorkflow({
+        base: createBaseImportWorkflow(store),
+        auditLog,
+    })
+
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.CREATE_BATCH, handlers.createImportBatch)
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.PARSE_FILE, handlers.parseImportFile)
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.PREVIEW, handlers.previewImport)
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.APPLY, handlers.applyImport)
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.CANCEL, handlers.cancelImport)
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.HISTORY, handlers.listImportAuditHistory)
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.DETAIL, handlers.getImportAuditDetail)
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.ERRORS, handlers.listImportErrors)
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.DUPLICATES, handlers.listDuplicateCandidates)
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.RECONCILE, handlers.applyReconciliationDecisions)
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_SOURCES, handlers.listImportAuditSources)
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_DELETE, handlers.deleteImportAuditHistory)
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_EXPORT, handlers.exportImportAuditReport)
+    registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.AUDIT_RESTORE_BACKUP, handlers.restoreImportAuditBackup)
+
+    return handlers
+}
+
 module.exports = {
     IMPORT_WORKFLOW_IPC_CHANNELS,
+    createBaseImportWorkflow,
     fail,
     ok,
     registerImportWorkflowHandlers,
