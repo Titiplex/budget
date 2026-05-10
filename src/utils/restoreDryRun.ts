@@ -10,6 +10,12 @@ export interface RestoreDryRunReport {
         exportedAt: string | null
     }
     counts: {
+        accounts: number
+        categories: number
+        budgetTargets: number
+        recurringTemplates: number
+        transactions: number
+        taxProfiles: number
         accountsToCreate: number
         categoriesToCreate: number
         budgetTargetsToCreate: number
@@ -284,14 +290,26 @@ function validateImportBackup(snapshot: BudgetBackupWithImportDataSnapshot, erro
 
 function buildCounts(snapshot: BudgetBackupWithImportDataSnapshot, current: RestoreDryRunCurrentState): RestoreDryRunReport['counts'] {
     const importBackup = snapshot.data.importBackup
+    const accountsToCreate = snapshot.data.accounts.length
+    const categoriesToCreate = snapshot.data.categories.length
+    const budgetTargetsToCreate = snapshot.data.budgetTargets.length
+    const recurringTemplatesToCreate = snapshot.data.recurringTemplates.length
+    const transactionsToCreate = snapshot.data.transactions.length
+    const taxProfilesToCreate = (snapshot.data.taxProfiles || []).length
 
     return {
-        accountsToCreate: snapshot.data.accounts.length,
-        categoriesToCreate: snapshot.data.categories.length,
-        budgetTargetsToCreate: snapshot.data.budgetTargets.length,
-        recurringTemplatesToCreate: snapshot.data.recurringTemplates.length,
-        transactionsToCreate: snapshot.data.transactions.length,
-        taxProfilesToCreate: (snapshot.data.taxProfiles || []).length,
+        accounts: accountsToCreate,
+        categories: categoriesToCreate,
+        budgetTargets: budgetTargetsToCreate,
+        recurringTemplates: recurringTemplatesToCreate,
+        transactions: transactionsToCreate,
+        taxProfiles: taxProfilesToCreate,
+        accountsToCreate,
+        categoriesToCreate,
+        budgetTargetsToCreate,
+        recurringTemplatesToCreate,
+        transactionsToCreate,
+        taxProfilesToCreate,
         financialGoalsToCreate: (snapshot.data.financialGoals || []).length,
         projectionScenariosToCreate: (snapshot.data.projectionScenarios || []).length,
         importMappingTemplatesToRestore: importBackup?.mappingTemplates?.length || 0,
@@ -350,7 +368,11 @@ export function createRestoreDryRunReport(
         },
         counts: buildCounts(snapshot, current),
         ignoredItems: uniqueIgnoredItems,
-        warnings: uniqueWarnings,
+        warnings: [
+            ...uniqueBlockingErrors.map((error) => `Erreur bloquante : ${error}`),
+            ...uniqueWarnings,
+            ...uniqueIgnoredItems.map((item) => `Élément ignoré : ${item}`),
+        ],
         blockingErrors: uniqueBlockingErrors,
         recovery: {
             preRestoreBackupRequired: true,
