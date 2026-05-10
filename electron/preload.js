@@ -123,6 +123,12 @@ contextBridge.exposeInMainWorld('secrets', {
   clearSecrets: (filters) => ipcRenderer.invoke('secret:clear', filters),
 })
 
+contextBridge.exposeInMainWorld('backupEncryption', {
+  encrypt: (input) => ipcRenderer.invoke('backup:encrypted:encrypt', input),
+  decrypt: (input) => ipcRenderer.invoke('backup:encrypted:decrypt', input),
+  inspect: (input) => ipcRenderer.invoke('backup:encrypted:inspect', input),
+})
+
 contextBridge.exposeInMainWorld('imports', {
   createBatch: (input) => ipcRenderer.invoke('import:batch:create', input),
   parseFile: (input) => ipcRenderer.invoke('import:file:parse', input),
