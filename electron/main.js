@@ -12,6 +12,7 @@ const {registerWealthHandlers} = require('./ipc/registerWealthHandlers')
 const {registerImportMappingTemplateHandlers} = require('./ipc/registerImportMappingTemplateHandlers')
 const {registerImportWorkflowHandlers} = require('./ipc/registerImportWorkflowHandlers')
 const {registerSecretHandlers} = require('./ipc/registerSecretHandlers')
+const {registerBackupEncryptionHandlers} = require('./ipc/registerBackupEncryptionHandlers')
 const {disconnectPrisma} = require('./db')
 const {getMenuMessages, normalizeMenuLocale} = require('./menuI18n')
 
@@ -116,9 +117,17 @@ function buildAppMenu(locale = currentMenuLocale) {
                     click: () => sendMenuCommand('export-json'),
                 },
                 {
+                    label: m.items.exportEncryptedBackup,
+                    click: () => sendMenuCommand('export-encrypted-json'),
+                },
+                {
                     label: m.items.restoreJsonBackup,
                     accelerator: 'CmdOrCtrl+Shift+I',
                     click: () => sendMenuCommand('restore-json'),
+                },
+                {
+                    label: m.items.restoreEncryptedBackup,
+                    click: () => sendMenuCommand('restore-encrypted-json'),
                 },
                 {type: 'separator'},
                 {
@@ -261,6 +270,7 @@ app.whenReady().then(() => {
     registerImportMappingTemplateHandlers()
     registerImportWorkflowHandlers()
     registerSecretHandlers()
+    registerBackupEncryptionHandlers()
 
     Menu.setApplicationMenu(buildAppMenu(currentMenuLocale))
     createWindow()
