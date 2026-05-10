@@ -1,5 +1,6 @@
 const {ipcMain} = require('electron')
 const {getPrisma} = require('../db')
+const {createAuditLogService} = require('../audit/auditLogService')
 const {
     buildAccountPayload,
     buildCategoryPayload,
@@ -10,7 +11,7 @@ const {
     updateTransaction,
 } = require('./transactionHandlers')
 
-function registerDbHandlers() {
+function registerDbHandlers({auditLog = createAuditLogService({prisma: getPrisma()})} = {}) {
     const prisma = getPrisma()
 
     ipcMain.handle('db:account:list', async () => {
@@ -33,9 +34,19 @@ function registerDbHandlers() {
     })
 
     ipcMain.handle('db:account:delete', async (_event, id) => {
-        return prisma.account.delete({
-            where: {id: requireId(id, 'Le compte')},
+        const accountId = requireId(id, 'Le compte')
+        const deleted = await prisma.account.delete({
+            where: {id: accountId},
         })
+        await auditLog.logCriticalDelete({
+            domain: 'account',
+            entityType: 'account',
+            entityId: accountId,
+            summary: `Compte supprimé: ${deleted.name}`,
+            source: 'db:account:delete',
+            metadata: {type: deleted.type, currency: deleted.currency},
+        })
+        return deleted
     })
 
     ipcMain.handle('db:category:list', async () => {
@@ -58,9 +69,19 @@ function registerDbHandlers() {
     })
 
     ipcMain.handle('db:category:delete', async (_event, id) => {
-        return prisma.category.delete({
-            where: {id: requireId(id, 'La catégorie')},
+        const categoryId = requireId(id, 'La catégorie')
+        const deleted = await prisma.category.delete({
+            where: {id: categoryId},
         })
+        await auditLog.logCriticalDelete({
+            domain: 'category',
+            entityType: 'category',
+            entityId: categoryId,
+            summary: `Catégorie supprimée: ${deleted.name}`,
+            source: 'db:category:delete',
+            metadata: {kind: deleted.kind},
+        })
+        return deleted
     })
 
     ipcMain.handle('db:transaction:list', async () => {
@@ -82,7 +103,17 @@ function registerDbHandlers() {
     })
 
     ipcMain.handle('db:transaction:delete', async (_event, id) => {
-        return deleteTransaction(prisma, id)
+        const transactionId = requireId(id, 'La transaction')
+        const deleted = await deleteTransaction(prisma, transactionId)
+        await auditLog.logCriticalDelete({
+            domain: 'transaction',
+            entityType: 'transaction',
+            entityId: transactionId,
+            summary: `Transaction supprimée: ${deleted.label}`,
+            source: 'db:transaction:delete',
+            metadata: {kind: deleted.kind, date: deleted.date, accountId: deleted.accountId, categoryId: deleted.categoryId},
+        })
+        return deleted
     })
 }
 
