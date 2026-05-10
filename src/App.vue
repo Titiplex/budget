@@ -132,7 +132,7 @@ const navigation = computed(() => [
   {key: 'budgets' as SectionKey, label: t('nav.budgets'), marker: 'BG'},
   {key: 'recurring' as SectionKey, label: t('nav.recurring'), marker: 'RC'},
   {key: 'reports' as SectionKey, label: t('nav.reports'), marker: 'RP'},
-  {key: 'wealth' as SectionKey, label: t('nav.wealth'), marker: 'WL'},
+  {key: 'wealth' as SectionKey, label: t('wealth.section.title'), marker: 'WL'},
   {key: importHistorySectionKey, label: 'Imports', marker: 'IM'},
 ])
 
@@ -236,8 +236,14 @@ function handleMenuCommand(rawCommand: unknown) {
     case 'export-json':
       void jsonBackup.exportBackupJson()
       break
+    case 'export-encrypted-json':
+      void jsonBackup.exportEncryptedBackupJson()
+      break
     case 'restore-json':
       void jsonBackup.beginRestoreBackupJson()
+      break
+    case 'restore-encrypted-json':
+      void jsonBackup.beginRestoreEncryptedBackupJson()
       break
     case 'refresh-data':
       void refreshEverything()
