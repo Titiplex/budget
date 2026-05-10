@@ -159,9 +159,13 @@ function normalizeCreateAuditEventInput(input) {
     }
 }
 
+function toSqliteTimestamp(date) {
+    return normalizeDate(date).toISOString()
+}
+
 function toAuditEventRecord(row) {
     return {
-        id: row.id,
+        id: Number(row.id),
         eventType: row.eventType,
         timestamp: row.timestamp instanceof Date ? row.timestamp.toISOString() : new Date(row.timestamp).toISOString(),
         domain: row.domain,
@@ -175,31 +179,73 @@ function toAuditEventRecord(row) {
     }
 }
 
+function appendWhere(filters, where, params) {
+    if (filters.eventType) {
+        assertIncluded(filters.eventType, AUDIT_EVENT_TYPES, 'eventType')
+        where.push('"eventType" = ?')
+        params.push(filters.eventType)
+    }
+    if (filters.domain) {
+        where.push('"domain" = ?')
+        params.push(normalizeText(filters.domain))
+    }
+    if (filters.severity) {
+        assertIncluded(filters.severity, AUDIT_EVENT_SEVERITIES, 'severity')
+        where.push('"severity" = ?')
+        params.push(filters.severity)
+    }
+    if (filters.status) {
+        assertIncluded(filters.status, AUDIT_EVENT_STATUSES, 'status')
+        where.push('"status" = ?')
+        params.push(filters.status)
+    }
+    if (filters.from) {
+        where.push('"timestamp" >= ?')
+        params.push(toSqliteTimestamp(filters.from))
+    }
+    if (filters.to) {
+        where.push('"timestamp" <= ?')
+        params.push(toSqliteTimestamp(filters.to))
+    }
+}
+
 function createAuditEventRepository(prisma) {
     if (!prisma) throw new Error('Prisma client is required.')
 
     return {
         async create(input) {
             const data = normalizeCreateAuditEventInput(input)
-            const row = await prisma.auditEvent.create({data})
-            return toAuditEventRecord(row)
+            await prisma.$executeRawUnsafe(
+                `INSERT INTO "AuditEvent" ("eventType", "timestamp", "domain", "action", "severity", "summary", "entityIdsJson", "metadataJson", "source", "status") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                data.eventType,
+                toSqliteTimestamp(data.timestamp),
+                data.domain,
+                data.action,
+                data.severity,
+                data.summary,
+                data.entityIdsJson,
+                data.metadataJson,
+                data.source,
+                data.status,
+            )
+            const rows = await prisma.$queryRawUnsafe(
+                `SELECT "id", "eventType", "timestamp", "domain", "action", "severity", "summary", "entityIdsJson", "metadataJson", "source", "status" FROM "AuditEvent" WHERE "id" = last_insert_rowid() LIMIT 1`,
+            )
+            return toAuditEventRecord(rows[0])
         },
         async list(filters = {}) {
-            const where = {}
-            if (filters.eventType) where.eventType = filters.eventType
-            if (filters.domain) where.domain = filters.domain
-            if (filters.severity) where.severity = filters.severity
-            if (filters.status) where.status = filters.status
-            if (filters.from || filters.to) {
-                where.timestamp = {}
-                if (filters.from) where.timestamp.gte = normalizeDate(filters.from)
-                if (filters.to) where.timestamp.lte = normalizeDate(filters.to)
-            }
-            const rows = await prisma.auditEvent.findMany({
-                where,
-                orderBy: {timestamp: 'desc'},
-                take: Math.min(Math.max(Number(filters.limit || 100), 1), 500),
-            })
+            const where = []
+            const params = []
+            appendWhere(filters, where, params)
+            const limit = Math.min(Math.max(Number(filters.limit || 100), 1), 500)
+            const sql = [
+                `SELECT "id", "eventType", "timestamp", "domain", "action", "severity", "summary", "entityIdsJson", "metadataJson", "source", "status"`,
+                `FROM "AuditEvent"`,
+                where.length ? `WHERE ${where.join(' AND ')}` : '',
+                `ORDER BY "timestamp" DESC, "id" DESC`,
+                `LIMIT ?`,
+            ].filter(Boolean).join(' ')
+            const rows = await prisma.$queryRawUnsafe(sql, ...params, limit)
             return rows.map(toAuditEventRecord)
         },
     }
