@@ -47,8 +47,25 @@ type IpcResult<T> = {ok?: boolean; data?: T | null; error?: {code?: string; mess
 const ENCRYPTED_BACKUP_FILTERS = [{name: 'Budget encrypted backup', extensions: ['budget.enc.json', 'budget-backup.enc', 'enc', 'json']}]
 const JSON_BACKUP_FILTERS = [{name: 'JSON', extensions: ['json']}]
 
+const EMPTY_IMPORT_BACKUP: BudgetBackupImportData = {
+    schemaVersion: 1,
+    documentation: {included: [], excluded: [], notes: []},
+    mappingTemplates: [],
+    importSources: [],
+    importHistory: [],
+    metadata: {
+        exportedAt: new Date(0).toISOString(),
+        auditOnlyRestore: true,
+        financialDataNotRestoredFromImportHistory: true,
+    },
+}
+
 function absAmount(value: number | null | undefined) {
     return Math.abs(value ?? 0)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function asLegacyBackupSnapshot(snapshot: unknown): BudgetBackupSnapshot {
@@ -83,6 +100,44 @@ function encryptedBackupErrorMessage(error: {code?: string; message?: string} | 
         default:
             return error?.message || 'Échec du traitement du backup chiffré.'
     }
+}
+
+function shouldOpenBlockedPreview(error: unknown) {
+    const message = error instanceof Error ? error.message : ''
+    return /référence|absente|transfert interne|exactement deux jambes|jambe OUT|jambe IN|incohérent/i.test(message)
+}
+
+function parseBlockedRestorePreviewSnapshot(content: string, originalError: unknown): BudgetBackupWithImportDataSnapshot {
+    if (!shouldOpenBlockedPreview(originalError)) throw originalError
+
+    let parsed: unknown
+    try {
+        parsed = JSON.parse(content)
+    } catch (_error) {
+        throw originalError
+    }
+
+    if (!isRecord(parsed) || parsed.kind !== 'budget-backup' || !isRecord(parsed.data)) {
+        throw originalError
+    }
+
+    const data = parsed.data
+    const requiredSections = ['accounts', 'categories', 'budgetTargets', 'recurringTemplates', 'transactions']
+    if (!requiredSections.every((section) => Array.isArray(data[section]))) throw originalError
+
+    return {
+        ...parsed,
+        version: 6,
+        exportedAt: typeof parsed.exportedAt === 'string' ? parsed.exportedAt : new Date(0).toISOString(),
+        data: {
+            ...data,
+            taxProfiles: Array.isArray(data.taxProfiles) ? data.taxProfiles : [],
+            financialGoals: Array.isArray(data.financialGoals) ? data.financialGoals : [],
+            projectionScenarios: Array.isArray(data.projectionScenarios) ? data.projectionScenarios : [],
+            projectionSettings: data.projectionSettings ?? null,
+            importBackup: isRecord(data.importBackup) ? data.importBackup : EMPTY_IMPORT_BACKUP,
+        },
+    } as unknown as BudgetBackupWithImportDataSnapshot
 }
 
 function normalizeGoalForBackup(goal: any): BudgetBackupFinancialGoal {
@@ -292,7 +347,12 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
     }
 
     function prepareRestorePreview(content: string, filePath: string | null) {
-        const snapshot = parseBudgetBackupWithImportData(content)
+        let snapshot: BudgetBackupWithImportDataSnapshot
+        try {
+            snapshot = parseBudgetBackupWithImportData(content)
+        } catch (error) {
+            snapshot = parseBlockedRestorePreviewSnapshot(content, error)
+        }
         const report = createRestoreDryRunReport(snapshot, currentRestoreState())
         restorePreviewSnapshot.value = snapshot
         restorePreviewReport.value = report
