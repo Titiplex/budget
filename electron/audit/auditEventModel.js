@@ -88,8 +88,12 @@ function shouldRedactValue(value) {
     return typeof value === 'string' && BLOCKED_METADATA_VALUE_PATTERNS.some((pattern) => pattern.test(value))
 }
 
+function isSafeCounterValue(value) {
+    return typeof value === 'number' || typeof value === 'boolean'
+}
+
 function sanitizeMetadataValue(value, key = '', depth = 0) {
-    if (shouldRedactKey(key)) return '[redacted]'
+    if (shouldRedactKey(key) && !isSafeCounterValue(value)) return '[redacted]'
     if (depth > 4) return '[truncated]'
     if (value == null || typeof value === 'number' || typeof value === 'boolean') return value
     if (typeof value === 'string') return shouldRedactValue(value) ? '[redacted]' : value.slice(0, 500)
