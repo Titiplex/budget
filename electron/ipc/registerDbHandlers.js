@@ -1,6 +1,8 @@
-const {ipcMain} = require('electron')
+const {app, ipcMain} = require('electron')
 const {getPrisma} = require('../db')
 const {createAuditLogService} = require('../audit/auditLogService')
+const {createRecoverySnapshotService} = require('../recovery/recoverySnapshotService')
+const {createDatabaseRecoverySnapshot} = require('../recovery/databaseRecoveryBackup')
 const {
     buildAccountPayload,
     buildCategoryPayload,
@@ -11,8 +13,15 @@ const {
     updateTransaction,
 } = require('./transactionHandlers')
 
-function registerDbHandlers({auditLog = createAuditLogService({prisma: getPrisma()})} = {}) {
+function registerDbHandlers({
+    auditLog = createAuditLogService({prisma: getPrisma()}),
+    recoverySnapshots = createRecoverySnapshotService({app, auditLog}),
+} = {}) {
     const prisma = getPrisma()
+
+    async function snapshotBefore(operationType, reason, source) {
+        return createDatabaseRecoverySnapshot({prisma, recoverySnapshots, operationType, reason, source})
+    }
 
     ipcMain.handle('db:account:list', async () => {
         return prisma.account.findMany({
@@ -35,6 +44,7 @@ function registerDbHandlers({auditLog = createAuditLogService({prisma: getPrisma
 
     ipcMain.handle('db:account:delete', async (_event, id) => {
         const accountId = requireId(id, 'Le compte')
+        const recovery = await snapshotBefore('delete-account', `Suppression du compte ${accountId}`, 'db:account:delete')
         const deleted = await prisma.account.delete({
             where: {id: accountId},
         })
@@ -44,7 +54,7 @@ function registerDbHandlers({auditLog = createAuditLogService({prisma: getPrisma
             entityId: accountId,
             summary: `Compte supprimé: ${deleted.name}`,
             source: 'db:account:delete',
-            metadata: {type: deleted.type, currency: deleted.currency},
+            metadata: {type: deleted.type, currency: deleted.currency, recoverySnapshotId: recovery?.id, recoverySnapshotPath: recovery?.filePath},
         })
         return deleted
     })
@@ -104,6 +114,7 @@ function registerDbHandlers({auditLog = createAuditLogService({prisma: getPrisma
 
     ipcMain.handle('db:transaction:delete', async (_event, id) => {
         const transactionId = requireId(id, 'La transaction')
+        const recovery = await snapshotBefore('delete-transaction', `Suppression de la transaction ${transactionId}`, 'db:transaction:delete')
         const deleted = await deleteTransaction(prisma, transactionId)
         await auditLog.logCriticalDelete({
             domain: 'transaction',
@@ -111,7 +122,7 @@ function registerDbHandlers({auditLog = createAuditLogService({prisma: getPrisma
             entityId: transactionId,
             summary: `Transaction supprimée: ${deleted.label}`,
             source: 'db:transaction:delete',
-            metadata: {kind: deleted.kind, date: deleted.date, accountId: deleted.accountId, categoryId: deleted.categoryId},
+            metadata: {kind: deleted.kind, date: deleted.date, accountId: deleted.accountId, categoryId: deleted.categoryId, recoverySnapshotId: recovery?.id, recoverySnapshotPath: recovery?.filePath},
         })
         return deleted
     })
