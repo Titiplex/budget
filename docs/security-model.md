@@ -4,6 +4,8 @@ Ce document cadre le modèle de sécurité local de Budget. Il sert de référen
 
 Budget est une application desktop **local-first**. Le modèle vise donc à protéger des données financières sensibles stockées ou manipulées localement, sans promettre une sécurité cloud, enterprise ou multi-utilisateur.
 
+Les tests, fixtures et vérifications manuelles associés à ce modèle sont documentés dans [`security-trust-testing.md`](security-trust-testing.md) et [`release-security-checklist.md`](release-security-checklist.md).
+
 ## Objectifs
 
 - rendre explicite ce que l’application protège ;
