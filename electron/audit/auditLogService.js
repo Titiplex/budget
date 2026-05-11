@@ -21,6 +21,26 @@ function entities(items) {
     return (items || []).filter(Boolean)
 }
 
+function csvEscape(value) {
+    const text = value == null ? '' : String(value)
+    if (/[";\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`
+    return text
+}
+
+function metadataSummary(value) {
+    if (!value || typeof value !== 'object') return ''
+    return Object.entries(value)
+        .slice(0, 12)
+        .map(([key, entry]) => `${key}: ${typeof entry === 'object' ? JSON.stringify(entry) : String(entry)}`)
+        .join('; ')
+}
+
+function formatDate(value) {
+    if (!value) return ''
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? String(value) : date.toISOString()
+}
+
 function createAuditLogService({repository = null, prisma = null, logger = console} = {}) {
     const auditRepository = repository || createAuditEventRepository(prisma || getPrisma())
 
@@ -32,6 +52,45 @@ function createAuditLogService({repository = null, prisma = null, logger = conso
             logger?.warn?.('[audit] write failed', error)
             return null
         }
+    }
+
+    async function listAuditEvents(filters = {}) {
+        return auditRepository.list(filters || {})
+    }
+
+    async function exportAuditEventsMarkdown(filters = {}) {
+        const rows = await listAuditEvents(filters)
+        const lines = [
+            '# Historique de sécurité',
+            '',
+            `Exporté le ${new Date().toISOString()}`,
+            '',
+            '| Date | Type | Sévérité | Domaine | Statut | Résumé |',
+            '| --- | --- | --- | --- | --- | --- |',
+        ]
+        for (const row of rows) {
+            lines.push(`| ${formatDate(row.timestamp)} | ${row.eventType} | ${row.severity} | ${row.domain} | ${row.status} | ${(row.summary || '').replace(/\|/g, '\\|')} |`)
+        }
+        return lines.join('\n')
+    }
+
+    async function exportAuditEventsCsv(filters = {}) {
+        const rows = await listAuditEvents(filters)
+        const lines = ['date;type;severity;domain;status;summary;source;entities;metadata']
+        for (const row of rows) {
+            lines.push([
+                formatDate(row.timestamp),
+                row.eventType,
+                row.severity,
+                row.domain,
+                row.status,
+                row.summary,
+                row.source,
+                JSON.stringify(row.entityIds || []),
+                metadataSummary(row.metadata),
+            ].map(csvEscape).join(';'))
+        }
+        return lines.join('\n')
     }
 
     async function logImportApplied(input = {}, options) {
@@ -196,7 +255,10 @@ function createAuditLogService({repository = null, prisma = null, logger = conso
     }
 
     return {
+        exportAuditEventsCsv,
+        exportAuditEventsMarkdown,
         getRetentionPolicy,
+        listAuditEvents,
         logBackupExported,
         logCriticalDelete,
         logImportApplied,
