@@ -10,7 +10,11 @@ import type {
     Transaction,
 } from '../types/budget'
 import {tr} from '../i18n'
-import {validateBackupSnapshot, type BackupValidationResult} from '../utils/importValidation'
+import {
+    createRestoreDryRunReport,
+    markRecoveryBackupCreated,
+    type RestoreDryRunReport,
+} from '../utils/restoreDryRun'
 import {
     createBudgetBackupSnapshotWithGoals,
     type BudgetBackupFinancialGoal,
@@ -38,12 +42,30 @@ interface UseJsonBackupOptions {
     showNotice: (type: 'success' | 'error', text: string) => void
 }
 
+type IpcResult<T> = {ok?: boolean; data?: T | null; error?: {code?: string; message?: string} | null} | T
+
+const ENCRYPTED_BACKUP_FILTERS = [{name: 'Budget encrypted backup', extensions: ['budget.enc.json', 'budget-backup.enc', 'enc', 'json']}]
+const JSON_BACKUP_FILTERS = [{name: 'JSON', extensions: ['json']}]
+
+const EMPTY_IMPORT_BACKUP: BudgetBackupImportData = {
+    schemaVersion: 1,
+    documentation: {included: [], excluded: [], notes: []},
+    mappingTemplates: [],
+    importSources: [],
+    importHistory: [],
+    metadata: {
+        exportedAt: new Date(0).toISOString(),
+        auditOnlyRestore: true,
+        financialDataNotRestoredFromImportHistory: true,
+    },
+}
+
 function absAmount(value: number | null | undefined) {
     return Math.abs(value ?? 0)
 }
 
-function firstValidationError(validation: BackupValidationResult) {
-    return validation.warnings[0] || tr('notices.jsonInvalid')
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function asLegacyBackupSnapshot(snapshot: unknown): BudgetBackupSnapshot {
@@ -54,13 +76,68 @@ function asGoalsBackupSnapshot(snapshot: unknown): BudgetBackupWithGoalsSnapshot
     return snapshot as BudgetBackupWithGoalsSnapshot
 }
 
-function unwrapIpcResult<T>(result: {ok?: boolean; data?: T | null; error?: {message?: string} | null} | T, fallback: string): T {
+function unwrapIpcResult<T>(result: IpcResult<T>, fallback: string): T {
     if (result && typeof result === 'object' && 'ok' in result) {
         const ipc = result as {ok: boolean; data: T | null; error?: {message?: string} | null}
         if (ipc.ok && ipc.data != null) return ipc.data
         throw new Error(ipc.error?.message || fallback)
     }
     return result as T
+}
+
+function encryptedBackupErrorMessage(error: {code?: string; message?: string} | null | undefined) {
+    switch (error?.code) {
+        case 'wrongPassword':
+            return 'Mot de passe incorrect. Aucune donnée n’a été modifiée.'
+        case 'corruptedCiphertext':
+            return 'Le backup chiffré semble corrompu ou modifié. Aucune donnée n’a été modifiée.'
+        case 'unsupportedEncryptionVersion':
+            return 'Cette version de backup chiffré n’est pas supportée par cette version de Budget.'
+        case 'invalidEncryptedBackup':
+            return 'Le fichier sélectionné ne correspond pas à un backup chiffré Budget valide.'
+        case 'invalidEncryptionInput':
+            return 'Le mot de passe ou le contenu du backup chiffré est invalide.'
+        default:
+            return error?.message || 'Échec du traitement du backup chiffré.'
+    }
+}
+
+function shouldOpenBlockedPreview(error: unknown) {
+    const message = error instanceof Error ? error.message : ''
+    return /référence|absente|transfert interne|exactement deux jambes|jambe OUT|jambe IN|incohérent/i.test(message)
+}
+
+function parseBlockedRestorePreviewSnapshot(content: string, originalError: unknown): BudgetBackupWithImportDataSnapshot {
+    if (!shouldOpenBlockedPreview(originalError)) throw originalError
+
+    let parsed: unknown
+    try {
+        parsed = JSON.parse(content)
+    } catch (_error) {
+        throw originalError
+    }
+
+    if (!isRecord(parsed) || parsed.kind !== 'budget-backup' || !isRecord(parsed.data)) {
+        throw originalError
+    }
+
+    const data = parsed.data
+    const requiredSections = ['accounts', 'categories', 'budgetTargets', 'recurringTemplates', 'transactions']
+    if (!requiredSections.every((section) => Array.isArray(data[section]))) throw originalError
+
+    return {
+        ...parsed,
+        version: 6,
+        exportedAt: typeof parsed.exportedAt === 'string' ? parsed.exportedAt : new Date(0).toISOString(),
+        data: {
+            ...data,
+            taxProfiles: Array.isArray(data.taxProfiles) ? data.taxProfiles : [],
+            financialGoals: Array.isArray(data.financialGoals) ? data.financialGoals : [],
+            projectionScenarios: Array.isArray(data.projectionScenarios) ? data.projectionScenarios : [],
+            projectionSettings: data.projectionSettings ?? null,
+            importBackup: isRecord(data.importBackup) ? data.importBackup : EMPTY_IMPORT_BACKUP,
+        },
+    } as unknown as BudgetBackupWithImportDataSnapshot
 }
 
 function normalizeGoalForBackup(goal: any): BudgetBackupFinancialGoal {
@@ -164,16 +241,16 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
     const restorePreviewOpen = ref(false)
     const restorePreviewPath = ref<string | null>(null)
     const restorePreviewSnapshot = ref<BudgetBackupWithImportDataSnapshot | null>(null)
-    const restorePreviewValidation = ref<BackupValidationResult | null>(null)
+    const restorePreviewReport = ref<RestoreDryRunReport | null>(null)
 
     function closeRestorePreview() {
         restorePreviewOpen.value = false
         restorePreviewPath.value = null
         restorePreviewSnapshot.value = null
-        restorePreviewValidation.value = null
+        restorePreviewReport.value = null
     }
 
-    async function exportBackupJson() {
+    async function createCanonicalBackupContent() {
         const [goalsData, importData] = await Promise.all([
             readGoalsBackupData(options.accounts.value),
             readImportBackupData(),
@@ -190,13 +267,74 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
             goalsData.projectionSettings,
         )
         const snapshot = createBudgetBackupSnapshotWithImportData(goalsSnapshot, importData)
+        return serializeBudgetBackupWithImportData(snapshot)
+    }
+
+    function currentRestoreState() {
+        return {
+            accounts: options.accounts.value,
+            categories: options.categories.value,
+            budgetTargets: options.budgetTargets.value,
+            recurringTemplates: options.recurringTemplates.value,
+            transactions: options.transactions.value,
+            taxProfiles: options.taxProfiles?.value || [],
+        }
+    }
+
+    function requestEncryptedExportPassword() {
+        const password = window.prompt('Choisis un mot de passe pour chiffrer ce backup. Budget ne pourra pas le récupérer si tu le perds.')
+        if (!password) return null
+        const confirmation = window.prompt('Confirme le mot de passe du backup chiffré.')
+        if (confirmation == null) return null
+        if (password !== confirmation) {
+            options.showNotice('error', 'Les deux mots de passe ne correspondent pas. Export chiffré annulé.')
+            return null
+        }
+        const accepted = window.confirm('Important : si tu perds ce mot de passe, ce backup chiffré ne pourra pas être restauré. Continuer ?')
+        return accepted ? password : null
+    }
+
+    function requestEncryptedRestorePassword() {
+        return window.prompt('Entre le mot de passe du backup chiffré. Le fichier sera déchiffré uniquement en mémoire avant validation.')
+    }
+
+    async function exportBackupJson() {
+        const content = await createCanonicalBackupContent()
         const result = await window.file.saveText({
             title: `${tr('common.export')} JSON`,
             defaultPath: 'budget-backup.json',
-            content: serializeBudgetBackupWithImportData(snapshot),
-            filters: [{name: 'JSON', extensions: ['json']}],
+            content,
+            filters: JSON_BACKUP_FILTERS,
         })
         if (!result?.canceled) options.showNotice('success', tr('notices.jsonExported'))
+    }
+
+    async function exportEncryptedBackupJson() {
+        try {
+            const password = requestEncryptedExportPassword()
+            if (!password) return
+            const backupJson = await createCanonicalBackupContent()
+            const api = (window as any).backupEncryption
+            if (!api?.encrypt) throw new Error('Le module de chiffrement de backup est indisponible.')
+            const encrypted = await api.encrypt({
+                backupJson,
+                password,
+                metadata: {
+                    backupKind: 'budget-backup',
+                    encryptedExport: true,
+                },
+            })
+            const encryptedData = unwrapIpcResult<{content: string}>(encrypted, 'Impossible de chiffrer le backup JSON.')
+            const result = await window.file.saveText({
+                title: 'Exporter une sauvegarde chiffrée',
+                defaultPath: 'budget-backup.budget.enc.json',
+                content: encryptedData.content,
+                filters: ENCRYPTED_BACKUP_FILTERS,
+            })
+            if (!result?.canceled) options.showNotice('success', 'Backup chiffré exporté.')
+        } catch (error) {
+            options.showNotice('error', error instanceof Error ? error.message : 'Échec de l’export chiffré.')
+        }
     }
 
     async function replaceAllData() {
@@ -208,19 +346,52 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         for (const taxProfile of [...(options.taxProfiles?.value || [])]) await window.db.taxProfile.delete(taxProfile.id)
     }
 
+    function prepareRestorePreview(content: string, filePath: string | null) {
+        let snapshot: BudgetBackupWithImportDataSnapshot
+        try {
+            snapshot = parseBudgetBackupWithImportData(content)
+        } catch (error) {
+            snapshot = parseBlockedRestorePreviewSnapshot(content, error)
+        }
+        const report = createRestoreDryRunReport(snapshot, currentRestoreState())
+        restorePreviewSnapshot.value = snapshot
+        restorePreviewReport.value = report
+        restorePreviewPath.value = filePath
+        restorePreviewOpen.value = true
+        if (!report.canApply) {
+            options.showNotice('error', 'Le dry-run de restauration a détecté des erreurs bloquantes. Aucune donnée n’a été modifiée.')
+        }
+    }
+
     async function beginRestoreBackupJson() {
-        const result = await window.file.openText({title: `${tr('common.open')} JSON`, filters: [{name: 'JSON', extensions: ['json']}]})
+        const result = await window.file.openText({title: `${tr('common.open')} JSON`, filters: JSON_BACKUP_FILTERS})
         if (!result || result.canceled || !result.content) return
         try {
-            const snapshot = parseBudgetBackupWithImportData(result.content)
-            const validation = validateBackupSnapshot(asLegacyBackupSnapshot(snapshot))
-            if (!validation.ok) throw new Error(firstValidationError(validation))
-            restorePreviewSnapshot.value = snapshot
-            restorePreviewValidation.value = validation
-            restorePreviewPath.value = result.filePath
-            restorePreviewOpen.value = true
+            prepareRestorePreview(result.content, result.filePath)
         } catch (error) {
             options.showNotice('error', error instanceof Error ? error.message : tr('notices.jsonRestoreFailed'))
+        }
+    }
+
+    async function beginRestoreEncryptedBackupJson() {
+        const result = await window.file.openText({
+            title: 'Restaurer une sauvegarde chiffrée',
+            filters: ENCRYPTED_BACKUP_FILTERS,
+        })
+        if (!result || result.canceled || !result.content) return
+        const password = requestEncryptedRestorePassword()
+        if (!password) return
+        try {
+            const api = (window as any).backupEncryption
+            if (!api?.decrypt) throw new Error('Le module de déchiffrement de backup est indisponible.')
+            const decrypted = await api.decrypt({content: result.content, password})
+            if (decrypted && typeof decrypted === 'object' && 'ok' in decrypted && !decrypted.ok) {
+                throw new Error(encryptedBackupErrorMessage(decrypted.error))
+            }
+            const data = unwrapIpcResult<{backupJson: string}>(decrypted, 'Impossible de déchiffrer le backup.')
+            prepareRestorePreview(data.backupJson, result.filePath)
+        } catch (error) {
+            options.showNotice('error', error instanceof Error ? error.message : 'Échec de la restauration chiffrée.')
         }
     }
 
@@ -277,13 +448,35 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         }
     }
 
+    async function createPreRestoreBackup() {
+        const content = await createCanonicalBackupContent()
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').replace('Z', '')
+        const result = await window.file.saveText({
+            title: 'Sauvegarde automatique avant restauration',
+            defaultPath: `pre-restore-backup-${timestamp}.json`,
+            content,
+            filters: JSON_BACKUP_FILTERS,
+        })
+        if (!result || result.canceled || !result.filePath) {
+            throw new Error('Restauration annulée : la sauvegarde pré-restore doit être créée avant toute modification.')
+        }
+        return result.filePath
+    }
+
     async function confirmRestoreBackupJson() {
         if (!restorePreviewSnapshot.value) return
         try {
             const snapshot = restorePreviewSnapshot.value
+            const report = createRestoreDryRunReport(snapshot, currentRestoreState())
+            restorePreviewReport.value = report
+            if (!report.canApply) {
+                throw new Error('Restauration bloquée : corrige les erreurs du dry-run avant de restaurer.')
+            }
+            const accepted = window.confirm('La restauration va remplacer toutes les données actuelles. Une sauvegarde pré-restore sera créée avant modification. Continuer ?')
+            if (!accepted) return
+            const recoveryPath = await createPreRestoreBackup()
+            restorePreviewReport.value = markRecoveryBackupCreated(report, recoveryPath)
             const legacySnapshot = asLegacyBackupSnapshot(snapshot)
-            const validation = validateBackupSnapshot(legacySnapshot)
-            if (!validation.ok) throw new Error(firstValidationError(validation))
             await replaceAllData()
             const accountIdMap = new Map<number, number>()
             const categoryIdMap = new Map<number, number>()
@@ -314,11 +507,22 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
             await restoreImportBackupData(importBackup)
             await options.refreshAllData()
             closeRestorePreview()
-            options.showNotice('success', tr('notices.jsonRestored'))
+            options.showNotice('success', `${tr('notices.jsonRestored')} Sauvegarde pré-restore : ${recoveryPath}`)
         } catch (error) {
             options.showNotice('error', error instanceof Error ? error.message : tr('notices.jsonRestoreFailed'))
         }
     }
 
-    return {exportBackupJson, beginRestoreBackupJson, confirmRestoreBackupJson, closeRestorePreview, restorePreviewOpen, restorePreviewPath, restorePreviewValidation}
+    return {
+        exportBackupJson,
+        exportEncryptedBackupJson,
+        beginRestoreBackupJson,
+        beginRestoreEncryptedBackupJson,
+        confirmRestoreBackupJson,
+        closeRestorePreview,
+        restorePreviewOpen,
+        restorePreviewPath,
+        restorePreviewReport,
+        restorePreviewValidation: restorePreviewReport,
+    }
 }

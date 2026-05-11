@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('versions', {
 contextBridge.exposeInMainWorld('appShell', {
   getVersion: () => ipcRenderer.invoke('app:get-version'),
   setLocale: (locale) => ipcRenderer.send('app:set-locale', locale),
+  sendMenuCommand: (command) => ipcRenderer.send('app:menu-command', command),
 })
 
 contextBridge.exposeInMainWorld('db', {
@@ -112,6 +113,45 @@ contextBridge.exposeInMainWorld('goals', {
   updateProjectionScenario: (id, data) => ipcRenderer.invoke('db:projectionScenario:update', id, data),
   removeProjectionScenario: (id) => ipcRenderer.invoke('db:projectionScenario:delete', id),
   estimateMonthlySurplus: (options) => ipcRenderer.invoke('db:goalProjection:monthlySurplus:estimate', options),
+})
+
+contextBridge.exposeInMainWorld('secrets', {
+  getStorageInfo: () => ipcRenderer.invoke('secret:storage:info'),
+  saveSecret: (input) => ipcRenderer.invoke('secret:save', input),
+  hasSecret: (input) => ipcRenderer.invoke('secret:has', input),
+  listSecretMetadata: (filters) => ipcRenderer.invoke('secret:metadata:list', filters),
+  deleteSecret: (input) => ipcRenderer.invoke('secret:delete', input),
+  clearSecrets: (filters) => ipcRenderer.invoke('secret:clear', filters),
+})
+
+contextBridge.exposeInMainWorld('backupEncryption', {
+  encrypt: (input) => ipcRenderer.invoke('backup:encrypted:encrypt', input),
+  decrypt: (input) => ipcRenderer.invoke('backup:encrypted:decrypt', input),
+  inspect: (input) => ipcRenderer.invoke('backup:encrypted:inspect', input),
+})
+
+contextBridge.exposeInMainWorld('integrityCheck', {
+  run: (input) => ipcRenderer.invoke('integrity:check:run', input),
+})
+
+contextBridge.exposeInMainWorld('recoverySnapshots', {
+  create: (input) => ipcRenderer.invoke('recovery:snapshot:create', input),
+  list: () => ipcRenderer.invoke('recovery:snapshot:list'),
+  read: (id) => ipcRenderer.invoke('recovery:snapshot:read', id),
+  delete: (id) => ipcRenderer.invoke('recovery:snapshot:delete', id),
+  markRestored: (input) => ipcRenderer.invoke('recovery:snapshot:restored', input),
+  getPolicy: () => ipcRenderer.invoke('recovery:snapshot:policy'),
+})
+
+contextBridge.exposeInMainWorld('auditLog', {
+  list: (filters) => ipcRenderer.invoke('audit:history:list', filters),
+  exportMarkdown: (filters) => ipcRenderer.invoke('audit:history:exportMarkdown', filters),
+  exportCsv: (filters) => ipcRenderer.invoke('audit:history:exportCsv', filters),
+  logBackupExported: (input) => ipcRenderer.invoke('audit:backup:exported', input),
+  logRestoreDryRun: (input) => ipcRenderer.invoke('audit:restore:dryRun', input),
+  logRestoreApplied: (input) => ipcRenderer.invoke('audit:restore:applied', input),
+  logRestoreFailed: (input) => ipcRenderer.invoke('audit:restore:failed', input),
+  getRetentionPolicy: () => ipcRenderer.invoke('audit:retention:policy'),
 })
 
 contextBridge.exposeInMainWorld('imports', {

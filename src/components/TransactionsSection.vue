@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
+import FreshnessBadge from './provenance/FreshnessBadge.vue'
+import ProvenanceBadge from './provenance/ProvenanceBadge.vue'
+import DataOriginTooltip from './provenance/DataOriginTooltip.vue'
 import type {Account, Category, Transaction, TransactionKind} from '../types/budget'
+import type {DataFreshnessStatus, DataProvenance} from '../types/provenance'
 import {
   amountClass,
   categoryDotStyle,
@@ -17,10 +21,15 @@ import {
   transferRoute,
 } from '../utils/transferDisplay'
 
+type TransactionWithProvenance = Transaction & {
+  provenance?: DataProvenance | null
+  freshnessStatus?: DataFreshnessStatus | null
+}
+
 const props = defineProps<{
   accounts: Account[]
   categories: Category[]
-  filteredTransactions: Transaction[]
+  filteredTransactions: TransactionWithProvenance[]
   search: string
   kindFilter: 'ALL' | TransactionKind
   accountFilter: string
@@ -44,6 +53,10 @@ const displayTransactions = computed(() => props.filteredTransactions)
 function transferCategoryLabel(transaction: Transaction) {
   if (transaction.kind === 'TRANSFER') return t('transfer.internal')
   return transaction.category?.name || t('common.none')
+}
+
+function hasProvenance(transaction: TransactionWithProvenance) {
+  return Boolean(transaction.provenance || transaction.freshnessStatus)
 }
 </script>
 
@@ -175,6 +188,12 @@ function transferCategoryLabel(transaction: Transaction) {
                 <p class="font-semibold text-slate-800 dark:text-slate-100">
                   {{ transaction.label }}
                 </p>
+
+                <div v-if="hasProvenance(transaction)" class="flex flex-wrap items-center gap-1.5">
+                  <ProvenanceBadge v-if="transaction.provenance" :provenance="transaction.provenance" compact />
+                  <FreshnessBadge v-if="transaction.freshnessStatus" :status="transaction.freshnessStatus" :provenance="transaction.provenance" compact />
+                  <DataOriginTooltip :provenance="transaction.provenance" :freshness-status="transaction.freshnessStatus" />
+                </div>
 
                 <p
                     v-if="transaction.kind === 'TRANSFER' && transferRoute(transaction)"

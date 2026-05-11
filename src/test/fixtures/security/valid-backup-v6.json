@@ -1,0 +1,33 @@
+{
+  "kind": "budget-backup",
+  "version": 6,
+  "exportedAt": "2026-05-11T12:00:00.000Z",
+  "data": {
+    "accounts": [
+      {"id": 1, "name": "Fixture Checking", "type": "BANK", "currency": "CAD", "description": null}
+    ],
+    "categories": [
+      {"id": 1, "name": "Income", "kind": "INCOME", "color": null, "description": null},
+      {"id": 2, "name": "Groceries", "kind": "EXPENSE", "color": null, "description": null}
+    ],
+    "budgetTargets": [
+      {"id": 1, "name": "Groceries monthly", "amount": 500, "period": "MONTHLY", "startDate": "2026-05-01", "endDate": null, "currency": "CAD", "isActive": true, "note": null, "categoryId": 2}
+    ],
+    "recurringTemplates": [],
+    "transactions": [
+      {"id": 1, "label": "Fixture salary", "amount": 1000, "sourceAmount": null, "sourceCurrency": null, "conversionMode": "NONE", "exchangeRate": 1, "exchangeProvider": "ACCOUNT", "exchangeDate": "2026-05-01", "kind": "INCOME", "date": "2026-05-01", "note": null, "accountId": 1, "categoryId": 1}
+    ],
+    "taxProfiles": [],
+    "financialGoals": [],
+    "projectionScenarios": [],
+    "projectionSettings": null,
+    "importBackup": {
+      "schemaVersion": 1,
+      "documentation": {"included": ["Fixture import audit"], "excluded": ["Secrets"], "notes": ["Test fixture only"]},
+      "mappingTemplates": [],
+      "importSources": [],
+      "importHistory": [],
+      "metadata": {"exportedAt": "2026-05-11T12:00:00.000Z", "auditOnlyRestore": true, "financialDataNotRestoredFromImportHistory": true}
+    }
+  }
+}

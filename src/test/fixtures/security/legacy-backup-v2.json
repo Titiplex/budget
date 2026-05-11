@@ -1,0 +1,17 @@
+{
+  "kind": "budget-backup",
+  "version": 2,
+  "exportedAt": "2025-12-01T09:00:00.000Z",
+  "data": {
+    "accounts": [
+      {"id": 1, "name": "Legacy Account", "type": "BANK", "currency": "CAD", "description": null}
+    ],
+    "categories": [
+      {"id": 1, "name": "Legacy Expense", "kind": "EXPENSE", "color": null, "description": null}
+    ],
+    "budgetTargets": [],
+    "recurringTemplates": [],
+    "transactions": [],
+    "taxProfiles": []
+  }
+}

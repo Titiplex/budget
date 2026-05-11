@@ -172,9 +172,10 @@ function installBridgeMocks() {
     let transactionId = 300
 
     ;(window as any).file = {
-        saveText: vi.fn().mockResolvedValue({canceled: false}),
+        saveText: vi.fn().mockResolvedValue({canceled: false, filePath: '/tmp/pre-restore-backup.json'}),
         openText: vi.fn(),
     }
+    ;(window as any).confirm = vi.fn().mockReturnValue(true)
 
     ;(window as any).db = {
         transaction: {
@@ -275,7 +276,7 @@ describe('useJsonBackup restore flows', () => {
         expect(showNotice).toHaveBeenCalledWith('error', expect.stringContaining('JSON'))
     })
 
-    it('opens and closes a valid restore preview', async () => {
+    it('opens and closes a valid restore preview without writing data', async () => {
         const {backup} = createHarness()
         ;(window as any).file.openText.mockResolvedValueOnce({
             canceled: false,
@@ -290,6 +291,8 @@ describe('useJsonBackup restore flows', () => {
         expect(backup.restorePreviewValidation.value?.ok).toBe(true)
         expect(backup.restorePreviewValidation.value?.counts.accounts).toBe(2)
         expect(backup.restorePreviewValidation.value?.counts.taxProfiles).toBe(1)
+        expect((window as any).db.account.delete).not.toHaveBeenCalled()
+        expect((window as any).db.account.create).not.toHaveBeenCalled()
 
         backup.closeRestorePreview()
 
@@ -298,7 +301,7 @@ describe('useJsonBackup restore flows', () => {
         expect(backup.restorePreviewValidation.value).toBeNull()
     })
 
-    it('replaces existing data and restores all supported backup entities', async () => {
+    it('creates a pre-restore backup before replacing existing data', async () => {
         const {backup, refreshAllData, showNotice} = createHarness()
         ;(window as any).file.openText.mockResolvedValueOnce({
             canceled: false,
@@ -308,6 +311,15 @@ describe('useJsonBackup restore flows', () => {
 
         await backup.beginRestoreBackupJson()
         await backup.confirmRestoreBackupJson()
+
+        expect((window as any).confirm).toHaveBeenCalledWith(expect.stringContaining('sauvegarde pré-restore'))
+        expect((window as any).file.saveText).toHaveBeenCalledWith(expect.objectContaining({
+            title: 'Sauvegarde automatique avant restauration',
+            defaultPath: expect.stringContaining('pre-restore-backup-'),
+            filters: [{name: 'JSON', extensions: ['json']}],
+        }))
+        expect((window as any).file.saveText.mock.invocationCallOrder[0])
+            .toBeLessThan((window as any).db.transaction.delete.mock.invocationCallOrder[0])
 
         expect((window as any).db.transaction.delete).toHaveBeenCalledWith(905)
         expect((window as any).db.recurringTemplate.delete).toHaveBeenCalledWith(904)
@@ -382,10 +394,50 @@ describe('useJsonBackup restore flows', () => {
         }))
         expect(refreshAllData).toHaveBeenCalledTimes(1)
         expect(backup.restorePreviewOpen.value).toBe(false)
-        expect(showNotice).toHaveBeenCalledWith('success', expect.any(String))
+        expect(showNotice).toHaveBeenCalledWith('success', expect.stringContaining('Sauvegarde pré-restore'))
     })
 
-    it('reports restore failures without closing the preview', async () => {
+    it('blocks restore with dry-run errors before confirmation or writes', async () => {
+        const {backup, refreshAllData, showNotice} = createHarness()
+        const broken = validSnapshot()
+        broken.data.transactions[0].accountId = 999
+        ;(window as any).file.openText.mockResolvedValueOnce({
+            canceled: false,
+            filePath: '/tmp/broken-backup.json',
+            content: JSON.stringify(broken),
+        })
+
+        await backup.beginRestoreBackupJson()
+        await backup.confirmRestoreBackupJson()
+
+        expect(backup.restorePreviewOpen.value).toBe(true)
+        expect(backup.restorePreviewValidation.value?.canApply).toBe(false)
+        expect((window as any).confirm).not.toHaveBeenCalled()
+        expect((window as any).file.saveText).not.toHaveBeenCalled()
+        expect((window as any).db.account.delete).not.toHaveBeenCalled()
+        expect(refreshAllData).not.toHaveBeenCalled()
+        expect(showNotice).toHaveBeenCalledWith('error', expect.stringContaining('erreurs bloquantes'))
+    })
+
+    it('does not modify data when the pre-restore backup is canceled', async () => {
+        const {backup, refreshAllData, showNotice} = createHarness()
+        ;(window as any).file.saveText.mockResolvedValueOnce({canceled: true, filePath: null})
+        ;(window as any).file.openText.mockResolvedValueOnce({
+            canceled: false,
+            filePath: '/tmp/budget-backup.json',
+            content: JSON.stringify(validSnapshot()),
+        })
+
+        await backup.beginRestoreBackupJson()
+        await backup.confirmRestoreBackupJson()
+
+        expect((window as any).db.account.delete).not.toHaveBeenCalled()
+        expect((window as any).db.account.create).not.toHaveBeenCalled()
+        expect(refreshAllData).not.toHaveBeenCalled()
+        expect(showNotice).toHaveBeenCalledWith('error', expect.stringContaining('sauvegarde pré-restore'))
+    })
+
+    it('reports restore failures without closing the preview after the recovery backup exists', async () => {
         const {backup, refreshAllData, showNotice} = createHarness()
         ;(window as any).db.account.create.mockRejectedValueOnce(new Error('create failed'))
         ;(window as any).file.openText.mockResolvedValueOnce({
@@ -397,6 +449,9 @@ describe('useJsonBackup restore flows', () => {
         await backup.beginRestoreBackupJson()
         await backup.confirmRestoreBackupJson()
 
+        expect((window as any).file.saveText).toHaveBeenCalledWith(expect.objectContaining({
+            title: 'Sauvegarde automatique avant restauration',
+        }))
         expect(refreshAllData).not.toHaveBeenCalled()
         expect(backup.restorePreviewOpen.value).toBe(true)
         expect(showNotice).toHaveBeenCalledWith('error', 'create failed')

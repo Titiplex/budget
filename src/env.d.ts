@@ -328,6 +328,33 @@ interface MarketDataValuationOptionsDto {
     targetCurrency?: string
 }
 
+interface BackupEncryptionIpcErrorDto {
+    code: string
+    message: string
+    details: unknown | null
+    recoverable: boolean
+}
+
+interface BackupEncryptionIpcResultDto<T> {
+    ok: boolean
+    data: T | null
+    error: BackupEncryptionIpcErrorDto | null
+}
+
+interface EncryptedBackupEnvelopeDto {
+    kind: string
+    version: number
+    cipher: string
+    kdf: Record<string, unknown>
+    salt: string
+    nonce: string
+    ciphertext: string
+    authTag: string
+    keyCheck: string
+    createdAt: string
+    metadata: Record<string, unknown>
+}
+
 interface Window {
     marketData: {
         listInstruments: (filters?: MarketInstrumentListFiltersDto) => Promise<MarketDataIpcResultDto<MarketInstrumentDto[]>>
@@ -557,6 +584,28 @@ interface Window {
             amount: number
             date: string
         }) => Promise<FxQuoteResult>
+    }
+
+    backupEncryption: {
+        encrypt: (input: {
+            backupJson: string
+            password: string
+            metadata?: Record<string, string | number | boolean | null>
+        }) => Promise<BackupEncryptionIpcResultDto<{envelope: EncryptedBackupEnvelopeDto; content: string}>>
+        decrypt: (input: {
+            content: string
+            password: string
+        }) => Promise<BackupEncryptionIpcResultDto<{backupJson: string}>>
+        inspect: (input: {
+            content: string
+        }) => Promise<BackupEncryptionIpcResultDto<{
+            kind: string
+            version: number
+            cipher: string
+            kdf: string | null
+            createdAt: string
+            metadata: Record<string, unknown>
+        }>>
     }
 
     appShell: {
