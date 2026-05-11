@@ -59,6 +59,8 @@ const SUPPORTED_VERSIONS = new Set([2, 3, 4, 5, 6])
 const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 const CURRENCY_CODE = /^[A-Z]{3}$/
 
+type StringLikeIdRow = {id: string | number; name?: string; label?: string}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -87,7 +89,7 @@ function addDuplicateIdErrors(rows: Array<{id: number; name?: string; label?: st
     }
 }
 
-function addDuplicateStringIdErrors(rows: Array<{id: string; name?: string; label?: string}>, entityLabel: string, errors: string[]) {
+function addDuplicateStringIdErrors(rows: StringLikeIdRow[], entityLabel: string, errors: string[]) {
     const seen = new Map<string, string>()
 
     for (const row of rows) {
