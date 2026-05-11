@@ -14,6 +14,7 @@ const {registerImportWorkflowHandlers} = require('./ipc/registerImportWorkflowHa
 const {registerSecretHandlers} = require('./ipc/registerSecretHandlers')
 const {registerBackupEncryptionHandlers} = require('./ipc/registerBackupEncryptionHandlers')
 const {registerAuditLogHandlers} = require('./ipc/registerAuditLogHandlers')
+const {registerIntegrityCheckHandlers} = require('./ipc/registerIntegrityCheckHandlers')
 const {disconnectPrisma} = require('./db')
 const {getMenuMessages, normalizeMenuLocale} = require('./menuI18n')
 
@@ -273,6 +274,7 @@ app.whenReady().then(() => {
     registerSecretHandlers()
     registerBackupEncryptionHandlers()
     registerAuditLogHandlers()
+    registerIntegrityCheckHandlers()
 
     Menu.setApplicationMenu(buildAppMenu(currentMenuLocale))
     createWindow()

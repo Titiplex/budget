@@ -32,6 +32,51 @@ describe('audited import workflow', () => {
         expect(auditLog.logImportFailed).not.toHaveBeenCalled()
     })
 
+    it('runs a non-blocking integrity check after a successful import apply', async () => {
+        const {createAuditedImportWorkflow} = loadAuditedImportWorkflow()
+        const baseResult = {batchId: 17, rowCount: 2, appliedCount: 2, errorCount: 0}
+        const base = {
+            applyImport: vi.fn(async () => baseResult),
+            cancelImport: vi.fn(),
+        }
+        const auditLog = {
+            logImportApplied: vi.fn(async () => null),
+            logImportFailed: vi.fn(),
+            recordAuditEvent: vi.fn(),
+        }
+        const integrityCheck = {run: vi.fn(async () => ({ok: true, issues: []}))}
+        const workflow = createAuditedImportWorkflow({base, auditLog, integrityCheck})
+
+        const result = await workflow.applyImport({batchId: 17})
+
+        expect(result).toBe(baseResult)
+        expect(integrityCheck.run).toHaveBeenCalledWith(expect.objectContaining({
+            source: 'import-workflow',
+            reason: 'after-import-apply',
+            auditCritical: true,
+            batchId: 17,
+        }))
+    })
+
+    it('does not fail a successful import when the post-import integrity check crashes', async () => {
+        const {createAuditedImportWorkflow} = loadAuditedImportWorkflow()
+        const baseResult = {batchId: 18, rowCount: 1, appliedCount: 1}
+        const base = {
+            applyImport: vi.fn(async () => baseResult),
+            cancelImport: vi.fn(),
+        }
+        const auditLog = {
+            logImportApplied: vi.fn(async () => null),
+            logImportFailed: vi.fn(),
+            recordAuditEvent: vi.fn(),
+        }
+        const integrityCheck = {run: vi.fn(async () => { throw new Error('check failed') })}
+        const workflow = createAuditedImportWorkflow({base, auditLog, integrityCheck})
+
+        await expect(workflow.applyImport({batchId: 18})).resolves.toBe(baseResult)
+        expect(auditLog.logImportFailed).not.toHaveBeenCalled()
+    })
+
     it('logs failed import apply and preserves the original error', async () => {
         const {createAuditedImportWorkflow} = loadAuditedImportWorkflow()
         const baseError = new Error('apply failed')
