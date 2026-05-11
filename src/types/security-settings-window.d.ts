@@ -29,6 +29,22 @@ interface IntegrityCheckReportDto {
     }>
 }
 
+interface SecretStorageInfoDto {
+    backend?: string
+    available?: boolean
+    service?: string
+    [key: string]: unknown
+}
+
+interface SecretMetadataDto {
+    key?: string
+    namespace?: string
+    label?: string | null
+    createdAt?: string | null
+    updatedAt?: string | null
+    [key: string]: unknown
+}
+
 declare global {
     interface Window {
         integrityCheck?: {
@@ -37,6 +53,10 @@ declare global {
                 reason?: string
                 auditCritical?: boolean
             }) => Promise<SecuritySettingsIpcResultDto<IntegrityCheckReportDto>>
+        }
+        secrets?: {
+            getStorageInfo: () => Promise<SecuritySettingsIpcResultDto<SecretStorageInfoDto>>
+            listSecretMetadata: (filters?: Record<string, unknown>) => Promise<SecuritySettingsIpcResultDto<SecretMetadataDto[]>>
         }
     }
 }
