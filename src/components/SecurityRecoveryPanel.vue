@@ -36,7 +36,7 @@ const lastIntegrity = computed(() => integrityReport.value || auditRows.value.fi
 const criticalRows = computed(() => auditRows.value.filter((row) => ['CRITICAL', 'ERROR', 'WARNING'].includes(row.severity)).slice(0, 3))
 
 function runMenu(command: string) {
-  window.appShell?.sendMenuCommand?.(command)
+  ;(window.appShell as unknown as {sendMenuCommand?: (command: string) => void})?.sendMenuCommand?.(command)
 }
 
 async function refreshStatus() {
