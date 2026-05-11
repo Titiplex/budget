@@ -49,7 +49,7 @@ contextBridge.exposeInMainWorld('db', {
   taxProfile: {
     list: () => ipcRenderer.invoke('db:taxProfile:list'),
     create: (data) => ipcRenderer.invoke('db:taxProfile:create', data),
-    update: (id, data) => ipcRenderer.invoke('db:taxProfile:update', id, data),
+    update: (id, data) => ipcRenderer.invoke('db:taxProfile:update', id),
     delete: (id) => ipcRenderer.invoke('db:taxProfile:delete', id),
   },
   taxMetadata: {
@@ -127,6 +127,15 @@ contextBridge.exposeInMainWorld('backupEncryption', {
   encrypt: (input) => ipcRenderer.invoke('backup:encrypted:encrypt', input),
   decrypt: (input) => ipcRenderer.invoke('backup:encrypted:decrypt', input),
   inspect: (input) => ipcRenderer.invoke('backup:encrypted:inspect', input),
+})
+
+contextBridge.exposeInMainWorld('recoverySnapshots', {
+  create: (input) => ipcRenderer.invoke('recovery:snapshot:create', input),
+  list: () => ipcRenderer.invoke('recovery:snapshot:list'),
+  read: (id) => ipcRenderer.invoke('recovery:snapshot:read', id),
+  delete: (id) => ipcRenderer.invoke('recovery:snapshot:delete', id),
+  markRestored: (input) => ipcRenderer.invoke('recovery:snapshot:restored', input),
+  getPolicy: () => ipcRenderer.invoke('recovery:snapshot:policy'),
 })
 
 contextBridge.exposeInMainWorld('auditLog', {
