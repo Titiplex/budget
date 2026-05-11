@@ -38,6 +38,14 @@ const ORIGIN_TO_SOURCE_TYPE: Record<DataOrigin, ProvenanceSourceType> = {
 
 const SECRET_KEYS = /secret|password|token|api[-_]?key|authorization|credential/i
 
+type DataProvenanceInput = Omit<Partial<DataProvenance>, 'createdAt' | 'updatedAt' | 'observedAt' | 'metadata'> & {
+    origin: DataOrigin
+    createdAt?: string | Date | null
+    updatedAt?: string | Date | null
+    observedAt?: string | Date | null
+    metadata?: Record<string, unknown>
+}
+
 function toDate(value: string | Date | null | undefined): Date | null {
     if (!value) return null
     const date = value instanceof Date ? value : new Date(value)
@@ -92,13 +100,7 @@ export function calculateDataFreshness(input: DataFreshnessInput = {}): DataFres
     return now.getTime() - observedAt.getTime() <= staleAfterMs ? 'fresh' : 'stale'
 }
 
-export function createDataProvenance(input: Partial<DataProvenance> & {
-    origin: DataOrigin
-    createdAt?: string | Date | null
-    updatedAt?: string | Date | null
-    observedAt?: string | Date | null
-    metadata?: Record<string, unknown>
-}): DataProvenance {
+export function createDataProvenance(input: DataProvenanceInput): DataProvenance {
     const now = new Date().toISOString()
     const createdAt = toIso(input.createdAt) || now
     const updatedAt = toIso(input.updatedAt) || createdAt
@@ -114,7 +116,7 @@ export function createDataProvenance(input: Partial<DataProvenance> & {
         observedAt: toIso(input.observedAt) || null,
         staleAfter: input.staleAfter ?? null,
         confidence: input.confidence ?? null,
-        metadata: sanitizeProvenanceMetadata(input.metadata || input.metadata === undefined ? input.metadata || {} : {}),
+        metadata: sanitizeProvenanceMetadata(input.metadata || {}),
     }
 }
 
