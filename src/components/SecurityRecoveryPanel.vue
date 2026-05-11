@@ -3,7 +3,7 @@ import {computed, onMounted, ref} from 'vue'
 import RecoverySnapshotsPanel from './RecoverySnapshotsPanel.vue'
 
 type NoticeType = 'success' | 'error'
-type IpcResult<T> = {ok: boolean; data: T | null; error: {message?: string} | null}
+type IpcResult<T> = {ok: boolean; data: T | null; error?: {message?: string} | null}
 type AuditRow = {eventType: string; domain: string; severity: string; status: string; summary: string; timestamp?: string | null; createdAt?: string | null}
 type IntegrityReport = {ok: boolean; generatedAt: string; summary: string; totals: {info: number; warning: number; error: number; critical: number}; issueCount: number}
 
@@ -44,9 +44,9 @@ async function refreshStatus() {
   try {
     const [auditResult, snapshotResult, storageResult, secureRows] = await Promise.all([
       window.auditLog?.list?.({limit: 25}) ?? [],
-      window.recoverySnapshots?.list?.() ?? {ok: true, data: []},
-      window.secrets?.getStorageInfo?.() ?? {ok: true, data: null},
-      window.secrets?.listSecretMetadata?.({}) ?? {ok: true, data: []},
+      window.recoverySnapshots?.list?.() ?? {ok: true, data: [], error: null},
+      window.secrets?.getStorageInfo?.() ?? {ok: true, data: null, error: null},
+      window.secrets?.listSecretMetadata?.({}) ?? {ok: true, data: [], error: null},
     ])
     auditRows.value = unwrap<AuditRow[]>(auditResult, 'Audit log indisponible.')
     snapshotCount.value = unwrap<unknown[]>(snapshotResult, 'Snapshots indisponibles.').length
