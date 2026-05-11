@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue'
+import FreshnessBadge from './provenance/FreshnessBadge.vue'
+import ProvenanceBadge from './provenance/ProvenanceBadge.vue'
+import DataOriginTooltip from './provenance/DataOriginTooltip.vue'
 import type {ImportEntityId} from '../types/imports'
+import {provenanceFromImportBatch, withFreshness} from '../utils/provenance'
 
 interface ImportHistoryItem {
   id: ImportEntityId
@@ -24,6 +28,8 @@ interface ImportHistoryItem {
   previewedAt?: string | null
   appliedAt?: string | null
   cancelledAt?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
 }
 
 interface ImportAuditDetail extends ImportHistoryItem {
@@ -94,6 +100,22 @@ function statusClass(status: string) {
   if (status === 'partiallyApplied' || status === 'previewed') return 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-200 dark:ring-amber-900'
   if (status === 'cancelled') return 'bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700'
   return 'bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/30 dark:text-sky-200 dark:ring-sky-900'
+}
+
+function importProvenance(item: ImportHistoryItem) {
+  return provenanceFromImportBatch({
+    id: item.id,
+    provider: item.provider || item.source || null,
+    fileName: item.fileName || null,
+    importedAt: item.importedAt || null,
+    appliedAt: item.appliedAt || null,
+    createdAt: item.createdAt || item.importedAt || null,
+    updatedAt: item.updatedAt || item.appliedAt || item.importedAt || null,
+  })
+}
+
+function importFreshness(item: ImportHistoryItem) {
+  return withFreshness(importProvenance(item)).freshnessStatus
 }
 
 async function loadHistory() {
@@ -203,7 +225,13 @@ onMounted(loadHistory)
             <tr v-for="item in history" :key="String(item.id)" class="cursor-pointer align-top hover:bg-slate-50 dark:hover:bg-slate-950/40" @click="openDetail(item.id)">
               <td class="px-3 py-3 text-xs text-slate-500">{{ formatDate(item.importedAt) }}</td>
               <td class="px-3 py-3"><p class="font-semibold">{{ item.fileName || '—' }}</p><p class="text-xs text-slate-400">{{ item.importType }}</p></td>
-              <td class="px-3 py-3 text-xs">{{ item.source || item.provider || 'manual' }}</td>
+              <td class="px-3 py-3 text-xs">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <ProvenanceBadge :provenance="importProvenance(item)" compact />
+                  <DataOriginTooltip :provenance="importProvenance(item)" :freshness-status="importFreshness(item)" />
+                </div>
+                <p class="mt-1 text-slate-500">{{ item.source || item.provider || 'manual' }}</p>
+              </td>
               <td class="px-3 py-3"><span class="rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset" :class="statusClass(item.status)">{{ item.status }}</span></td>
               <td class="px-3 py-3 text-xs">{{ item.rowCount }} lignes<br />{{ item.appliedRowCount || 0 }} appliquées</td>
               <td class="px-3 py-3 text-xs">{{ item.errorCount }} erreurs<br />{{ item.duplicateCount }} doublons</td>
@@ -220,6 +248,11 @@ onMounted(loadHistory)
           <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h3 class="text-lg font-bold text-slate-950 dark:text-white">{{ selected.fileName || selected.id }}</h3>
+              <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                <ProvenanceBadge :provenance="importProvenance(selected)" />
+                <FreshnessBadge :status="importFreshness(selected)" :provenance="importProvenance(selected)" />
+                <DataOriginTooltip :provenance="importProvenance(selected)" :freshness-status="importFreshness(selected)" />
+              </div>
               <p class="mt-1 text-xs text-slate-500">{{ selected.source }} · {{ selected.importType }} · {{ formatDate(selected.importedAt) }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
