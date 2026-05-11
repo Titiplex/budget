@@ -7,6 +7,9 @@ const AUDIT_LOG_IPC_CHANNELS = Object.freeze({
     RESTORE_DRY_RUN: 'audit:restore:dryRun',
     RESTORE_APPLIED: 'audit:restore:applied',
     RESTORE_FAILED: 'audit:restore:failed',
+    LIST: 'audit:history:list',
+    EXPORT_MARKDOWN: 'audit:history:exportMarkdown',
+    EXPORT_CSV: 'audit:history:exportCsv',
     RETENTION_POLICY: 'audit:retention:policy',
 })
 
@@ -41,6 +44,9 @@ function createAuditLogHandlers({service = createAuditLogService({prisma: getPri
         logRestoreDryRun: (input) => service.logRestoreDryRun(input),
         logRestoreApplied: (input) => service.logRestoreApplied(input),
         logRestoreFailed: (input) => service.logRestoreFailed(input),
+        listAuditEvents: (filters) => service.listAuditEvents(filters),
+        exportAuditEventsMarkdown: (filters) => service.exportAuditEventsMarkdown(filters),
+        exportAuditEventsCsv: (filters) => service.exportAuditEventsCsv(filters),
         getRetentionPolicy: () => service.getRetentionPolicy(),
     }
 }
@@ -52,6 +58,9 @@ function registerAuditLogHandlers({ipc = ipcMain, service = createAuditLogServic
     registerSafeAuditLogHandler(ipc, AUDIT_LOG_IPC_CHANNELS.RESTORE_DRY_RUN, handlers.logRestoreDryRun)
     registerSafeAuditLogHandler(ipc, AUDIT_LOG_IPC_CHANNELS.RESTORE_APPLIED, handlers.logRestoreApplied)
     registerSafeAuditLogHandler(ipc, AUDIT_LOG_IPC_CHANNELS.RESTORE_FAILED, handlers.logRestoreFailed)
+    registerSafeAuditLogHandler(ipc, AUDIT_LOG_IPC_CHANNELS.LIST, handlers.listAuditEvents)
+    registerSafeAuditLogHandler(ipc, AUDIT_LOG_IPC_CHANNELS.EXPORT_MARKDOWN, handlers.exportAuditEventsMarkdown)
+    registerSafeAuditLogHandler(ipc, AUDIT_LOG_IPC_CHANNELS.EXPORT_CSV, handlers.exportAuditEventsCsv)
     registerSafeAuditLogHandler(ipc, AUDIT_LOG_IPC_CHANNELS.RETENTION_POLICY, handlers.getRetentionPolicy)
 
     return handlers
