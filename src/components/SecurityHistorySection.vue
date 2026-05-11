@@ -1,32 +1,34 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue'
-
-type AuditSeverity = 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL'
-type AuditStatus = 'SUCCESS' | 'FAILED' | 'CANCELLED' | 'BLOCKED'
-
-interface AuditEventRecord {
-  id: number
-  eventType: string
-  timestamp: string
-  domain: string
-  action: string
-  severity: AuditSeverity | string
-  summary: string
-  entityIds: Array<{type: string; id: string | number}>
-  metadata: Record<string, unknown> | null
-  source: string
-  status: AuditStatus | string
-}
+import {
+  AUDIT_EVENT_DOMAINS,
+  AUDIT_EVENT_SEVERITIES,
+  AUDIT_EVENT_TYPES,
+  type AuditEventDomain,
+  type AuditEventListFilters,
+  type AuditEventRecord,
+  type AuditEventSeverity,
+  type AuditEventStatus,
+  type AuditEventType,
+} from '../types/audit'
 
 const emit = defineEmits<{
   (event: 'notice', type: 'success' | 'error', text: string): void
 }>()
 
+interface SecurityHistoryFilters {
+  from: string
+  to: string
+  eventType: AuditEventType | ''
+  severity: AuditEventSeverity | ''
+  domain: AuditEventDomain | ''
+}
+
 const events = ref<AuditEventRecord[]>([])
 const loading = ref(false)
 const errorMessage = ref<string | null>(null)
 const selected = ref<AuditEventRecord | null>(null)
-const filters = ref({
+const filters = ref<SecurityHistoryFilters>({
   from: '',
   to: '',
   eventType: '',
@@ -34,24 +36,9 @@ const filters = ref({
   domain: '',
 })
 
-const eventTypeOptions = [
-  'importApplied',
-  'importCancelled',
-  'importFailed',
-  'backupExported',
-  'encryptedBackupExported',
-  'restoreDryRun',
-  'restoreApplied',
-  'restoreFailed',
-  'criticalDelete',
-  'bulkDelete',
-  'secretCreated',
-  'secretDeleted',
-  'integrityCheckFailed',
-  'migrationApplied',
-]
-const severityOptions: AuditSeverity[] = ['INFO', 'WARNING', 'ERROR', 'CRITICAL']
-const domainOptions = ['import', 'backup', 'restore', 'transaction', 'account', 'category', 'budget', 'recurring', 'wealth', 'secret', 'integrity', 'migration', 'system']
+const eventTypeOptions = AUDIT_EVENT_TYPES
+const severityOptions = AUDIT_EVENT_SEVERITIES
+const domainOptions = AUDIT_EVENT_DOMAINS
 
 const hasFilters = computed(() => Object.values(filters.value).some(Boolean))
 const failureCount = computed(() => events.value.filter((event) => event.status === 'FAILED' || event.status === 'BLOCKED' || event.severity === 'ERROR' || event.severity === 'CRITICAL').length)
@@ -65,15 +52,16 @@ function unwrapIpcResult<T>(result: any, fallback: string): T {
   return result as T
 }
 
-function queryPayload() {
-  return {
-    ...(filters.value.from ? {from: `${filters.value.from}T00:00:00.000Z`} : {}),
-    ...(filters.value.to ? {to: `${filters.value.to}T23:59:59.999Z`} : {}),
-    ...(filters.value.eventType ? {eventType: filters.value.eventType} : {}),
-    ...(filters.value.severity ? {severity: filters.value.severity} : {}),
-    ...(filters.value.domain ? {domain: filters.value.domain} : {}),
-    limit: 300,
-  }
+function queryPayload(): AuditEventListFilters {
+  const payload: AuditEventListFilters = {limit: 300}
+
+  if (filters.value.from) payload.from = `${filters.value.from}T00:00:00.000Z`
+  if (filters.value.to) payload.to = `${filters.value.to}T23:59:59.999Z`
+  if (filters.value.eventType) payload.eventType = filters.value.eventType
+  if (filters.value.severity) payload.severity = filters.value.severity
+  if (filters.value.domain) payload.domain = filters.value.domain
+
+  return payload
 }
 
 function formatDate(value: string) {
@@ -82,7 +70,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat('fr-CA', {dateStyle: 'medium', timeStyle: 'short'}).format(date)
 }
 
-function severityClass(severity: string) {
+function severityClass(severity: AuditEventSeverity | string) {
   switch (severity) {
     case 'CRITICAL': return 'border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/40 dark:text-rose-200'
     case 'ERROR': return 'border-red-300 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-200'
@@ -91,7 +79,7 @@ function severityClass(severity: string) {
   }
 }
 
-function statusClass(status: string) {
+function statusClass(status: AuditEventStatus | string) {
   switch (status) {
     case 'FAILED': return 'text-red-600 dark:text-red-300'
     case 'BLOCKED': return 'text-amber-600 dark:text-amber-300'
