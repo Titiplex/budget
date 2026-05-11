@@ -63,7 +63,7 @@ const {t} = useI18n()
           </select>
         </div>
 
-        <RecoverySnapshotsPanel @notice="emit('notice', $event, arguments[1])" />
+        <RecoverySnapshotsPanel @notice="(type, text) => emit('notice', type, text)" />
 
         <section class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60">
           <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
