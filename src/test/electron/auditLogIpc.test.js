@@ -44,6 +44,9 @@ describe('audit log IPC handlers', () => {
             logRestoreDryRun: vi.fn(async () => ({id: 2, eventType: 'restoreDryRun'})),
             logRestoreApplied: vi.fn(async () => ({id: 3, eventType: 'restoreApplied'})),
             logRestoreFailed: vi.fn(async () => ({id: 4, eventType: 'restoreFailed'})),
+            listAuditEvents: vi.fn(async () => []),
+            exportAuditEventsMarkdown: vi.fn(async () => '# Historique de sécurité'),
+            exportAuditEventsCsv: vi.fn(async () => 'date;type'),
             getRetentionPolicy: vi.fn(() => ({mode: 'keep-all', purgeSupported: false})),
         }
 
@@ -54,6 +57,9 @@ describe('audit log IPC handlers', () => {
             AUDIT_LOG_IPC_CHANNELS.RESTORE_DRY_RUN,
             AUDIT_LOG_IPC_CHANNELS.RESTORE_APPLIED,
             AUDIT_LOG_IPC_CHANNELS.RESTORE_FAILED,
+            AUDIT_LOG_IPC_CHANNELS.LIST,
+            AUDIT_LOG_IPC_CHANNELS.EXPORT_MARKDOWN,
+            AUDIT_LOG_IPC_CHANNELS.EXPORT_CSV,
             AUDIT_LOG_IPC_CHANNELS.RETENTION_POLICY,
         ]))
         expect([...handlers.keys()]).not.toContain('audit:raw:create')
@@ -66,6 +72,35 @@ describe('audit log IPC handlers', () => {
         expect(service.logBackupExported).toHaveBeenCalledWith({encrypted: true, filePath: '/tmp/backup.enc.json'})
     })
 
+    it('lists and exports audit history through dedicated channels', async () => {
+        installElectronMock()
+        const {AUDIT_LOG_IPC_CHANNELS, registerAuditLogHandlers} = require('../../../electron/ipc/registerAuditLogHandlers')
+        const service = {
+            logBackupExported: vi.fn(),
+            logRestoreDryRun: vi.fn(),
+            logRestoreApplied: vi.fn(),
+            logRestoreFailed: vi.fn(),
+            listAuditEvents: vi.fn(async () => [{id: 1, eventType: 'restoreFailed'}]),
+            exportAuditEventsMarkdown: vi.fn(async () => '# Historique de sécurité'),
+            exportAuditEventsCsv: vi.fn(async () => 'date;type'),
+            getRetentionPolicy: vi.fn(),
+        }
+
+        registerAuditLogHandlers({ipc, service})
+        const filters = {eventType: 'restoreFailed', severity: 'ERROR', limit: 100}
+
+        const listed = await handlers.get(AUDIT_LOG_IPC_CHANNELS.LIST)({}, filters)
+        const markdown = await handlers.get(AUDIT_LOG_IPC_CHANNELS.EXPORT_MARKDOWN)({}, filters)
+        const csv = await handlers.get(AUDIT_LOG_IPC_CHANNELS.EXPORT_CSV)({}, filters)
+
+        expect(listed).toEqual({ok: true, data: [{id: 1, eventType: 'restoreFailed'}], error: null})
+        expect(markdown).toEqual({ok: true, data: '# Historique de sécurité', error: null})
+        expect(csv).toEqual({ok: true, data: 'date;type', error: null})
+        expect(service.listAuditEvents).toHaveBeenCalledWith(filters)
+        expect(service.exportAuditEventsMarkdown).toHaveBeenCalledWith(filters)
+        expect(service.exportAuditEventsCsv).toHaveBeenCalledWith(filters)
+    })
+
     it('returns structured IPC errors without throwing into renderer', async () => {
         installElectronMock()
         const {AUDIT_LOG_IPC_CHANNELS, registerAuditLogHandlers} = require('../../../electron/ipc/registerAuditLogHandlers')
@@ -74,6 +109,9 @@ describe('audit log IPC handlers', () => {
             logRestoreDryRun: vi.fn(),
             logRestoreApplied: vi.fn(),
             logRestoreFailed: vi.fn(),
+            listAuditEvents: vi.fn(),
+            exportAuditEventsMarkdown: vi.fn(),
+            exportAuditEventsCsv: vi.fn(),
             getRetentionPolicy: vi.fn(),
         }
 

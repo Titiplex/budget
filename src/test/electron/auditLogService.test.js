@@ -26,6 +26,43 @@ describe('AuditLogService', () => {
         expect(repository.create).toHaveBeenNthCalledWith(6, expect.objectContaining({eventType: 'criticalDelete', domain: 'transaction'}))
     })
 
+    it('lists events and exports markdown/csv history', async () => {
+        const {createAuditLogService} = loadAuditLogService()
+        const rows = [
+            {
+                id: 1,
+                eventType: 'restoreFailed',
+                timestamp: '2026-05-10T02:00:00.000Z',
+                domain: 'restore',
+                action: 'apply',
+                severity: 'ERROR',
+                summary: 'Restore review needed | visible marker',
+                entityIds: [{type: 'file', id: 'backup.json'}],
+                metadata: {reason: 'reference mismatch', count: 2},
+                source: 'restore-flow',
+                status: 'FAILED',
+            },
+        ]
+        const repository = {
+            create: vi.fn(),
+            list: vi.fn(async () => rows),
+        }
+        const service = createAuditLogService({repository, logger: {warn: vi.fn()}})
+        const filters = {eventType: 'restoreFailed', limit: 10}
+
+        await expect(service.listAuditEvents(filters)).resolves.toBe(rows)
+        const markdown = await service.exportAuditEventsMarkdown(filters)
+        const csv = await service.exportAuditEventsCsv(filters)
+
+        expect(repository.list).toHaveBeenCalledWith(filters)
+        expect(markdown).toContain('# Historique de sécurité')
+        expect(markdown).toContain('restoreFailed')
+        expect(markdown).toContain('Restore review needed \\| visible marker')
+        expect(csv).toContain('date;type;severity;domain;status;summary;source;entities;metadata')
+        expect(csv).toContain('restoreFailed')
+        expect(csv).toContain('reference mismatch')
+    })
+
     it('does not break non-strict operations when audit persistence fails', async () => {
         const {createAuditLogService} = loadAuditLogService()
         const logger = {warn: vi.fn()}

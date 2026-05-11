@@ -130,6 +130,9 @@ contextBridge.exposeInMainWorld('backupEncryption', {
 })
 
 contextBridge.exposeInMainWorld('auditLog', {
+  list: (filters) => ipcRenderer.invoke('audit:history:list', filters),
+  exportMarkdown: (filters) => ipcRenderer.invoke('audit:history:exportMarkdown', filters),
+  exportCsv: (filters) => ipcRenderer.invoke('audit:history:exportCsv', filters),
   logBackupExported: (input) => ipcRenderer.invoke('audit:backup:exported', input),
   logRestoreDryRun: (input) => ipcRenderer.invoke('audit:restore:dryRun', input),
   logRestoreApplied: (input) => ipcRenderer.invoke('audit:restore:applied', input),
