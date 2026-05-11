@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('versions', {
 contextBridge.exposeInMainWorld('appShell', {
   getVersion: () => ipcRenderer.invoke('app:get-version'),
   setLocale: (locale) => ipcRenderer.send('app:set-locale', locale),
+  sendMenuCommand: (command) => ipcRenderer.send('app:menu-command', command),
 })
 
 contextBridge.exposeInMainWorld('db', {
@@ -127,6 +128,10 @@ contextBridge.exposeInMainWorld('backupEncryption', {
   encrypt: (input) => ipcRenderer.invoke('backup:encrypted:encrypt', input),
   decrypt: (input) => ipcRenderer.invoke('backup:encrypted:decrypt', input),
   inspect: (input) => ipcRenderer.invoke('backup:encrypted:inspect', input),
+})
+
+contextBridge.exposeInMainWorld('integrityCheck', {
+  run: (input) => ipcRenderer.invoke('integrity:check:run', input),
 })
 
 contextBridge.exposeInMainWorld('recoverySnapshots', {
