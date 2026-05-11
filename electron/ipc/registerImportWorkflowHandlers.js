@@ -2,6 +2,7 @@ const {app, ipcMain} = require('electron')
 const {createAuditLogService} = require('../audit/auditLogService')
 const {createAuditedImportWorkflow} = require('../audit/auditedImportWorkflow')
 const {getPrisma} = require('../db')
+const {createIntegrityCheckService} = require('../integrity/integrityCheckService')
 const {
     applyImport,
     applyReconciliationDecisions,
@@ -85,10 +86,18 @@ function createBaseImportWorkflow(store) {
     }
 }
 
-function registerImportWorkflowHandlers({ipc = ipcMain, store = defaultImportWorkflowStore(app), auditLog = createAuditLogService({prisma: getPrisma()})} = {}) {
+function registerImportWorkflowHandlers({
+    ipc = ipcMain,
+    store = defaultImportWorkflowStore(app),
+    auditLog = null,
+    integrityCheck = null,
+} = {}) {
+    const prisma = (!auditLog || !integrityCheck) ? getPrisma() : null
+    const resolvedAuditLog = auditLog || createAuditLogService({prisma})
     const handlers = createAuditedImportWorkflow({
         base: createBaseImportWorkflow(store),
-        auditLog,
+        auditLog: resolvedAuditLog,
+        integrityCheck: integrityCheck || createIntegrityCheckService({prisma, auditLog: resolvedAuditLog}),
     })
 
     registerSafeImportWorkflowHandler(ipc, IMPORT_WORKFLOW_IPC_CHANNELS.CREATE_BATCH, handlers.createImportBatch)
