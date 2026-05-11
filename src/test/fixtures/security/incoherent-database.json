@@ -1,0 +1,18 @@
+{
+  "accounts": [
+    {"id": 1, "name": "Broken Account", "currency": "CA", "openedAt": "2026-05-01", "closedAt": "2026-04-01"}
+  ],
+  "categories": [
+    {"id": 1, "name": "Groceries", "kind": "EXPENSE"}
+  ],
+  "transactions": [
+    {"id": 1, "label": "Missing account", "amount": -10, "sourceAmount": 10, "sourceCurrency": "CAD", "exchangeRate": 1, "exchangeDate": "bad-date", "kind": "INCOME", "date": "bad-date", "accountId": 99, "categoryId": 1, "transferGroup": null, "transferDirection": null, "transferPeerAccountId": null},
+    {"id": 2, "label": "Broken transfer", "amount": 25, "sourceAmount": 25, "sourceCurrency": "CAD", "exchangeRate": 1, "exchangeDate": "2026-05-01", "kind": "TRANSFER", "date": "2026-05-01", "accountId": 1, "categoryId": null, "transferGroup": "broken-transfer", "transferDirection": "OUT", "transferPeerAccountId": 99}
+  ],
+  "budgetTargets": [
+    {"id": 1, "name": "Bad budget", "amount": 100, "currency": "CAD", "startDate": "2026-06-01", "endDate": "2026-05-01", "categoryId": 99}
+  ],
+  "recurringTransactionTemplate": [
+    {"id": 1, "label": "Bad recurring", "sourceAmount": 0, "sourceCurrency": "CAD", "accountAmount": null, "exchangeRate": null, "kind": "EXPENSE", "intervalCount": 0, "startDate": "2026-05-01", "nextOccurrenceDate": "2026-04-01", "endDate": null, "accountId": 99, "categoryId": 99}
+  ]
+}
