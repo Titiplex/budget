@@ -51,7 +51,7 @@ describe('SecurityRecoveryPanel', () => {
 
         await wrapper.findAll('button').find((button) => button.text().includes('Exporter JSON'))!.trigger('click')
 
-        expect(window.appShell.sendMenuCommand).toHaveBeenCalledWith('export-json')
+        expect((window.appShell as unknown as {sendMenuCommand: ReturnType<typeof vi.fn>}).sendMenuCommand).toHaveBeenCalledWith('export-json')
     })
 
     it('runs integrity checks from settings', async () => {
