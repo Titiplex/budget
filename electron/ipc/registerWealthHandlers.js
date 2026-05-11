@@ -30,10 +30,17 @@ const {
 
 function registerWealthHandlers(prisma = getPrisma(), {
     auditLog = createAuditLogService({prisma}),
-    recoverySnapshots = createRecoverySnapshotService({app, auditLog}),
+    recoverySnapshots = null,
 } = {}) {
+    let lazyRecoverySnapshots = recoverySnapshots
+
+    function getRecoverySnapshots() {
+        if (!lazyRecoverySnapshots) lazyRecoverySnapshots = createRecoverySnapshotService({app, auditLog})
+        return lazyRecoverySnapshots
+    }
+
     async function snapshotBefore(operationType, reason, source) {
-        return createDatabaseRecoverySnapshot({prisma, recoverySnapshots, operationType, reason, source})
+        return createDatabaseRecoverySnapshot({prisma, recoverySnapshots: getRecoverySnapshots(), operationType, reason, source})
     }
 
     ipcMain.handle('db:asset:list', async (_event, filters) => listAssets(prisma, filters))
