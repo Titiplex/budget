@@ -4,6 +4,12 @@ import {
     parseBudgetBackupWithGoals,
     type BudgetBackupWithGoalsSnapshot,
 } from './goalsJsonBackup'
+import {
+    verifyBackupIntegrityManifest,
+    withBackupIntegrityManifest,
+    type BackupIntegrityManifest,
+    type BackupIntegrityVerification,
+} from './backupIntegrity'
 import type {ImportEntityId, ImportMappingTemplate} from '../types/imports'
 
 export const IMPORT_BACKUP_FORMAT_VERSION = 6
@@ -60,6 +66,8 @@ export interface BudgetBackupImportData {
 
 export type BudgetBackupWithImportDataSnapshot = Omit<BudgetBackupWithGoalsSnapshot, 'version' | 'data'> & {
     version: typeof IMPORT_BACKUP_FORMAT_VERSION
+    integrity?: BackupIntegrityManifest
+    integrityVerification?: BackupIntegrityVerification
     data: BudgetBackupWithGoalsSnapshot['data'] & {
         importBackup: BudgetBackupImportData
     }
@@ -115,36 +123,39 @@ function requireArray(value: unknown, path: string): unknown[] {
     return value
 }
 
+function stringArray(value: unknown, path: string): string[] {
+    return requireArray(value ?? [], path).map((item, index) => {
+        if (typeof item !== 'string') fail(`${path}[${index}] doit être une chaîne de caractères.`)
+        return item
+    })
+}
+
 function requireString(value: unknown, path: string): string {
     if (typeof value !== 'string') fail(`${path} doit être une chaîne de caractères.`)
     return value
 }
 
-function requireNonEmptyString(value: unknown, path: string): string {
+function nonEmptyString(value: unknown, path: string): string {
     const normalized = requireString(value, path).trim()
     if (!normalized) fail(`${path} ne peut pas être vide.`)
     return normalized
 }
 
-function requireFiniteNumber(value: unknown, path: string) {
+function finiteNumber(value: unknown, path: string) {
     if (typeof value !== 'number' || !Number.isFinite(value)) fail(`${path} doit être un nombre fini.`)
     return value
 }
 
-function optionalNullableString(record: Record<string, unknown>, key: string, path: string): string | null {
-    if (!(key in record) || record[key] == null) return null
-    return requireString(record[key], `${path}.${key}`)
+function optionalString(record: Record<string, unknown>, key: string): string | null {
+    const value = record[key]
+    if (value == null) return null
+    return requireString(value, key)
 }
 
 function optionalIso(record: Record<string, unknown>, key: string, path: string): string | null {
-    const value = optionalNullableString(record, key, path)
+    const value = optionalString(record, key)
     if (!value) return null
     if (Number.isNaN(Date.parse(value))) fail(`${path}.${key} doit être une date valide.`)
-    return value
-}
-
-function requireBoolean(value: unknown, path: string): boolean {
-    if (typeof value !== 'boolean') fail(`${path} doit être un booléen.`)
     return value
 }
 
@@ -161,7 +172,7 @@ function isUserMappingTemplate(template: unknown): template is ImportMappingTemp
 function normalizeTemplate(value: unknown, index: number): ImportMappingTemplate {
     const path = `data.importBackup.mappingTemplates[${index}]`
     const template = requireRecord(value, path)
-    const id = requireNonEmptyString(template.id, `${path}.id`)
+    const id = nonEmptyString(template.id, `${path}.id`)
     if (id.startsWith('system:')) fail(`${path}.id ne doit pas référencer un template système.`)
     const columnMappings = requireArray(template.columnMappings, `${path}.columnMappings`)
     if (!columnMappings.length) fail(`${path}.columnMappings doit contenir au moins un mapping.`)
@@ -169,9 +180,9 @@ function normalizeTemplate(value: unknown, index: number): ImportMappingTemplate
     return clone({
         ...template,
         id,
-        name: requireNonEmptyString(template.name, `${path}.name`),
-        sourceType: requireNonEmptyString(template.sourceType, `${path}.sourceType`),
-        importType: requireNonEmptyString(template.importType, `${path}.importType`),
+        name: nonEmptyString(template.name, `${path}.name`),
+        sourceType: nonEmptyString(template.sourceType, `${path}.sourceType`),
+        importType: nonEmptyString(template.importType, `${path}.importType`),
         provider: typeof template.provider === 'string' ? template.provider : null,
         columnMappings,
         isSystem: false,
@@ -182,21 +193,20 @@ function normalizeTemplate(value: unknown, index: number): ImportMappingTemplate
 function normalizeBatch(value: unknown, index: number): BudgetBackupImportBatch {
     const path = `data.importBackup.importHistory[${index}]`
     const batch = requireRecord(value, path)
-    const id = requireNonEmptyString(batch.id, `${path}.id`)
-    const rowCount = requireFiniteNumber(batch.rowCount, `${path}.rowCount`)
-    const errorCount = requireFiniteNumber(batch.errorCount, `${path}.errorCount`)
-    const duplicateCount = requireFiniteNumber(batch.duplicateCount, `${path}.duplicateCount`)
+    const rowCount = finiteNumber(batch.rowCount, `${path}.rowCount`)
+    const errorCount = finiteNumber(batch.errorCount, `${path}.errorCount`)
+    const duplicateCount = finiteNumber(batch.duplicateCount, `${path}.duplicateCount`)
     if (rowCount < 0 || errorCount < 0 || duplicateCount < 0) fail(`${path} contient des compteurs négatifs.`)
 
     return {
-        id,
-        status: requireNonEmptyString(batch.status, `${path}.status`),
-        importType: requireNonEmptyString(batch.importType, `${path}.importType`),
-        provider: optionalNullableString(batch, 'provider', path),
-        source: optionalNullableString(batch, 'source', path),
-        fileName: optionalNullableString(batch, 'fileName', path),
-        fileHash: optionalNullableString(batch, 'fileHash', path),
-        defaultCurrency: optionalNullableString(batch, 'defaultCurrency', path),
+        id: nonEmptyString(batch.id, `${path}.id`),
+        status: nonEmptyString(batch.status, `${path}.status`),
+        importType: nonEmptyString(batch.importType, `${path}.importType`),
+        provider: optionalString(batch, 'provider'),
+        source: optionalString(batch, 'source'),
+        fileName: optionalString(batch, 'fileName'),
+        fileHash: optionalString(batch, 'fileHash'),
+        defaultCurrency: optionalString(batch, 'defaultCurrency'),
         rowCount,
         errorCount,
         warningCount: typeof batch.warningCount === 'number' ? batch.warningCount : 0,
@@ -226,35 +236,21 @@ function normalizeImportBackup(value: unknown): BudgetBackupImportData {
     const documentation = requireRecord(root.documentation ?? EMPTY_IMPORT_BACKUP.documentation, 'data.importBackup.documentation')
 
     if (root.schemaVersion !== 1) fail('data.importBackup.schemaVersion doit valoir 1.')
-    if (metadata.auditOnlyRestore != null && requireBoolean(metadata.auditOnlyRestore, 'data.importBackup.metadata.auditOnlyRestore') !== true) {
-        fail('data.importBackup.metadata.auditOnlyRestore doit rester true.')
-    }
-    if (metadata.financialDataNotRestoredFromImportHistory != null && requireBoolean(metadata.financialDataNotRestoredFromImportHistory, 'data.importBackup.metadata.financialDataNotRestoredFromImportHistory') !== true) {
-        fail('data.importBackup.metadata.financialDataNotRestoredFromImportHistory doit rester true.')
-    }
+    if (metadata.auditOnlyRestore != null && metadata.auditOnlyRestore !== true) fail('data.importBackup.metadata.auditOnlyRestore doit rester true.')
+    if (metadata.financialDataNotRestoredFromImportHistory != null && metadata.financialDataNotRestoredFromImportHistory !== true) fail('data.importBackup.metadata.financialDataNotRestoredFromImportHistory doit rester true.')
 
     const mappingTemplates = requireArray(root.mappingTemplates ?? [], 'data.importBackup.mappingTemplates').map(normalizeTemplate)
     const importHistory = requireArray(root.importHistory ?? [], 'data.importBackup.importHistory').map(normalizeBatch)
-    const templateIds = new Set<string>()
-    for (const template of mappingTemplates) {
-        if (templateIds.has(String(template.id))) fail(`data.importBackup.mappingTemplates contient un id dupliqué (${template.id}).`)
-        templateIds.add(String(template.id))
-    }
-    const batchIds = new Set<string>()
-    for (const batch of importHistory) {
-        if (batchIds.has(String(batch.id))) fail(`data.importBackup.importHistory contient un id dupliqué (${batch.id}).`)
-        batchIds.add(String(batch.id))
-    }
 
     return {
         schemaVersion: 1,
         documentation: {
-            included: requireArray(documentation.included ?? EMPTY_IMPORT_BACKUP.documentation.included, 'data.importBackup.documentation.included').map((item, index) => requireString(item, `data.importBackup.documentation.included[${index}]`)),
-            excluded: requireArray(documentation.excluded ?? EMPTY_IMPORT_BACKUP.documentation.excluded, 'data.importBackup.documentation.excluded').map((item, index) => requireString(item, `data.importBackup.documentation.excluded[${index}]`)),
-            notes: requireArray(documentation.notes ?? EMPTY_IMPORT_BACKUP.documentation.notes, 'data.importBackup.documentation.notes').map((item, index) => requireString(item, `data.importBackup.documentation.notes[${index}]`)),
+            included: stringArray(documentation.included ?? EMPTY_IMPORT_BACKUP.documentation.included, 'data.importBackup.documentation.included'),
+            excluded: stringArray(documentation.excluded ?? EMPTY_IMPORT_BACKUP.documentation.excluded, 'data.importBackup.documentation.excluded'),
+            notes: stringArray(documentation.notes ?? EMPTY_IMPORT_BACKUP.documentation.notes, 'data.importBackup.documentation.notes'),
         },
         mappingTemplates,
-        importSources: requireArray(root.importSources ?? [], 'data.importBackup.importSources').map((item, index) => requireString(item, `data.importBackup.importSources[${index}]`)),
+        importSources: stringArray(root.importSources ?? [], 'data.importBackup.importSources'),
         importHistory,
         metadata: {
             exportedAt: optionalIso(metadata, 'exportedAt', 'data.importBackup.metadata') || new Date(0).toISOString(),
@@ -273,11 +269,12 @@ function parseRoot(content: string) {
     }
     const root = requireRecord(parsed, 'backup')
     if (root.kind !== BUDGET_BACKUP_KIND) fail('Le fichier JSON ne correspond pas à un backup budget valide.')
-    const version = requireFiniteNumber(root.version, 'version')
+    const version = finiteNumber(root.version, 'version')
     if (!Number.isInteger(version) || !(SUPPORTED_IMPORT_BACKUP_VERSIONS as readonly number[]).includes(version)) {
         fail(`Version de backup JSON non supportée (${version}). Versions supportées : ${SUPPORTED_IMPORT_BACKUP_VERSIONS.join(', ')}.`)
     }
-    return {root, version}
+    const integrityVerification = verifyBackupIntegrityManifest(root)
+    return {root, version, integrityVerification}
 }
 
 function goalsCompatibleContent(root: Record<string, unknown>, version: number) {
@@ -323,11 +320,11 @@ export function createBudgetBackupSnapshotWithImportData(
 }
 
 export function serializeBudgetBackupWithImportData(snapshot: BudgetBackupWithImportDataSnapshot) {
-    return `${JSON.stringify(snapshot, null, 2)}\n`
+    return `${JSON.stringify(withBackupIntegrityManifest(snapshot as unknown as Record<string, unknown>), null, 2)}\n`
 }
 
 export function parseBudgetBackupWithImportData(content: string): BudgetBackupWithImportDataSnapshot {
-    const {root, version} = parseRoot(content)
+    const {root, version, integrityVerification} = parseRoot(content)
     const goalsSnapshot = parseBudgetBackupWithGoals(goalsCompatibleContent(root, version))
     const data = requireRecord(root.data, 'data')
     const importBackup = version >= IMPORT_BACKUP_FORMAT_VERSION ? normalizeImportBackup(data.importBackup) : clone(EMPTY_IMPORT_BACKUP)
@@ -335,6 +332,8 @@ export function parseBudgetBackupWithImportData(content: string): BudgetBackupWi
     return {
         ...goalsSnapshot,
         version: IMPORT_BACKUP_FORMAT_VERSION,
+        integrity: isRecord(root.integrity) ? root.integrity as unknown as BackupIntegrityManifest : undefined,
+        integrityVerification,
         data: {
             ...goalsSnapshot.data,
             importBackup,

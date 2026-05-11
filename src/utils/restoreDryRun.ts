@@ -1,5 +1,6 @@
 import type {BudgetBackupSnapshot, BudgetBackupTransaction} from '../types/budget'
 import type {BudgetBackupWithImportDataSnapshot} from './importJsonBackup'
+import type {BackupIntegrityVerification} from './backupIntegrity'
 
 export interface RestoreDryRunReport {
     ok: boolean
@@ -9,6 +10,7 @@ export interface RestoreDryRunReport {
         version: number
         exportedAt: string | null
     }
+    integrity: BackupIntegrityVerification | null
     counts: {
         accounts: number
         categories: number
@@ -133,6 +135,25 @@ function validateRoot(snapshot: BudgetBackupWithImportDataSnapshot, errors: stri
     if (!snapshot.exportedAt || Number.isNaN(Date.parse(snapshot.exportedAt))) {
         errors.push('Le backup doit contenir une date exportedAt valide.')
     }
+}
+
+function validateIntegrity(snapshot: BudgetBackupWithImportDataSnapshot, errors: string[], warnings: string[]) {
+    const integrity = snapshot.integrityVerification || null
+    if (!integrity) {
+        warnings.push('Statut d’intégrité indisponible : le backup a été chargé par un ancien parseur.')
+        return null
+    }
+
+    for (const warning of integrity.warnings) warnings.push(`Intégrité backup : ${warning}`)
+    for (const error of integrity.errors) errors.push(`Intégrité backup : ${error}`)
+
+    if (integrity.status === 'valid') {
+        warnings.push('Intégrité backup vérifiée : manifeste et checksums valides.')
+    } else if (integrity.status === 'legacy') {
+        warnings.push('Intégrité backup non vérifiable : backup legacy sans manifeste, restauration autorisée par compatibilité.')
+    }
+
+    return integrity
 }
 
 function validateAccounts(snapshot: BudgetBackupSnapshot, errors: string[], warnings: string[]) {
@@ -333,6 +354,7 @@ export function createRestoreDryRunReport(
     const legacySnapshot = snapshot as unknown as BudgetBackupSnapshot
 
     validateRoot(snapshot, blockingErrors)
+    const integrity = validateIntegrity(snapshot, blockingErrors, warnings)
     validateRequiredSections(legacySnapshot, blockingErrors)
 
     addDuplicateIdErrors(legacySnapshot.data.accounts, 'Comptes', blockingErrors)
@@ -366,6 +388,7 @@ export function createRestoreDryRunReport(
             version: snapshot.version,
             exportedAt: snapshot.exportedAt || null,
         },
+        integrity,
         counts: buildCounts(snapshot, current),
         ignoredItems: uniqueIgnoredItems,
         warnings: [
