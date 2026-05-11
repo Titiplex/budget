@@ -261,6 +261,9 @@ app.whenReady().then(() => {
         currentMenuLocale = normalizeMenuLocale(locale)
         Menu.setApplicationMenu(buildAppMenu(currentMenuLocale))
     })
+    ipcMain.on('app:menu-command', (_event, command) => {
+        if (typeof command === 'string') sendMenuCommand(command)
+    })
 
     registerDbHandlers()
     registerBudgetHandlers()
