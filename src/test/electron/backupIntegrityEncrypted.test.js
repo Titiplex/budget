@@ -1,4 +1,5 @@
 import {describe, expect, it} from 'vitest'
+import {withBackupIntegrityManifest} from '../../utils/backupIntegrity'
 import {parseBudgetBackupWithImportData} from '../../utils/importJsonBackup'
 import {createRestoreDryRunReport} from '../../utils/restoreDryRun'
 
@@ -7,7 +8,6 @@ function loadBackupEncryption() {
 }
 
 function backupJsonWithManifest() {
-    const {withBackupIntegrityManifest} = require('../../utils/backupIntegrity')
     return JSON.stringify(withBackupIntegrityManifest({
         kind: 'budget-backup',
         version: 6,
