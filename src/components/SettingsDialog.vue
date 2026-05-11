@@ -2,6 +2,7 @@
 import {useI18n} from 'vue-i18n'
 import FreshnessBadge from './provenance/FreshnessBadge.vue'
 import ProvenanceBadge from './provenance/ProvenanceBadge.vue'
+import RecoverySnapshotsPanel from './RecoverySnapshotsPanel.vue'
 import type {SupportedLocale} from '../i18n'
 
 const props = defineProps<{
@@ -14,6 +15,7 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'update-locale', value: SupportedLocale): void
   (e: 'update-theme', value: 'light' | 'dark'): void
+  (e: 'notice', type: 'success' | 'error', text: string): void
 }>()
 
 const {t} = useI18n()
@@ -25,7 +27,7 @@ const {t} = useI18n()
       class="dialog-backdrop"
       @click.self="emit('close')"
   >
-    <div class="dialog-card">
+    <div class="dialog-card max-h-[90vh] overflow-y-auto">
       <p class="soft-kicker">
         {{ t('settings.subtitle') }}
       </p>
@@ -60,6 +62,8 @@ const {t} = useI18n()
             <option value="dark">{{ t('settings.themeDark') }}</option>
           </select>
         </div>
+
+        <RecoverySnapshotsPanel @notice="(type, text) => emit('notice', type, text)" />
 
         <section class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60">
           <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
