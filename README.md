@@ -32,6 +32,7 @@ Le projet est construit avec :
 - **projections descriptives** : les calculs dépendent d’hypothèses visibles et ne sont pas des conseils financiers
 
 Le modèle de sécurité et de récupération local est documenté dans [`docs/security-model.md`](docs/security-model.md).
+Les tests, fixtures et limites de confiance sont documentés dans [`docs/security-trust-testing.md`](docs/security-trust-testing.md), avec une checklist release dédiée dans [`docs/release-security-checklist.md`](docs/release-security-checklist.md).
 
 ## Fonctionnalités
 
@@ -95,6 +96,20 @@ La documentation dédiée est disponible ici : [`docs/goals-projections.md`](doc
 Documentation dédiée : [`docs/import-pipeline.md`](docs/import-pipeline.md).
 
 Fichiers de démonstration : [`docs/demo/imports`](docs/demo/imports).
+
+### Sécurité et récupération locales
+
+- centre “Sécurité & récupération” dans les paramètres
+- backup JSON et backup chiffré par mot de passe
+- restore avec dry-run avant écriture
+- audit log exportable
+- vérification d’intégrité applicative
+- snapshots locaux avant actions critiques couvertes
+- stockage local de secrets exposé uniquement via métadonnées côté renderer
+
+Limites explicites : pas de cloud sync, pas d’authentification utilisateur intégrée, pas de récupération d’un mot de passe de backup chiffré perdu, et les snapshots locaux ne remplacent pas une sauvegarde externe.
+
+Documentation : [`docs/security-model.md`](docs/security-model.md), [`docs/security-trust-testing.md`](docs/security-trust-testing.md).
 
 ### Rapports
 
@@ -199,6 +214,12 @@ Tests ciblés import :
 npm run test:run -- src/test/electron/importPipelineFixtures.test.js src/test/electron/importWorkflowIpc.test.js src/test/utils/importCsvPresets.test.ts
 ````
 
+Tests ciblés sécurité/récupération :
+
+````shell
+npm run test:run -- src/test/electron/backupEncryption.test.js src/test/electron/secretStore.test.js src/test/electron/integrityCheckService.test.js src/test/electron/recoverySnapshotService.test.js src/test/electron/securityTrustFixtures.test.js src/test/utils/backupIntegrity.test.ts src/test/utils/provenance.test.ts src/test/utils/domainProvenance.test.ts src/test/components/securityRecoveryPanel.test.ts
+````
+
 ## Vérification TypeScript
 
 ````shell
@@ -226,6 +247,7 @@ npm run make
 ````
 
 Le process complet est documenté dans [`docs/release-flow.md`](docs/release-flow.md).
+La checklist sécurité/récupération avant release est dans [`docs/release-security-checklist.md`](docs/release-security-checklist.md).
 
 ## Notes base de données
 
