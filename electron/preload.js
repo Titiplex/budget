@@ -49,7 +49,7 @@ contextBridge.exposeInMainWorld('db', {
   taxProfile: {
     list: () => ipcRenderer.invoke('db:taxProfile:list'),
     create: (data) => ipcRenderer.invoke('db:taxProfile:create', data),
-    update: (id, data) => ipcRenderer.invoke('db:taxProfile:update', id),
+    update: (id, data) => ipcRenderer.invoke('db:taxProfile:update', id, data),
     delete: (id) => ipcRenderer.invoke('db:taxProfile:delete', id),
   },
   taxMetadata: {
