@@ -31,9 +31,6 @@ interface IntegrityCheckReportDto {
 
 declare global {
     interface Window {
-        appShell: Window['appShell'] & {
-            sendMenuCommand?: (command: string) => void
-        }
         integrityCheck?: {
             run: (input?: {
                 source?: string
