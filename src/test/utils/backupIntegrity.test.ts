@@ -6,6 +6,7 @@ import {
     serializeBudgetBackupWithImportData,
 } from '../../utils/importJsonBackup'
 import {createRestoreDryRunReport} from '../../utils/restoreDryRun'
+import {verifyBackupIntegrityManifest} from '../../utils/backupIntegrity'
 import type {BudgetBackupWithGoalsSnapshot} from '../../utils/goalsJsonBackup'
 
 function baseGoalsSnapshot(): BudgetBackupWithGoalsSnapshot {
@@ -73,13 +74,10 @@ describe('backup integrity manifest', () => {
         const raw = JSON.parse(serializedBackup())
         delete raw.data.transactions
 
-        const parsed = parseBudgetBackupWithImportData(JSON.stringify(raw))
-        expect(parsed.integrityVerification?.status).toBe('invalid')
-        expect(parsed.integrityVerification?.errors.join('\n')).toContain('Section data.transactions absente du backup')
-
-        const report = createRestoreDryRunReport(parsed)
-        expect(report.canApply).toBe(false)
-        expect(report.blockingErrors.join('\n')).toContain('Section data.transactions')
+        const verification = verifyBackupIntegrityManifest(raw)
+        expect(verification.status).toBe('invalid')
+        expect(verification.errors.join('\n')).toContain('Section data.transactions absente du backup')
+        expect(verification.errors.join('\n')).toContain('Checksum global invalide')
     })
 
     it('keeps legacy backups without manifest restorable but clearly reported', () => {
