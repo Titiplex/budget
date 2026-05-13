@@ -1,4 +1,10 @@
 const {app, BrowserWindow, ipcMain, Menu} = require('electron')
+
+if (require('electron-squirrel-startup')) {
+    app.quit()
+    return
+}
+
 const {updateElectronApp} = require('update-electron-app')
 const path = require('node:path')
 const {registerDbHandlers} = require('./ipc/registerDbHandlers')

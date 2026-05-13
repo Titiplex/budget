@@ -42,6 +42,7 @@ module.exports = {
                         certificatePassword: process.env.WIN_CERT_PASSWORD,
                     }
                     : {}),
+                setupExe: 'BudgetSetup.exe',
                 setupIcon: path.join(__dirname, 'assets', 'icons', 'app.ico'),
             },
         },
