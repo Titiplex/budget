@@ -1,4 +1,4 @@
-import type {BudgetBackupWithImportDataSnapshot} from '../../utils/importJsonBackup'
+import type {BudgetBackupImportData, BudgetBackupWithImportDataSnapshot} from '../../utils/importJsonBackup'
 
 export const FIXTURE_EXPORTED_AT = '2026-05-04T12:00:00.000Z'
 export const FIXTURE_IMPORTED_AT = '2026-05-03T10:00:00.000Z'
@@ -7,7 +7,7 @@ export function cloneFixture<T>(value: T): T {
     return JSON.parse(JSON.stringify(value))
 }
 
-export const emptyImportBackup = {
+export const emptyImportBackup: BudgetBackupImportData = {
     schemaVersion: 1,
     documentation: {
         included: [
