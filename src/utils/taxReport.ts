@@ -11,14 +11,19 @@ import type {
 import {toUtcDate} from './date'
 
 export type TaxReportTextValues = Record<string, string | number | null | undefined>
+export type TaxReportMarkdownTranslate = (key: string, values?: TaxReportTextValues) => string
+export type TaxFormSuggestion = string | {label: string; labelKey?: string}
 
 export interface LocalizedTaxReportItem extends TaxReportItem {
     explanationKey?: string
     explanationValues?: TaxReportTextValues
+    suggestedFormKeys?: (string | null)[]
 }
 
 export interface LocalizedTaxReportSection extends Omit<TaxReportSection, 'jurisdiction' | 'items'> {
     jurisdiction: string
+    jurisdictionLabelKey?: string
+    jurisdictionLabel?: string
     titleKey?: string
     items: LocalizedTaxReportItem[]
 }
@@ -46,6 +51,19 @@ export interface TaxResidenceOption {
     label: string
 }
 
+export interface TaxReportConfig {
+    residences: TaxResidenceOption[]
+    ruleSets: TaxJurisdictionRuleSet[]
+}
+
+export const TAX_DISCLAIMER_KEY = 'tax.disclaimer'
+
+export const DEFAULT_TAX_DISCLAIMER = [
+    "Ce rapport est une aide à l'inventaire fiscal, pas un conseil fiscal ni un calcul d'impôt.",
+    'Il signale les comptes, revenus, retenues, justificatifs et formulaires probables à vérifier.',
+    'Les seuils, conventions fiscales, crédits et cases exactes doivent être confirmés avec les administrations ou un professionnel.',
+].join(' ')
+
 export const SUPPORTED_TAX_RESIDENCES: TaxResidenceOption[] = [
     {
         country: 'FR',
@@ -70,12 +88,6 @@ export const SUPPORTED_TAX_RESIDENCES: TaxResidenceOption[] = [
     },
 ]
 
-const TAX_DISCLAIMER = [
-    "Ce rapport est une aide à l'inventaire fiscal, pas un conseil fiscal ni un calcul d'impôt.",
-    'Il signale les comptes, revenus, retenues, justificatifs et formulaires probables à vérifier.',
-    'Les seuils, conventions fiscales, crédits et cases exactes doivent être confirmés avec les administrations ou un professionnel.',
-].join(' ')
-
 function normalizeCode(value: string | null | undefined) {
     const trimmed = value?.trim().toUpperCase()
     return trimmed || null
@@ -87,12 +99,47 @@ export function taxResidenceKey(country: string | null | undefined, region?: str
     return normalizedRegion ? `${normalizedCountry}-${normalizedRegion}` : normalizedCountry
 }
 
-export function getTaxResidenceOption(country: string | null | undefined, region?: string | null) {
+function resolveResidences(source?: TaxResidenceOption[] | TaxReportConfig) {
+    if (!source) return SUPPORTED_TAX_RESIDENCES
+    return Array.isArray(source) ? source : source.residences
+}
+
+function resolveRuleSets(source?: TaxJurisdictionRuleSet[] | TaxReportConfig) {
+    if (!source) return TAX_JURISDICTION_RULESETS
+    return Array.isArray(source) ? source : source.ruleSets
+}
+
+export function createTaxReportConfig(overrides: Partial<TaxReportConfig> = {}): TaxReportConfig {
+    return {
+        residences: overrides.residences ?? SUPPORTED_TAX_RESIDENCES,
+        ruleSets: overrides.ruleSets ?? TAX_JURISDICTION_RULESETS,
+    }
+}
+
+export function extendTaxReportConfig(extension: Partial<TaxReportConfig> = {}): TaxReportConfig {
+    return {
+        residences: [
+            ...SUPPORTED_TAX_RESIDENCES,
+            ...(extension.residences ?? []),
+        ],
+        ruleSets: [
+            ...TAX_JURISDICTION_RULESETS,
+            ...(extension.ruleSets ?? []),
+        ],
+    }
+}
+
+export function getTaxResidenceOption(
+    country: string | null | undefined,
+    region?: string | null,
+    source?: TaxResidenceOption[] | TaxReportConfig,
+) {
+    const residences = resolveResidences(source)
     const key = taxResidenceKey(country, region)
-    const exact = SUPPORTED_TAX_RESIDENCES.find((option) => taxResidenceKey(option.country, option.region) === key)
+    const exact = residences.find((option) => taxResidenceKey(option.country, option.region) === key)
     if (exact) return exact
 
-    return SUPPORTED_TAX_RESIDENCES.find((option) => option.country === normalizeCode(country) && option.region === null) || null
+    return residences.find((option) => option.country === normalizeCode(country) && option.region === null) || null
 }
 
 function profileMatches(profile: TaxProfile, country: string, region?: string | null) {
@@ -173,6 +220,39 @@ function section(
     }
 }
 
+function formLabel(form: TaxFormSuggestion) {
+    return typeof form === 'string' ? form : form.label
+}
+
+function formLabelKey(form: TaxFormSuggestion) {
+    return typeof form === 'string' ? null : form.labelKey ?? null
+}
+
+function form(label: string, labelKey?: string): TaxFormSuggestion {
+    return labelKey ? {label, labelKey} : label
+}
+
+const TAX_FORMS = {
+    accountProfile: form('profil compte', 'tax.report.forms.accountProfile'),
+    taxCategory: form('catégorie fiscale', 'tax.report.forms.taxCategory'),
+    taxTreatment: form('traitement fiscal', 'tax.report.forms.taxTreatment'),
+    foreignSource2047: form('2047 si source étrangère', 'tax.report.forms.foreignSource2047'),
+    withholdingProof: form('justificatif de retenue', 'tax.report.forms.withholdingProof'),
+    supportingDocument: form('justificatif', 'tax.report.forms.supportingDocument'),
+    form2042Depending: form('2042 selon cas', 'tax.report.forms.form2042Depending'),
+    formT1Depending: form('T1 selon cas', 'tax.report.forms.formT1Depending'),
+    formTp1Depending: form('TP-1 selon cas', 'tax.report.forms.formTp1Depending'),
+    applicableTaxTreaty: form('convention fiscale applicable', 'tax.report.forms.applicableTaxTreaty'),
+    taxSlips: form('feuillets fiscaux', 'tax.report.forms.taxSlips'),
+    applicableTaxSlip: form('feuillet fiscal applicable', 'tax.report.forms.applicableTaxSlip'),
+    t4t5Slip: form('feuillet T4/T5/autre', 'tax.report.forms.t4t5Slip'),
+    line40500: form('line 40500', 'tax.report.forms.line40500'),
+    line409: form('ligne 409', 'tax.report.forms.line409'),
+    line454: form('ligne 454', 'tax.report.forms.line454'),
+    quebecSchedulesByCategory: form('annexes Québec selon catégorie', 'tax.report.forms.quebecSchedulesByCategory'),
+    rlOrWithholdingProof: form('RL / justificatif de retenue', 'tax.report.forms.rlOrWithholdingProof'),
+}
+
 function item(options: {
     entityType: LocalizedTaxReportItem['entityType']
     entityId?: number
@@ -182,10 +262,24 @@ function item(options: {
     explanation: string
     explanationKey?: string
     explanationValues?: TaxReportTextValues
-    suggestedForms: string[]
+    suggestedForms: TaxFormSuggestion[]
     confidence: TaxReportConfidence
 }): LocalizedTaxReportItem {
-    return options
+    const suggestedFormKeys = options.suggestedForms.map(formLabelKey)
+
+    return {
+        entityType: options.entityType,
+        entityId: options.entityId,
+        label: options.label,
+        amount: options.amount,
+        currency: options.currency,
+        explanation: options.explanation,
+        explanationKey: options.explanationKey,
+        explanationValues: options.explanationValues,
+        suggestedForms: options.suggestedForms.map(formLabel),
+        suggestedFormKeys: suggestedFormKeys.some(Boolean) ? suggestedFormKeys : undefined,
+        confidence: options.confidence,
+    }
 }
 
 function missingAccountTaxMetadata(accounts: Account[]) {
@@ -197,7 +291,7 @@ function missingAccountTaxMetadata(accounts: Account[]) {
             label: account.name,
             explanation: 'Pays de détention du compte manquant. Renseigne au minimum le pays pour fiabiliser le rapport déclaratif.',
             explanationKey: 'tax.report.items.accountMissingMetadata',
-            suggestedForms: ['profil compte'],
+            suggestedForms: [TAX_FORMS.accountProfile],
             confidence: 'low',
         }))
 }
@@ -213,12 +307,12 @@ function incomeClassificationItems(incomeTransactions: Transaction[]) {
             currency: currencyOf(transaction),
             explanation: 'Revenu à qualifier fiscalement : catégorie, source ou traitement fiscal incomplet.',
             explanationKey: 'tax.report.items.incomeClassification',
-            suggestedForms: ['catégorie fiscale', 'traitement fiscal'],
+            suggestedForms: [TAX_FORMS.taxCategory, TAX_FORMS.taxTreatment],
             confidence: transaction.taxCategory ? 'medium' : 'low',
         }))
 }
 
-function taxableWithoutWithholdingItems(incomeTransactions: Transaction[], forms: string[]) {
+function taxableWithoutWithholdingItems(incomeTransactions: Transaction[], forms: TaxFormSuggestion[]) {
     return incomeTransactions
         .filter((transaction) => transaction.taxTreatment === 'TAXABLE_NO_WITHHOLDING')
         .map((transaction) => item({
@@ -234,7 +328,7 @@ function taxableWithoutWithholdingItems(incomeTransactions: Transaction[], forms
         }))
 }
 
-function domesticWithholdingItems(incomeTransactions: Transaction[], residenceCountry: string, forms: string[]) {
+function domesticWithholdingItems(incomeTransactions: Transaction[], residenceCountry: string, forms: TaxFormSuggestion[]) {
     return incomeTransactions
         .filter((transaction) => transaction.taxTreatment === 'TAX_WITHHELD_AT_SOURCE' || hasDomesticTaxWithheld(transaction, residenceCountry))
         .map((transaction) => item({
@@ -250,7 +344,7 @@ function domesticWithholdingItems(incomeTransactions: Transaction[], residenceCo
         }))
 }
 
-function nonTaxableItems(incomeTransactions: Transaction[], forms: string[]) {
+function nonTaxableItems(incomeTransactions: Transaction[], forms: TaxFormSuggestion[]) {
     return incomeTransactions
         .filter((transaction) => transaction.taxTreatment === 'NOT_TAXABLE')
         .map((transaction) => item({
@@ -266,7 +360,7 @@ function nonTaxableItems(incomeTransactions: Transaction[], forms: string[]) {
         }))
 }
 
-function treatyExemptionItems(incomeTransactions: Transaction[], forms: string[]) {
+function treatyExemptionItems(incomeTransactions: Transaction[], forms: TaxFormSuggestion[]) {
     return incomeTransactions
         .filter((transaction) => transaction.taxTreatment === 'TREATY_EXEMPT_CANDIDATE')
         .map((transaction) => item({
@@ -287,11 +381,11 @@ function incomeTreatmentSections(
     incomeTransactions: Transaction[],
     residenceCountry: string,
     forms: {
-        classification: string[]
-        taxable: string[]
-        withheld: string[]
-        nonTaxable: string[]
-        treaty: string[]
+        classification: TaxFormSuggestion[]
+        taxable: TaxFormSuggestion[]
+        withheld: TaxFormSuggestion[]
+        nonTaxable: TaxFormSuggestion[]
+        treaty: TaxFormSuggestion[]
     },
 ) {
     return [
@@ -355,11 +449,11 @@ function franceRules(context: TaxRuleContext) {
         section('FR', 'Revenus étrangers à vérifier', 'review', foreignIncome, 'tax.report.sections.foreignIncome'),
         section('FR', 'Impôt étranger retenu / crédit potentiel', 'warning', foreignTaxCredits, 'tax.report.sections.foreignTaxCredits'),
         ...incomeTreatmentSections('FR', incomeTransactions, 'FR', {
-            classification: ['2042', '2047 si source étrangère'],
-            taxable: ['2042', '2047 si source étrangère'],
-            withheld: ['2042', 'justificatif de retenue'],
-            nonTaxable: ['justificatif', '2042 selon cas'],
-            treaty: ['2047', 'convention fiscale applicable'],
+            classification: ['2042', TAX_FORMS.foreignSource2047],
+            taxable: ['2042', TAX_FORMS.foreignSource2047],
+            withheld: ['2042', TAX_FORMS.withholdingProof],
+            nonTaxable: [TAX_FORMS.supportingDocument, TAX_FORMS.form2042Depending],
+            treaty: ['2047', TAX_FORMS.applicableTaxTreaty],
         }),
     ].filter(Boolean) as LocalizedTaxReportSection[]
 }
@@ -391,7 +485,7 @@ function canadaFederalRules(context: TaxRuleContext) {
             explanation: `Revenu de source étrangère détecté (${transactionSourceCountry(transaction)}). À déclarer en dollars canadiens et à vérifier pour crédit fédéral d'impôt étranger si un impôt étranger a été payé.`,
             explanationKey: 'tax.report.items.canadaForeignIncome',
             explanationValues: {country: transactionSourceCountry(transaction)},
-            suggestedForms: ['T1', 'T2209', 'line 40500'],
+            suggestedForms: ['T1', 'T2209', TAX_FORMS.line40500],
             confidence: transaction.taxSourceCountry ? 'high' : 'medium',
         }))
 
@@ -406,7 +500,7 @@ function canadaFederalRules(context: TaxRuleContext) {
             explanation: `Impôt retenu hors Canada (${transaction.taxWithheldCountry || transactionSourceCountry(transaction) || 'juridiction inconnue'}). Crédit fédéral d'impôt étranger potentiel à vérifier.`,
             explanationKey: 'tax.report.items.foreignTaxCredit',
             explanationValues: {country: transaction.taxWithheldCountry || transactionSourceCountry(transaction) || '—'},
-            suggestedForms: ['T2209', 'line 40500'],
+            suggestedForms: ['T2209', TAX_FORMS.line40500],
             confidence: transaction.taxWithheldAmount ? 'high' : 'medium',
         }))
 
@@ -416,11 +510,11 @@ function canadaFederalRules(context: TaxRuleContext) {
         section('CA', 'Revenus étrangers fédéraux à vérifier', 'review', foreignIncome, 'tax.report.sections.caForeignIncome'),
         section('CA', "Crédit fédéral d'impôt étranger potentiel", 'warning', foreignTaxCredits, 'tax.report.sections.caForeignTaxCredits'),
         ...incomeTreatmentSections('CA', incomeTransactions, 'CA', {
-            classification: ['T1', 'feuillets fiscaux'],
-            taxable: ['T1', 'feuillet fiscal applicable'],
-            withheld: ['T1', 'feuillet T4/T5/autre'],
-            nonTaxable: ['justificatif', 'T1 selon cas'],
-            treaty: ['T1', 'T2209', 'convention fiscale applicable'],
+            classification: ['T1', TAX_FORMS.taxSlips],
+            taxable: ['T1', TAX_FORMS.applicableTaxSlip],
+            withheld: ['T1', TAX_FORMS.t4t5Slip],
+            nonTaxable: [TAX_FORMS.supportingDocument, TAX_FORMS.formT1Depending],
+            treaty: ['T1', 'T2209', TAX_FORMS.applicableTaxTreaty],
         }),
     ].filter(Boolean) as LocalizedTaxReportSection[]
 }
@@ -470,7 +564,7 @@ function quebecRules(context: TaxRuleContext) {
             explanation: `Impôt retenu hors Québec (${transaction.taxWithheldCountry || 'juridiction inconnue'}). Crédit Québec ou transfert d'impôt d'une autre province potentiellement applicable.`,
             explanationKey: 'tax.report.items.quebecOutsideTax',
             explanationValues: {country: transaction.taxWithheldCountry || '—'},
-            suggestedForms: ['TP-772-V', 'ligne 409', 'ligne 454'],
+            suggestedForms: ['TP-772-V', TAX_FORMS.line409, TAX_FORMS.line454],
             confidence: 'medium',
         }))
 
@@ -478,11 +572,11 @@ function quebecRules(context: TaxRuleContext) {
         section('QC', 'Revenus hors Québec à vérifier', 'review', outsideQuebecIncome, 'tax.report.sections.qcOutsideIncome'),
         section('QC', "Crédit Québec ou transfert d'impôt potentiel", 'warning', outsideQuebecTaxWithheld, 'tax.report.sections.qcOutsideTax'),
         ...incomeTreatmentSections('QC', incomeTransactions, 'CA', {
-            classification: ['TP-1', 'annexes Québec selon catégorie'],
+            classification: ['TP-1', TAX_FORMS.quebecSchedulesByCategory],
             taxable: ['TP-1'],
-            withheld: ['TP-1', 'RL / justificatif de retenue'],
-            nonTaxable: ['justificatif', 'TP-1 selon cas'],
-            treaty: ['TP-1', 'convention fiscale applicable'],
+            withheld: ['TP-1', TAX_FORMS.rlOrWithholdingProof],
+            nonTaxable: [TAX_FORMS.supportingDocument, TAX_FORMS.formTp1Depending],
+            treaty: ['TP-1', TAX_FORMS.applicableTaxTreaty],
         }),
     ].filter(Boolean) as LocalizedTaxReportSection[]
 }
@@ -511,59 +605,125 @@ export const TAX_JURISDICTION_RULESETS: TaxJurisdictionRuleSet[] = [
     },
 ]
 
+export const DEFAULT_TAX_REPORT_CONFIG: TaxReportConfig = createTaxReportConfig()
+
 export function getApplicableTaxRuleSets(
     profile: TaxProfile,
-    ruleSets: TaxJurisdictionRuleSet[] = TAX_JURISDICTION_RULESETS,
+    source?: TaxJurisdictionRuleSet[] | TaxReportConfig,
 ) {
-    return ruleSets.filter((ruleSet) => ruleSet.appliesTo(profile))
+    return resolveRuleSets(source).filter((ruleSet) => ruleSet.appliesTo(profile))
 }
 
 export function buildTaxReport(
     profile: TaxProfile,
     accounts: Account[],
     transactions: Transaction[],
-    ruleSets: TaxJurisdictionRuleSet[] = TAX_JURISDICTION_RULESETS,
+    source?: TaxJurisdictionRuleSet[] | TaxReportConfig,
 ): TaxReport {
     const incomeTransactions = transactions.filter((transaction) => isIncomeInProfileYear(transaction, profile))
     const context: TaxRuleContext = {profile, accounts, transactions, incomeTransactions}
-    const sections = getApplicableTaxRuleSets(profile, ruleSets)
-        .flatMap((ruleSet) => ruleSet.buildSections(context))
+    const sections = getApplicableTaxRuleSets(profile, source)
+        .flatMap((ruleSet) => ruleSet.buildSections(context).map((builtSection) => ({
+            ...builtSection,
+            jurisdictionLabelKey: builtSection.jurisdictionLabelKey ?? ruleSet.labelKey,
+            jurisdictionLabel: builtSection.jurisdictionLabel ?? ruleSet.label,
+        })))
 
     return {
         profile,
         generatedAt: new Date().toISOString(),
         sections: sections as TaxReportSection[],
-        disclaimer: TAX_DISCLAIMER,
+        disclaimer: DEFAULT_TAX_DISCLAIMER,
     }
 }
 
-export function taxReportToMarkdown(report: TaxReport) {
+function interpolate(template: string, values?: TaxReportTextValues) {
+    if (!values) return template
+    return template.replace(/\{(\w+)}/g, (match, key) => {
+        const value = values[key]
+        return value == null ? match : String(value)
+    })
+}
+
+function translateOrFallback(
+    translate: TaxReportMarkdownTranslate | undefined,
+    key: string,
+    fallback: string,
+    values?: TaxReportTextValues,
+) {
+    const translated = translate?.(key, values)
+    if (translated && translated !== key) return translated
+    return interpolate(fallback, values)
+}
+
+export interface TaxReportMarkdownOptions {
+    translate?: TaxReportMarkdownTranslate
+    residenceLabel?: (profile: TaxProfile) => string
+    jurisdictionLabel?: (section: LocalizedTaxReportSection) => string
+}
+
+function sectionTitle(section: LocalizedTaxReportSection, options?: TaxReportMarkdownOptions) {
+    return section.titleKey
+        ? translateOrFallback(options?.translate, section.titleKey, section.title)
+        : section.title
+}
+
+function sectionJurisdictionLabel(section: LocalizedTaxReportSection, options?: TaxReportMarkdownOptions) {
+    if (options?.jurisdictionLabel) return options.jurisdictionLabel(section)
+    return section.jurisdictionLabelKey
+        ? translateOrFallback(options?.translate, section.jurisdictionLabelKey, section.jurisdictionLabel || section.jurisdiction)
+        : section.jurisdictionLabel || section.jurisdiction
+}
+
+function itemExplanation(item: LocalizedTaxReportItem, options?: TaxReportMarkdownOptions) {
+    return item.explanationKey
+        ? translateOrFallback(options?.translate, item.explanationKey, item.explanation, item.explanationValues)
+        : item.explanation
+}
+
+function suggestedForms(item: LocalizedTaxReportItem, options?: TaxReportMarkdownOptions) {
+    return item.suggestedForms
+        .map((fallback, index) => {
+            const key = item.suggestedFormKeys?.[index]
+            return key ? translateOrFallback(options?.translate, key, fallback) : fallback
+        })
+        .join(', ')
+}
+
+export function taxReportToMarkdown(report: TaxReport, options: TaxReportMarkdownOptions = {}) {
+    const residenceCode = `${report.profile.residenceCountry}${report.profile.residenceRegion ? `-${report.profile.residenceRegion}` : ''}`
+    const residence = options.residenceLabel?.(report.profile) || residenceCode
+    const fieldSeparator = translateOrFallback(options.translate, 'tax.markdown.fieldSeparator', ' :')
     const lines = [
-        `# Rapport fiscal ${report.profile.year}`,
+        `# ${translateOrFallback(options.translate, 'tax.markdown.title', 'Rapport fiscal {year}', {year: report.profile.year})}`,
         '',
-        `Résidence fiscale : ${report.profile.residenceCountry}${report.profile.residenceRegion ? `-${report.profile.residenceRegion}` : ''}`,
-        `Devise de déclaration : ${report.profile.currency}`,
+        `${translateOrFallback(options.translate, 'tax.markdown.residence', 'Résidence fiscale')}${fieldSeparator} ${residence}`,
+        `${translateOrFallback(options.translate, 'tax.markdown.currency', 'Devise de déclaration')}${fieldSeparator} ${report.profile.currency}`,
         '',
-        `> ${report.disclaimer}`,
+        `> ${translateOrFallback(options.translate, TAX_DISCLAIMER_KEY, report.disclaimer)}`,
         '',
     ]
 
     if (!report.sections.length) {
-        lines.push('Aucun signal fiscal détecté avec les règles actuellement configurées.', '')
+        lines.push(translateOrFallback(
+            options.translate,
+            'tax.markdown.noSignal',
+            'Aucun signal fiscal détecté avec les règles actuellement configurées.',
+        ), '')
         return `${lines.join('\n')}\n`
     }
 
-    for (const section of report.sections) {
-        lines.push(`## [${section.jurisdiction}] ${section.title}`)
-        lines.push(`Sévérité : ${section.severity}`)
+    for (const section of report.sections as LocalizedTaxReportSection[]) {
+        lines.push(`## [${sectionJurisdictionLabel(section, options)}] ${sectionTitle(section, options)}`)
+        lines.push(`${translateOrFallback(options.translate, 'tax.markdown.severity', 'Sévérité')} : ${translateOrFallback(options.translate, `tax.severity.${section.severity}`, section.severity)}`)
         lines.push('')
 
-        for (const item of section.items) {
-            const amount = item.amount == null ? '' : ` — ${item.amount.toFixed(2)} ${item.currency || report.profile.currency}`
-            lines.push(`- ${item.label}${amount}`)
-            lines.push(`  - ${item.explanation}`)
-            lines.push(`  - Formulaires / lignes à vérifier : ${item.suggestedForms.join(', ')}`)
-            lines.push(`  - Confiance : ${item.confidence}`)
+        for (const entry of section.items) {
+            const amount = entry.amount == null ? '' : ` — ${entry.amount.toFixed(2)} ${entry.currency || report.profile.currency}`
+            lines.push(`- ${entry.label}${amount}`)
+            lines.push(`  - ${itemExplanation(entry, options)}`)
+            lines.push(`  - ${translateOrFallback(options.translate, 'tax.markdown.formsToReview', 'Formulaires / lignes à vérifier')} : ${suggestedForms(entry, options)}`)
+            lines.push(`  - ${translateOrFallback(options.translate, 'tax.markdown.confidence', 'Confiance')} : ${translateOrFallback(options.translate, `tax.confidence.${entry.confidence}`, entry.confidence)}`)
         }
 
         lines.push('')
