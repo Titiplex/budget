@@ -1,4 +1,4 @@
 Date,Description,Amount,Currency,Account
 not-a-date,Broken date,-10.00,CAD,Chequing
-2026-05-12,Broken amount,abc,CAD,Chequing
+2026-05-12,Broken amount,,CAD,Chequing
 2026-05-13,Broken currency,-25.00,CAD$,Chequing
