@@ -172,7 +172,11 @@ jobs:
       - name: Install desktop E2E system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb libnss3 libxss1 libasound2 libgtk-3-0 libgbm1 libxshmfence1
+          AUDIO_PACKAGE=libasound2
+          if apt-cache show libasound2t64 >/dev/null 2>&1; then
+            AUDIO_PACKAGE=libasound2t64
+          fi
+          sudo apt-get install -y xvfb libnss3 libxss1 "$AUDIO_PACKAGE" libgtk-3-0 libgbm1 libxshmfence1
 
       - name: Run desktop E2E smoke tests
         shell: bash
