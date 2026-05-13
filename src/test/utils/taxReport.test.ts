@@ -2,8 +2,12 @@ import {describe, expect, it} from 'vitest'
 import type {Account, TaxProfile, Transaction} from '../../types/budget'
 import {
     buildTaxReport,
+    createTaxReportConfig,
+    extendTaxReportConfig,
     getApplicableTaxRuleSets,
     getTaxResidenceOption,
+    SUPPORTED_TAX_RESIDENCES,
+    type LocalizedTaxReportSection,
     type TaxJurisdictionRuleSet,
     taxReportToMarkdown,
 } from '../../utils/taxReport'
@@ -61,6 +65,17 @@ const quebecProfile: TaxProfile = {
     residenceCountry: 'CA',
     residenceRegion: 'QC',
     currency: 'CAD',
+}
+
+function translate(dictionary: Record<string, string>) {
+    return (key: string, values?: Record<string, string | number | null | undefined>) => {
+        const template = dictionary[key]
+        if (!template) return key
+        return template.replace(/\{(\w+)}/g, (match, token) => {
+            const value = values?.[token]
+            return value == null ? match : String(value)
+        })
+    }
 }
 
 describe('buildTaxReport', () => {
@@ -291,6 +306,7 @@ describe('buildTaxReport', () => {
 
         expect(report.sections).toHaveLength(1)
         expect(report.sections[0].jurisdiction).toBe('US-NY')
+        expect((report.sections[0] as LocalizedTaxReportSection).jurisdictionLabelKey).toBe('tax.jurisdictions.US_NY')
         expect(report.sections[0].items[0].suggestedForms).toEqual(['CUSTOM-1'])
     })
 })
@@ -301,6 +317,38 @@ describe('tax rule registry helpers', () => {
         expect(getApplicableTaxRuleSets(franceProfile).map((ruleSet) => ruleSet.jurisdiction)).toEqual(['FR'])
         expect(getTaxResidenceOption('CA', 'QC')?.labelKey).toBe('tax.residences.CA_QC')
         expect(getTaxResidenceOption('CA', 'ON')?.labelKey).toBe('tax.residences.CA')
+    })
+
+    it('allows custom residences and rule sets to be supplied as a tax report config', () => {
+        const usNyProfile: TaxProfile = {
+            id: 6,
+            year: 2026,
+            residenceCountry: 'US',
+            residenceRegion: 'NY',
+            currency: 'USD',
+        }
+        const usNyRuleSet: TaxJurisdictionRuleSet = {
+            jurisdiction: 'US-NY',
+            labelKey: 'tax.jurisdictions.US_NY',
+            label: 'New York',
+            appliesTo: (profile) => profile.residenceCountry === 'US' && profile.residenceRegion === 'NY',
+            buildSections: () => [],
+        }
+        const config = extendTaxReportConfig({
+            residences: [{
+                country: 'US',
+                region: 'NY',
+                currency: 'USD',
+                labelKey: 'tax.residences.US_NY',
+                label: 'United States · New York',
+            }],
+            ruleSets: [usNyRuleSet],
+        })
+
+        expect(getTaxResidenceOption('US', 'NY', config)?.labelKey).toBe('tax.residences.US_NY')
+        expect(getApplicableTaxRuleSets(usNyProfile, config).map((ruleSet) => ruleSet.jurisdiction)).toContain('US-NY')
+        expect(createTaxReportConfig({ruleSets: [usNyRuleSet]}).ruleSets).toEqual([usNyRuleSet])
+        expect(SUPPORTED_TAX_RESIDENCES.some((option) => option.country === 'US')).toBe(false)
     })
 })
 
@@ -324,5 +372,41 @@ describe('taxReportToMarkdown', () => {
         expect(markdown).toContain('Résidence fiscale : FR')
         expect(markdown).toContain('Aucun signal fiscal détecté')
         expect(markdown).not.toContain('Résidence fiscale : FR-')
+    })
+
+    it('serializes a localized English Markdown export when a translator is supplied', () => {
+        const report = buildTaxReport(franceProfile, [
+            account({id: 100, name: 'Banque Québec', institutionCountry: 'CA'}),
+        ], [
+            transaction({id: 101, label: 'Consulting', taxTreatment: 'TAXABLE_NO_WITHHOLDING'}),
+        ])
+        const markdown = taxReportToMarkdown(report, {
+            translate: translate({
+                'tax.markdown.title': 'Tax report {year}',
+                'tax.markdown.residence': 'Tax residence',
+                'tax.markdown.currency': 'Reporting currency',
+                'tax.markdown.fieldSeparator': ':',
+                'tax.markdown.severity': 'Severity',
+                'tax.markdown.formsToReview': 'Forms / lines to review',
+                'tax.markdown.confidence': 'Confidence',
+                'tax.disclaimer': 'This report helps inventory tax data.',
+                'tax.jurisdictions.FR': 'France',
+                'tax.report.sections.foreignAccounts': 'Potentially declarable foreign accounts',
+                'tax.report.sections.taxableIncomeNoWithholding': 'Taxable income without withholding',
+                'tax.report.items.franceForeignAccount': 'Account located outside France ({country}).',
+                'tax.report.items.taxableNoWithholding': 'Income is marked taxable without source withholding.',
+                'tax.report.forms.foreignSource2047': '2047 if foreign-source income',
+                'tax.severity.review': 'review',
+                'tax.severity.warning': 'warning',
+                'tax.confidence.high': 'high',
+            }),
+        })
+
+        expect(markdown).toContain('# Tax report 2026')
+        expect(markdown).toContain('Tax residence: FR')
+        expect(markdown).toContain('This report helps inventory tax data.')
+        expect(markdown).toContain('Potentially declarable foreign accounts')
+        expect(markdown).toContain('Forms / lines to review')
+        expect(markdown).toContain('2047 if foreign-source income')
     })
 })

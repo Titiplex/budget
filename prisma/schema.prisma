@@ -790,6 +790,25 @@ model ImportAppliedLink {
   @@index([appliedAt])
 }
 
+model AuditEvent {
+  id            Int      @id @default(autoincrement())
+  eventType     String
+  timestamp     DateTime @default(now())
+  domain        String
+  action        String
+  severity      String   @default("INFO")
+  summary       String
+  entityIdsJson String   @default("[]")
+  metadataJson  String?
+  source        String   @default("local")
+  status        String   @default("SUCCESS")
+
+  @@index([timestamp])
+  @@index([eventType])
+  @@index([severity])
+  @@index([domain])
+}
+
 enum ImportSourceType {
   MANUAL_FILE
   CSV_FILE

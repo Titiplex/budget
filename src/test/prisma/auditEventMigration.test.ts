@@ -7,6 +7,11 @@ const migrationPath = path.resolve(
     'prisma/migrations/20260510012000_add_audit_event/migration.sql',
 )
 
+const schemaPath = path.resolve(
+    process.cwd(),
+    'prisma/schema.prisma',
+)
+
 describe('AuditEvent migration', () => {
     it('creates the audit table with required local columns and indexes', () => {
         const sql = fs.readFileSync(migrationPath, 'utf8')
@@ -28,5 +33,21 @@ describe('AuditEvent migration', () => {
         expect(sql).toContain('CREATE INDEX "AuditEvent_eventType_idx"')
         expect(sql).toContain('CREATE INDEX "AuditEvent_severity_idx"')
         expect(sql).toContain('CREATE INDEX "AuditEvent_domain_idx"')
+    })
+
+    it('keeps AuditEvent in the Prisma schema for db push based E2E databases', () => {
+        const schema = fs.readFileSync(schemaPath, 'utf8')
+
+        expect(schema).toContain('model AuditEvent')
+        expect(schema).toContain('eventType     String')
+        expect(schema).toContain('timestamp     DateTime @default(now())')
+        expect(schema).toContain('domain        String')
+        expect(schema).toContain('action        String')
+        expect(schema).toContain('entityIdsJson String   @default("[]")')
+        expect(schema).toContain('metadataJson  String?')
+        expect(schema).toContain('@@index([timestamp])')
+        expect(schema).toContain('@@index([eventType])')
+        expect(schema).toContain('@@index([severity])')
+        expect(schema).toContain('@@index([domain])')
     })
 })

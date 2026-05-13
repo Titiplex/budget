@@ -20,6 +20,7 @@ import {
   SUPPORTED_TAX_RESIDENCES,
   taxReportToMarkdown,
   taxResidenceKey,
+  type LocalizedTaxReportItem,
 } from '../utils/taxReport'
 
 const props = defineProps<{
@@ -153,6 +154,15 @@ function sectionTitle(section: TaxReportSection) {
 
 function itemExplanation(item: TaxReportItem) {
   return item.explanationKey ? t(item.explanationKey, item.explanationValues ?? {}) : item.explanation
+}
+
+function suggestedForms(item: LocalizedTaxReportItem) {
+  return item.suggestedForms
+      .map((fallback, index) => {
+        const key = item.suggestedFormKeys?.[index]
+        return key ? t(key) : fallback
+      })
+      .join(', ')
 }
 
 function severityLabel(value: TaxReportSection['severity']) {
@@ -333,7 +343,10 @@ async function exportTaxReport() {
   const result = await window.file.saveText({
     title: t('tax.exportDialogTitle'),
     defaultPath: `budget-tax-report-${profile.year}-${profile.residenceCountry}${profile.residenceRegion ? `-${profile.residenceRegion}` : ''}.md`,
-    content: taxReportToMarkdown(taxReport.value),
+    content: taxReportToMarkdown(taxReport.value, {
+      translate: (key, values) => t(key, values ?? {}),
+      residenceLabel,
+    }),
     filters: [{name: 'Markdown', extensions: ['md']}],
   })
 
@@ -448,7 +461,7 @@ async function exportTaxReport() {
                 {{ itemExplanation(entry) }}
                 <br>
                 <span class="text-xs text-slate-500 dark:text-slate-400">
-                  {{ t('tax.report.verify') }} {{ entry.suggestedForms.join(', ') }} · {{ t('tax.report.confidence') }} {{ confidenceLabel(entry.confidence) }}
+                  {{ t('tax.report.verify') }} {{ suggestedForms(entry) }} · {{ t('tax.report.confidence') }} {{ confidenceLabel(entry.confidence) }}
                 </span>
               </li>
             </ul>

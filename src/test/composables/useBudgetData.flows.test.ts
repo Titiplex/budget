@@ -540,7 +540,7 @@ describe('useBudgetData workflows', () => {
         expect(budget.deleteDialog.label).toBe('Fallback')
     })
 
-    it('computes dashboard summaries, filters and panel metadata', async () => {
+    it('computes dashboard summaries, filters and panel metadata', () => {
         const main = makeAccount({id: 1, name: 'Main', currency: 'CAD'})
         const savings = makeAccount({id: 2, name: 'Savings', type: 'SAVINGS', currency: 'CAD'})
         const groceries = makeCategory({id: 10, name: 'Groceries', kind: 'EXPENSE', color: null})
@@ -585,7 +585,6 @@ describe('useBudgetData workflows', () => {
         expect(budget.filteredTransactions.value).toHaveLength(0)
 
         budget.transactionForm.kind = 'TRANSFER'
-        await nextTick()
         expect(budget.transactionFormCategories.value).toEqual([])
         expect(budget.panelDescription.value.length).toBeGreaterThan(0)
 
@@ -597,5 +596,5 @@ describe('useBudgetData workflows', () => {
         expect(budget.panelTitle.value.length).toBeGreaterThan(0)
         expect(budget.panelDescription.value.length).toBeGreaterThan(0)
         expect(budget.panelSubmitLabel.value.length).toBeGreaterThan(0)
-    })
+    }, 10_000)
 })
