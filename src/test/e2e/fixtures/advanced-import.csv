@@ -1,0 +1,5 @@
+Date,Description,Amount,Currency,Account
+2026-05-01,E2E Import Coffee,-4.50,CAD,E2E Main
+2026-05-01,E2E Import Coffee,-4.50,CAD,E2E Main
+bad-date,E2E Broken Row,abc,CAD,E2E Main
+2026-05-03,E2E Import Salary,1200.00,CAD,E2E Main
