@@ -1,0 +1,96 @@
+{
+  "kind": "budget-backup",
+  "version": 6,
+  "exportedAt": "2026-05-04T12:00:00.000Z",
+  "data": {
+    "accounts": [
+      {
+        "id": 1,
+        "name": "Compte courant",
+        "type": "BANK",
+        "currency": "CAD",
+        "description": "Fixture minimale",
+        "institutionCountry": "CA",
+        "institutionRegion": "QC",
+        "taxReportingType": "BANK",
+        "openedAt": "2025-01-01T00:00:00.000Z",
+        "closedAt": null
+      }
+    ],
+    "categories": [
+      {
+        "id": 1,
+        "name": "Salaire",
+        "kind": "INCOME",
+        "color": "#22c55e",
+        "description": null
+      },
+      {
+        "id": 2,
+        "name": "Épicerie",
+        "kind": "EXPENSE",
+        "color": "#f59e0b",
+        "description": null
+      }
+    ],
+    "budgetTargets": [],
+    "recurringTemplates": [],
+    "transactions": [
+      {
+        "id": 1,
+        "label": "Salaire mai",
+        "amount": 3200,
+        "sourceAmount": 3200,
+        "sourceCurrency": "CAD",
+        "conversionMode": "NONE",
+        "exchangeRate": 1,
+        "exchangeProvider": "ACCOUNT",
+        "exchangeDate": "2026-05-01",
+        "kind": "INCOME",
+        "date": "2026-05-01",
+        "note": null,
+        "taxCategory": "EMPLOYMENT",
+        "taxSourceCountry": "CA",
+        "taxSourceRegion": "QC",
+        "taxTreatment": "TAXABLE_NO_WITHHOLDING",
+        "taxWithheldAmount": null,
+        "taxWithheldCurrency": null,
+        "taxWithheldCountry": null,
+        "taxDocumentRef": null,
+        "accountId": 1,
+        "categoryId": 1,
+        "transferGroup": null,
+        "transferDirection": null,
+        "transferPeerAccountId": null
+      }
+    ],
+    "taxProfiles": [],
+    "financialGoals": [],
+    "projectionScenarios": [],
+    "projectionSettings": null,
+    "importBackup": {
+      "schemaVersion": 1,
+      "documentation": {
+        "included": [
+          "Templates de mapping utilisateur",
+          "Historique import audit-only"
+        ],
+        "excluded": [
+          "Connecteurs externes",
+          "Secrets"
+        ],
+        "notes": [
+          "Fixture déterministe"
+        ]
+      },
+      "mappingTemplates": [],
+      "importSources": [],
+      "importHistory": [],
+      "metadata": {
+        "exportedAt": "2026-05-04T12:00:00.000Z",
+        "auditOnlyRestore": true,
+        "financialDataNotRestoredFromImportHistory": true
+      }
+    }
+  }
+}
