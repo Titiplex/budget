@@ -1,0 +1,438 @@
+{
+  "key": "advanced-wealth-imports",
+  "name": "Advanced wealth and imports profile",
+  "description": "Multi-currency profile with portfolio, asset, liability, net worth snapshot, goals, projection assumptions and import CSV data.",
+  "fixedNow": "2026-05-01T12:00:00.000Z",
+  "accounts": [
+    {
+      "key": "account-main-chequing",
+      "name": "Main chequing",
+      "type": "BANK",
+      "currency": "CAD",
+      "description": "Deterministic local-first test account.",
+      "institutionCountry": "CA",
+      "institutionRegion": "QC",
+      "taxReportingType": "BANK",
+      "openedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "key": "account-usd-brokerage-cash",
+      "name": "USD brokerage cash",
+      "type": "INVESTMENT",
+      "currency": "USD",
+      "description": "USD account for manual conversion fixtures.",
+      "institutionCountry": "US",
+      "taxReportingType": "BROKERAGE",
+      "openedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "key": "account-tfsa-investment",
+      "name": "TFSA investment account",
+      "type": "INVESTMENT",
+      "currency": "CAD",
+      "description": "Linked to the portfolio fixture.",
+      "institutionCountry": "CA",
+      "institutionRegion": "QC",
+      "taxReportingType": "RETIREMENT",
+      "openedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "key": "account-credit-card",
+      "name": "Credit card",
+      "type": "CREDIT",
+      "currency": "CAD",
+      "description": "Linked to the liability fixture.",
+      "institutionCountry": "CA",
+      "institutionRegion": "QC",
+      "taxReportingType": "STANDARD",
+      "openedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "categories": [
+    {
+      "key": "category-salary",
+      "name": "Salary",
+      "kind": "INCOME",
+      "color": "#22c55e",
+      "description": "Stable category for grocery expenses."
+    },
+    {
+      "key": "category-dividends",
+      "name": "Dividends",
+      "kind": "INCOME",
+      "color": "#14b8a6",
+      "description": "Stable category for grocery expenses."
+    },
+    {
+      "key": "category-groceries",
+      "name": "Groceries",
+      "kind": "EXPENSE",
+      "color": "#f59e0b",
+      "description": "Stable category for grocery expenses."
+    },
+    {
+      "key": "category-fees",
+      "name": "Fees",
+      "kind": "EXPENSE",
+      "color": "#64748b",
+      "description": "Stable category for grocery expenses."
+    },
+    {
+      "key": "category-rent",
+      "name": "Rent",
+      "kind": "EXPENSE",
+      "color": "#ef4444",
+      "description": "Stable category for grocery expenses."
+    }
+  ],
+  "transactions": [
+    {
+      "key": "transaction-usd-dividend-2026-04-12",
+      "label": "USD dividend",
+      "amount": 68.5,
+      "sourceAmount": 50,
+      "sourceCurrency": "USD",
+      "conversionMode": "MANUAL",
+      "kind": "INCOME",
+      "date": "2026-04-12T00:00:00.000Z",
+      "note": "Manual FX fixture; no external rate lookup.",
+      "accountKey": "account-usd-brokerage-cash",
+      "categoryKey": "category-dividends",
+      "exchangeRate": 1.37,
+      "exchangeProvider": "fixture-manual-rate",
+      "exchangeDate": "2026-04-12T00:00:00.000Z"
+    },
+    {
+      "key": "transaction-investment-fee-2026-04-20",
+      "label": "Brokerage fee",
+      "amount": 9.99,
+      "sourceAmount": 9.99,
+      "sourceCurrency": "CAD",
+      "conversionMode": "NONE",
+      "kind": "EXPENSE",
+      "date": "2026-04-20T00:00:00.000Z",
+      "note": "Fixture transaction with a fixed date.",
+      "accountKey": "account-tfsa-investment",
+      "categoryKey": "category-fees"
+    }
+  ],
+  "transfers": [
+    {
+      "key": "transfer-chequing-to-tfsa-2026-04-18-out",
+      "label": "Transfer to emergency savings",
+      "amount": 500,
+      "sourceAmount": 500,
+      "sourceCurrency": "CAD",
+      "conversionMode": "NONE",
+      "kind": "TRANSFER",
+      "date": "2026-04-15T00:00:00.000Z",
+      "note": "Contribution transfer fixture.",
+      "accountKey": "account-main-chequing",
+      "transferGroup": "transfer-chequing-to-tfsa-2026-04-18",
+      "transferDirection": "OUT",
+      "transferPeerAccountKey": "account-tfsa-investment"
+    },
+    {
+      "key": "transfer-chequing-to-tfsa-2026-04-18-in",
+      "label": "Transfer from chequing",
+      "amount": 500,
+      "sourceAmount": 500,
+      "sourceCurrency": "CAD",
+      "conversionMode": "NONE",
+      "kind": "TRANSFER",
+      "date": "2026-04-15T00:00:00.000Z",
+      "note": "Contribution transfer fixture.",
+      "accountKey": "account-tfsa-investment",
+      "transferGroup": "transfer-chequing-to-tfsa-2026-04-18",
+      "transferDirection": "IN",
+      "transferPeerAccountKey": "account-main-chequing"
+    }
+  ],
+  "budgets": [
+    {
+      "key": "budget-groceries-april-2026",
+      "name": "Groceries monthly cap",
+      "amount": 450,
+      "period": "MONTHLY",
+      "startDate": "2026-04-01T00:00:00.000Z",
+      "endDate": null,
+      "currency": "CAD",
+      "isActive": true,
+      "note": "Stable monthly budget target for tests.",
+      "categoryKey": "category-groceries"
+    },
+    {
+      "key": "budget-fees-2026",
+      "name": "Investment fees yearly cap",
+      "amount": 150,
+      "period": "YEARLY",
+      "startDate": "2026-04-01T00:00:00.000Z",
+      "endDate": null,
+      "currency": "CAD",
+      "isActive": true,
+      "note": "Stable monthly budget target for tests.",
+      "categoryKey": "category-fees"
+    }
+  ],
+  "recurringTransactions": [
+    {
+      "key": "recurring-rent-2026",
+      "label": "Rent",
+      "sourceAmount": 1250,
+      "sourceCurrency": "CAD",
+      "accountAmount": 1250,
+      "conversionMode": "NONE",
+      "kind": "EXPENSE",
+      "note": "Fixed recurring fixture with a deterministic next occurrence.",
+      "frequency": "MONTHLY",
+      "intervalCount": 1,
+      "startDate": "2026-01-01T00:00:00.000Z",
+      "nextOccurrenceDate": "2026-05-01T00:00:00.000Z",
+      "endDate": null,
+      "isActive": true,
+      "accountKey": "account-main-chequing",
+      "categoryKey": "category-rent"
+    }
+  ],
+  "assets": [
+    {
+      "key": "asset-used-car",
+      "name": "Used car",
+      "type": "VEHICLE",
+      "status": "ACTIVE",
+      "currency": "CAD",
+      "valuationMode": "MANUAL",
+      "currentValue": 8500,
+      "includeInNetWorth": true,
+      "ownershipPercent": 100,
+      "acquisitionValue": 11000,
+      "acquiredAt": "2024-07-01T00:00:00.000Z",
+      "valueAsOf": "2026-04-30T00:00:00.000Z",
+      "note": "Manual valuation fixture."
+    }
+  ],
+  "portfolios": [
+    {
+      "key": "portfolio-tfsa-growth",
+      "name": "TFSA growth portfolio",
+      "type": "RETIREMENT",
+      "status": "ACTIVE",
+      "currency": "CAD",
+      "institutionName": "Demo Brokerage",
+      "institutionCountry": "CA",
+      "institutionRegion": "QC",
+      "taxWrapper": "TFSA",
+      "valuationMode": "MANUAL",
+      "currentValue": 12750,
+      "includeInNetWorth": true,
+      "ownershipPercent": 100,
+      "cashBalance": 250,
+      "valueAsOf": "2026-04-30T00:00:00.000Z",
+      "note": "Demo portfolio without external market dependency.",
+      "accountKey": "account-tfsa-investment"
+    }
+  ],
+  "liabilities": [
+    {
+      "key": "liability-credit-card",
+      "name": "Credit card balance",
+      "type": "CREDIT_CARD",
+      "status": "ACTIVE",
+      "currency": "CAD",
+      "currentBalance": 620,
+      "includeInNetWorth": true,
+      "initialAmount": 620,
+      "interestRate": 0.1999,
+      "minimumPayment": 35,
+      "paymentFrequency": "MONTHLY",
+      "rateType": "VARIABLE",
+      "lenderName": "Demo Card",
+      "institutionCountry": "CA",
+      "institutionRegion": "QC",
+      "openedAt": "2023-03-01T00:00:00.000Z",
+      "balanceAsOf": "2026-04-30T00:00:00.000Z",
+      "note": "Small deterministic liability fixture.",
+      "accountKey": "account-credit-card"
+    }
+  ],
+  "netWorthSnapshots": [
+    {
+      "key": "snapshot-net-worth-2026-04-30",
+      "snapshotDate": "2026-04-30T00:00:00.000Z",
+      "currency": "CAD",
+      "totalStandaloneAssets": 8500,
+      "totalPortfolios": 12750,
+      "totalAssets": 21250,
+      "totalLiabilities": 620,
+      "netWorth": 20630,
+      "source": "GENERATED",
+      "assetBreakdownJson": "[{\"key\":\"asset-used-car\",\"name\":\"Used car\",\"value\":8500,\"currency\":\"CAD\"}]",
+      "portfolioBreakdownJson": "[{\"key\":\"portfolio-tfsa-growth\",\"name\":\"TFSA growth portfolio\",\"value\":12750,\"currency\":\"CAD\"}]",
+      "liabilityBreakdownJson": "[{\"key\":\"liability-credit-card\",\"name\":\"Credit card balance\",\"value\":620,\"currency\":\"CAD\"}]",
+      "note": "Generated from deterministic fixture values."
+    }
+  ],
+  "financialGoals": [
+    {
+      "key": "goal-emergency-fund",
+      "name": "Emergency fund",
+      "type": "EMERGENCY_FUND",
+      "targetAmount": 6000,
+      "currency": "CAD",
+      "targetDate": "2027-05-01T00:00:00.000Z",
+      "startingAmount": 1500,
+      "status": "ACTIVE",
+      "priority": 1,
+      "notes": "Demo goal using deterministic assumptions only.",
+      "baselineSnapshotKey": "snapshot-net-worth-2026-04-30"
+    },
+    {
+      "key": "goal-tfsa-growth",
+      "name": "TFSA growth target",
+      "type": "SAVINGS",
+      "targetAmount": 25000,
+      "currency": "CAD",
+      "targetDate": "2028-12-31T00:00:00.000Z",
+      "startingAmount": 12750,
+      "status": "ACTIVE",
+      "priority": 2,
+      "notes": "Demo goal using deterministic assumptions only.",
+      "trackedPortfolioKey": "portfolio-tfsa-growth"
+    },
+    {
+      "key": "goal-credit-card-payoff",
+      "name": "Credit card payoff",
+      "type": "DEBT_PAYOFF",
+      "targetAmount": 0,
+      "currency": "CAD",
+      "targetDate": "2026-09-30T00:00:00.000Z",
+      "startingAmount": 620,
+      "status": "ACTIVE",
+      "priority": 3,
+      "notes": "Demo goal using deterministic assumptions only.",
+      "trackedLiabilityKey": "liability-credit-card"
+    }
+  ],
+  "projectionScenarios": [
+    {
+      "key": "scenario-conservative",
+      "name": "Fixture conservative projection",
+      "kind": "CONSERVATIVE",
+      "description": "Stable baseline projection scenario for tests.",
+      "isDefault": false
+    },
+    {
+      "key": "scenario-base",
+      "name": "Fixture base projection",
+      "kind": "BASELINE",
+      "description": "Stable baseline projection scenario for tests.",
+      "isDefault": true
+    },
+    {
+      "key": "scenario-optimistic",
+      "name": "Fixture optimistic projection",
+      "kind": "OPTIMISTIC",
+      "description": "Stable baseline projection scenario for tests.",
+      "isDefault": false
+    }
+  ],
+  "projectionSettings": [
+    {
+      "key": "projection-emergency-base",
+      "projectionHorizonMonths": 24,
+      "displayCurrency": "CAD",
+      "estimatedMonthlySurplus": 500,
+      "manualMonthlyContribution": 500,
+      "annualGrowthRate": 0.02,
+      "notes": "Fixture projection setting, not financial advice.",
+      "goalKey": "goal-emergency-fund",
+      "scenarioKey": "scenario-base"
+    },
+    {
+      "key": "projection-tfsa-conservative",
+      "projectionHorizonMonths": 24,
+      "displayCurrency": "CAD",
+      "estimatedMonthlySurplus": 300,
+      "manualMonthlyContribution": 300,
+      "annualGrowthRate": 0.01,
+      "notes": "Fixture projection setting, not financial advice.",
+      "goalKey": "goal-tfsa-growth",
+      "scenarioKey": "scenario-conservative"
+    },
+    {
+      "key": "projection-tfsa-optimistic",
+      "projectionHorizonMonths": 24,
+      "displayCurrency": "CAD",
+      "estimatedMonthlySurplus": 650,
+      "manualMonthlyContribution": 650,
+      "annualGrowthRate": 0.05,
+      "notes": "Fixture projection setting, not financial advice.",
+      "goalKey": "goal-tfsa-growth",
+      "scenarioKey": "scenario-optimistic"
+    },
+    {
+      "key": "projection-credit-card-payoff-base",
+      "projectionHorizonMonths": 24,
+      "displayCurrency": "CAD",
+      "estimatedMonthlySurplus": 200,
+      "manualMonthlyContribution": 200,
+      "annualGrowthRate": 0,
+      "notes": "Debt payoff scenario; growth intentionally zero.",
+      "goalKey": "goal-credit-card-payoff",
+      "scenarioKey": "scenario-base"
+    }
+  ],
+  "imports": [
+    {
+      "key": "import-main-chequing-april-2026",
+      "fileName": "fixture-main-chequing-april-2026.csv",
+      "provider": "fixture-bank",
+      "accountKey": "account-main-chequing",
+      "defaultCurrency": "CAD",
+      "csv": "date,label,amount,currency,externalRef\n2026-04-05,Groceries,-86.42,CAD,fixture-import-001\nnot-a-date,Broken row,abc,CAD,fixture-import-002",
+      "rows": [
+        {
+          "rowNumber": 1,
+          "rawText": "2026-04-05,Groceries,-86.42,CAD,fixture-import-001",
+          "rawJson": {
+            "date": "2026-04-05",
+            "label": "Groceries",
+            "amount": "-86.42",
+            "currency": "CAD",
+            "externalRef": "fixture-import-001"
+          },
+          "status": "APPLIED",
+          "normalized": {
+            "label": "Groceries",
+            "amount": 86.42,
+            "currency": "CAD",
+            "transactionDate": "2026-04-05T00:00:00.000Z",
+            "externalRef": "fixture-import-001",
+            "duplicateKey": "transaction:account-main-chequing:2026-04-05:86.42:Groceries",
+            "duplicateConfidence": 0.98
+          }
+        },
+        {
+          "rowNumber": 2,
+          "rawText": "not-a-date,Broken row,abc,CAD,fixture-import-002",
+          "rawJson": {
+            "date": "not-a-date",
+            "label": "Broken row",
+            "amount": "abc",
+            "currency": "CAD",
+            "externalRef": "fixture-import-002"
+          },
+          "status": "INVALID",
+          "error": {
+            "stage": "VALIDATION",
+            "severity": "ERROR",
+            "code": "INVALID_AMOUNT",
+            "message": "Amount must be a finite number before normalization.",
+            "field": "amount",
+            "detailsJson": "{\"received\":\"abc\",\"rowNumber\":2}"
+          }
+        }
+      ]
+    }
+  ]
+}

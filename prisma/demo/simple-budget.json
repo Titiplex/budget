@@ -1,0 +1,220 @@
+{
+  "key": "simple-budget",
+  "name": "Simple budget profile",
+  "description": "Personal budget with income, expenses, one transfer, one recurring rent and one savings goal.",
+  "fixedNow": "2026-05-01T12:00:00.000Z",
+  "accounts": [
+    {
+      "key": "account-main-chequing",
+      "name": "Main chequing",
+      "type": "BANK",
+      "currency": "CAD",
+      "description": "Deterministic local-first test account.",
+      "institutionCountry": "CA",
+      "institutionRegion": "QC",
+      "taxReportingType": "BANK",
+      "openedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "key": "account-emergency-savings",
+      "name": "Emergency savings",
+      "type": "SAVINGS",
+      "currency": "CAD",
+      "description": "Savings account used by transfer and emergency fund fixtures.",
+      "institutionCountry": "CA",
+      "institutionRegion": "QC",
+      "taxReportingType": "BANK",
+      "openedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "categories": [
+    {
+      "key": "category-salary",
+      "name": "Salary",
+      "kind": "INCOME",
+      "color": "#22c55e",
+      "description": "Stable category for grocery expenses."
+    },
+    {
+      "key": "category-rent",
+      "name": "Rent",
+      "kind": "EXPENSE",
+      "color": "#ef4444",
+      "description": "Stable category for grocery expenses."
+    },
+    {
+      "key": "category-groceries",
+      "name": "Groceries",
+      "kind": "EXPENSE",
+      "color": "#f59e0b",
+      "description": "Stable category for grocery expenses."
+    },
+    {
+      "key": "category-transport",
+      "name": "Transport",
+      "kind": "EXPENSE",
+      "color": "#6366f1",
+      "description": "Stable category for grocery expenses."
+    }
+  ],
+  "transactions": [
+    {
+      "key": "transaction-salary-2026-04-01",
+      "label": "April salary",
+      "amount": 3200,
+      "sourceAmount": 3200,
+      "sourceCurrency": "CAD",
+      "conversionMode": "NONE",
+      "kind": "INCOME",
+      "date": "2026-04-01T00:00:00.000Z",
+      "note": "Fixture transaction with a fixed date.",
+      "accountKey": "account-main-chequing",
+      "categoryKey": "category-salary"
+    },
+    {
+      "key": "transaction-groceries-2026-04-05",
+      "label": "Groceries",
+      "amount": 86.42,
+      "sourceAmount": 86.42,
+      "sourceCurrency": "CAD",
+      "conversionMode": "NONE",
+      "kind": "EXPENSE",
+      "date": "2026-04-05T00:00:00.000Z",
+      "note": "Fixture transaction with a fixed date.",
+      "accountKey": "account-main-chequing",
+      "categoryKey": "category-groceries"
+    },
+    {
+      "key": "transaction-bus-pass-2026-04-02",
+      "label": "Monthly bus pass",
+      "amount": 97,
+      "sourceAmount": 97,
+      "sourceCurrency": "CAD",
+      "conversionMode": "NONE",
+      "kind": "EXPENSE",
+      "date": "2026-04-02T00:00:00.000Z",
+      "note": "Fixture transaction with a fixed date.",
+      "accountKey": "account-main-chequing",
+      "categoryKey": "category-transport"
+    }
+  ],
+  "transfers": [
+    {
+      "key": "transfer-chequing-to-savings-2026-04-15-out",
+      "label": "Transfer to emergency savings",
+      "amount": 250,
+      "sourceAmount": 250,
+      "sourceCurrency": "CAD",
+      "conversionMode": "NONE",
+      "kind": "TRANSFER",
+      "date": "2026-04-15T00:00:00.000Z",
+      "note": "Fixture transfer outgoing leg.",
+      "accountKey": "account-main-chequing",
+      "transferGroup": "transfer-chequing-to-savings-2026-04-15",
+      "transferDirection": "OUT",
+      "transferPeerAccountKey": "account-emergency-savings"
+    },
+    {
+      "key": "transfer-chequing-to-savings-2026-04-15-in",
+      "label": "Transfer from chequing",
+      "amount": 250,
+      "sourceAmount": 250,
+      "sourceCurrency": "CAD",
+      "conversionMode": "NONE",
+      "kind": "TRANSFER",
+      "date": "2026-04-15T00:00:00.000Z",
+      "note": "Fixture transfer incoming leg.",
+      "accountKey": "account-emergency-savings",
+      "transferGroup": "transfer-chequing-to-savings-2026-04-15",
+      "transferDirection": "IN",
+      "transferPeerAccountKey": "account-main-chequing"
+    }
+  ],
+  "budgets": [
+    {
+      "key": "budget-groceries-april-2026",
+      "name": "Groceries monthly cap",
+      "amount": 450,
+      "period": "MONTHLY",
+      "startDate": "2026-04-01T00:00:00.000Z",
+      "endDate": null,
+      "currency": "CAD",
+      "isActive": true,
+      "note": "Stable monthly budget target for tests.",
+      "categoryKey": "category-groceries"
+    },
+    {
+      "key": "budget-transport-april-2026",
+      "name": "Transport monthly cap",
+      "amount": 120,
+      "period": "MONTHLY",
+      "startDate": "2026-04-01T00:00:00.000Z",
+      "endDate": null,
+      "currency": "CAD",
+      "isActive": true,
+      "note": "Stable monthly budget target for tests.",
+      "categoryKey": "category-transport"
+    }
+  ],
+  "recurringTransactions": [
+    {
+      "key": "recurring-rent-2026",
+      "label": "Rent",
+      "sourceAmount": 1250,
+      "sourceCurrency": "CAD",
+      "accountAmount": 1250,
+      "conversionMode": "NONE",
+      "kind": "EXPENSE",
+      "note": "Fixed recurring fixture with a deterministic next occurrence.",
+      "frequency": "MONTHLY",
+      "intervalCount": 1,
+      "startDate": "2026-01-01T00:00:00.000Z",
+      "nextOccurrenceDate": "2026-05-01T00:00:00.000Z",
+      "endDate": null,
+      "isActive": true,
+      "accountKey": "account-main-chequing",
+      "categoryKey": "category-rent"
+    }
+  ],
+  "assets": [],
+  "portfolios": [],
+  "liabilities": [],
+  "netWorthSnapshots": [],
+  "financialGoals": [
+    {
+      "key": "goal-emergency-fund",
+      "name": "Emergency fund",
+      "type": "EMERGENCY_FUND",
+      "targetAmount": 6000,
+      "currency": "CAD",
+      "targetDate": "2027-05-01T00:00:00.000Z",
+      "startingAmount": 1500,
+      "status": "ACTIVE",
+      "priority": 1,
+      "notes": "Demo goal using deterministic assumptions only."
+    }
+  ],
+  "projectionScenarios": [
+    {
+      "key": "scenario-base",
+      "name": "Fixture base projection",
+      "kind": "BASELINE",
+      "description": "Stable baseline projection scenario for tests.",
+      "isDefault": true
+    }
+  ],
+  "projectionSettings": [
+    {
+      "key": "projection-emergency-base",
+      "projectionHorizonMonths": 24,
+      "displayCurrency": "CAD",
+      "estimatedMonthlySurplus": 500,
+      "manualMonthlyContribution": 500,
+      "annualGrowthRate": 0.02,
+      "notes": "Fixture projection setting, not financial advice.",
+      "goalKey": "goal-emergency-fund",
+      "scenarioKey": "scenario-base"
+    }
+  ],
+  "imports": []
+}
