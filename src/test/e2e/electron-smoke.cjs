@@ -1,218 +1,238 @@
-const fs = require('node:fs')
-const os = require('node:os')
-const path = require('node:path')
-const {spawn, spawnSync} = require('node:child_process')
+const {
+    assert,
+    launchElectronE2e,
+    waitFor,
+} = require('./electronE2eHarness.cjs')
 
-const repoRoot = path.resolve(__dirname, '..', '..', '..')
-const electronPath = require('electron')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'budget-e2e-'))
-const testDbPath = path.join(tempRoot, 'data', 'e2e.db')
-const remoteDebuggingPort = Number(process.env.BUDGET_E2E_CDP_PORT || 9333)
-
-function sqliteUrl(filePath) {
-    return `file:${filePath.replace(/\\/g, '/')}`
+function js(value) {
+    return JSON.stringify(value)
 }
 
-function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms))
+async function navigateTo(cdp, marker) {
+    const clicked = await cdp.evaluate(`(() => {
+        const button = Array.from(document.querySelectorAll('nav button')).find((entry) =>
+            String(entry.innerText || '').trim().startsWith(${js(marker)})
+        )
+        if (!button) return false
+        button.click()
+        return true
+    })()`)
+
+    assert(clicked, `Could not click navigation marker ${marker}`)
+
+    await waitFor(async () => cdp.evaluate(`(() => {
+        const active = document.querySelector('nav button.nav-item-active')
+        return Boolean(active && String(active.innerText || '').trim().startsWith(${js(marker)}))
+    })()`), {
+        message: `Navigation did not activate marker ${marker}`,
+    })
 }
 
-function runNodeScript(scriptPath, args, options = {}) {
-    const result = spawnSync(process.execPath, [scriptPath, ...args], {
-        cwd: repoRoot,
-        stdio: 'inherit',
-        shell: false,
-        windowsHide: true,
-        ...options,
-        env: {
-            ...process.env,
-            ...options.env,
-        },
+async function assertText(cdp, text, label = text) {
+    await waitFor(async () => cdp.evaluate(`document.body.innerText.includes(${js(text)})`), {
+        message: `Expected renderer text not found: ${label}`,
+    })
+}
+
+async function runCoreDataFlow(cdp) {
+    const result = await cdp.evaluate(`(async () => {
+        const out = {steps: []}
+
+        function assert(condition, message) {
+            if (!condition) throw new Error(message)
+        }
+
+        function same(actual, expected, message) {
+            if (actual !== expected) {
+                throw new Error(message + ': expected ' + expected + ', got ' + actual)
+            }
+        }
+
+        try {
+            const accountBefore = await window.db.account.list()
+            same(accountBefore.length, 0, 'E2E DB should start empty')
+            out.steps.push('empty-db')
+
+            const account = await window.db.account.create({
+                name: 'E2E Chequing',
+                type: 'BANK',
+                currency: 'CAD',
+                description: 'Created by Electron smoke E2E',
+            })
+            assert(account.id > 0, 'Created account should have an id')
+            out.accountId = account.id
+            out.steps.push('create-account')
+
+            const category = await window.db.category.create({
+                name: 'E2E Groceries',
+                kind: 'EXPENSE',
+                color: '#f59e0b',
+                description: 'Created by Electron smoke E2E',
+            })
+            assert(category.id > 0, 'Created category should have an id')
+            out.categoryId = category.id
+            out.steps.push('create-category')
+
+            const transaction = await window.db.transaction.create({
+                label: 'E2E Grocery run',
+                amount: 42.5,
+                sourceAmount: 42.5,
+                sourceCurrency: 'CAD',
+                conversionMode: 'NONE',
+                kind: 'EXPENSE',
+                date: '2026-05-04',
+                note: 'Initial transaction from E2E',
+                accountId: account.id,
+                categoryId: category.id,
+            })
+            assert(transaction.id > 0, 'Created transaction should have an id')
+            same(transaction.account.id, account.id, 'Transaction should include account relation')
+            same(transaction.category.id, category.id, 'Transaction should include category relation')
+            out.transactionId = transaction.id
+            out.steps.push('create-transaction')
+
+            const updatedTransaction = await window.db.transaction.update(transaction.id, {
+                label: 'E2E Grocery run edited',
+                amount: 52.75,
+                sourceAmount: 52.75,
+                sourceCurrency: 'CAD',
+                conversionMode: 'NONE',
+                kind: 'EXPENSE',
+                date: '2026-05-05',
+                note: 'Edited transaction from E2E',
+                accountId: account.id,
+                categoryId: category.id,
+            })
+            same(updatedTransaction.label, 'E2E Grocery run edited', 'Transaction edit should persist label')
+            same(Number(updatedTransaction.amount), 52.75, 'Transaction edit should persist amount')
+            out.steps.push('edit-transaction')
+
+            await window.db.transaction.delete(updatedTransaction.id)
+            const afterDeleteTransactions = await window.db.transaction.list()
+            assert(!afterDeleteTransactions.some((row) => row.id === updatedTransaction.id), 'Deleted transaction should be absent')
+            out.steps.push('delete-transaction')
+
+            const budget = await window.db.budgetTarget.create({
+                name: 'E2E Monthly grocery budget',
+                amount: 400,
+                period: 'MONTHLY',
+                startDate: '2026-05-01',
+                endDate: null,
+                currency: 'CAD',
+                isActive: true,
+                note: 'Created by Electron smoke E2E',
+                categoryId: category.id,
+            })
+            assert(budget.id > 0, 'Created budget should have an id')
+            same(budget.category.id, category.id, 'Budget should include category relation')
+            out.budgetId = budget.id
+            out.steps.push('create-budget')
+
+            const recurring = await window.db.recurringTemplate.create({
+                label: 'E2E Weekly grocery recurring',
+                sourceAmount: 33,
+                sourceCurrency: 'CAD',
+                accountAmount: 33,
+                conversionMode: 'NONE',
+                kind: 'EXPENSE',
+                note: 'Created by Electron smoke E2E',
+                frequency: 'WEEKLY',
+                intervalCount: 1,
+                startDate: '2026-05-01',
+                nextOccurrenceDate: '2026-05-01',
+                endDate: '2026-05-15',
+                isActive: true,
+                accountId: account.id,
+                categoryId: category.id,
+            })
+            assert(recurring.id > 0, 'Created recurring template should have an id')
+            out.recurringId = recurring.id
+            out.steps.push('create-recurring')
+
+            const generated = await window.db.recurringTemplate.generateDue({
+                templateId: recurring.id,
+                asOfDate: '2026-05-31',
+            })
+            same(generated.generatedTemplates, 1, 'Recurring generation should touch one template')
+            same(generated.generatedTransactions, 3, 'Recurring generation should create three weekly rows')
+            out.steps.push('generate-recurring')
+
+            const generatedRows = await window.db.transaction.list()
+            same(generatedRows.length, 3, 'Only generated recurring transactions should remain')
+            assert(
+                generatedRows.every((row) => row.label === 'E2E Weekly grocery recurring'),
+                'Generated recurring rows should keep the template label',
+            )
+            out.generatedTransactionCount = generatedRows.length
+
+            assert(typeof window.file.openText === 'function', 'file.openText should be exposed for restore/import smoke')
+            assert(typeof window.file.saveText === 'function', 'file.saveText should be exposed for backup export smoke')
+            assert(typeof window.backupEncryption?.encrypt === 'function', 'backupEncryption.encrypt should be exposed')
+            out.steps.push('backup-restore-preload-contract')
+
+            return {ok: true, ...out}
+        } catch (error) {
+            return {
+                ok: false,
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : null,
+                steps: out.steps,
+            }
+        }
+    })()`, {awaitPromise: true})
+
+    assert(result && result.ok, `Core renderer/IPC data flow failed after ${result?.steps?.join(' > ') || 'no steps'}: ${result?.message}\n${result?.stack || ''}`)
+    return result
+}
+
+async function verifyUiReflectsData(cdp) {
+    await navigateTo(cdp, 'AC')
+    await assertText(cdp, 'E2E Chequing', 'created account')
+
+    await navigateTo(cdp, 'CA')
+    await assertText(cdp, 'E2E Groceries', 'created category')
+
+    await navigateTo(cdp, 'BG')
+    await assertText(cdp, 'E2E Monthly grocery budget', 'created budget')
+
+    await navigateTo(cdp, 'RC')
+    await assertText(cdp, 'E2E Weekly grocery recurring', 'created recurring template')
+
+    await navigateTo(cdp, 'TX')
+    await assertText(cdp, 'E2E Weekly grocery recurring', 'generated recurring transaction')
+
+    await navigateTo(cdp, 'RP')
+    await waitFor(async () => cdp.evaluate(`(() => {
+        const text = document.body.innerText
+        return text.includes('E2E Chequing') && text.includes('E2E Groceries')
+    })()`), {
+        message: 'Reports section did not render account/category rows from generated data',
     })
 
-    if (result.error) {
-        throw new Error(`${path.basename(scriptPath)} ${args.join(' ')} failed to start: ${result.error.message}`)
-    }
-
-    if (result.signal) {
-        throw new Error(`${path.basename(scriptPath)} ${args.join(' ')} was terminated by signal ${result.signal}`)
-    }
-
-    if (result.status !== 0) {
-        throw new Error(`${path.basename(scriptPath)} ${args.join(' ')} failed with exit code ${result.status}`)
-    }
-}
-
-function findPrismaCliPath() {
-    const candidates = [
-        path.join(repoRoot, 'node_modules', 'prisma', 'build', 'index.js'),
-        path.join(repoRoot, 'node_modules', 'prisma', 'build', 'public', 'assets', 'index.js'),
-    ]
-
-    for (const candidate of candidates) {
-        if (fs.existsSync(candidate)) {
-            return candidate
+    const reportStats = await cdp.evaluate(`(() => {
+        const text = document.body.innerText
+        return {
+            hasTransactionsLabel: /transactions|opérations/i.test(text),
+            hasExpenseLabel: /expense|dépense/i.test(text),
+            hasGeneratedAmount: text.includes('99') || text.includes('99.00') || text.includes('99,00'),
         }
-    }
+    })()`)
 
-    throw new Error(
-        'Unable to find local Prisma CLI. Expected node_modules/prisma/build/index.js. Run npm install first.',
-    )
-}
-
-function runPrismaDbPush(databasePath) {
-    const prismaCliPath = findPrismaCliPath()
-    const schemaPath = path.join(repoRoot, 'prisma', 'schema.prisma')
-
-    runNodeScript(
-        prismaCliPath,
-        ['db', 'push', '--skip-generate', '--schema', schemaPath],
-        {
-            env: {
-                DATABASE_URL: sqliteUrl(databasePath),
-            },
-        },
-    )
-}
-
-function assert(condition, message) {
-    if (!condition) {
-        throw new Error(message)
-    }
-}
-
-async function waitFor(fn, {timeoutMs = 30000, intervalMs = 250, message = 'Timed out'} = {}) {
-    const startedAt = Date.now()
-    let lastError = null
-
-    while (Date.now() - startedAt < timeoutMs) {
-        try {
-            const value = await fn()
-            if (value) return value
-        } catch (error) {
-            lastError = error
-        }
-
-        await sleep(intervalMs)
-    }
-
-    if (lastError) {
-        throw new Error(`${message}: ${lastError.message}`)
-    }
-
-    throw new Error(message)
-}
-
-async function getJson(url) {
-    const response = await fetch(url)
-    if (!response.ok) {
-        throw new Error(`GET ${url} failed with ${response.status}`)
-    }
-    return response.json()
-}
-
-class CdpClient {
-    constructor(webSocketUrl) {
-        this.nextId = 1
-        this.pending = new Map()
-        this.socket = new WebSocket(webSocketUrl)
-
-        this.ready = new Promise((resolve, reject) => {
-            this.socket.addEventListener('open', resolve, {once: true})
-            this.socket.addEventListener('error', reject, {once: true})
-        })
-
-        this.socket.addEventListener('message', (event) => {
-            const payload = JSON.parse(event.data)
-            if (!payload.id) return
-
-            const pending = this.pending.get(payload.id)
-            if (!pending) return
-
-            this.pending.delete(payload.id)
-            if (payload.error) {
-                pending.reject(new Error(payload.error.message || JSON.stringify(payload.error)))
-                return
-            }
-
-            pending.resolve(payload.result)
-        })
-    }
-
-    async send(method, params = {}) {
-        await this.ready
-        const id = this.nextId++
-        const payload = {id, method, params}
-
-        return new Promise((resolve, reject) => {
-            this.pending.set(id, {resolve, reject})
-            this.socket.send(JSON.stringify(payload))
-        })
-    }
-
-    async evaluate(expression, {awaitPromise = false} = {}) {
-        const result = await this.send('Runtime.evaluate', {
-            expression,
-            awaitPromise,
-            returnByValue: true,
-        })
-
-        if (result.exceptionDetails) {
-            throw new Error(result.exceptionDetails.text || 'Runtime evaluation failed')
-        }
-
-        return result.result.value
-    }
-
-    close() {
-        this.socket.close()
-    }
+    assert(reportStats.hasTransactionsLabel, 'Report summary should mention transactions')
+    assert(reportStats.hasExpenseLabel, 'Report summary should mention expenses')
+    assert(reportStats.hasGeneratedAmount, 'Report should include generated recurring total')
 }
 
 async function runSmokeTest() {
-    fs.mkdirSync(path.dirname(testDbPath), {recursive: true})
-
-    runPrismaDbPush(testDbPath)
-
-    const electron = spawn(electronPath, [
-        `--remote-debugging-port=${remoteDebuggingPort}`,
-        '--no-sandbox',
-        repoRoot,
-    ], {
-        cwd: repoRoot,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: {
-            ...process.env,
-            BUDGET_DATABASE_PATH: testDbPath,
-            ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
-        },
+    const harness = await launchElectronE2e({
+        prefix: 'budget-core-smoke-e2e',
+        dbFileName: 'core-smoke.db',
+        port: process.env.BUDGET_E2E_CDP_PORT || 9333,
     })
 
-    const logs = []
-    electron.stdout.on('data', (chunk) => logs.push(chunk.toString()))
-    electron.stderr.on('data', (chunk) => logs.push(chunk.toString()))
-
-    electron.on('exit', (code, signal) => {
-        if (code !== 0 && signal !== 'SIGTERM') {
-            logs.push(`Electron exited with code ${code} signal ${signal}`)
-        }
-    })
-
-    let cdp = null
+    const {cdp, logs} = harness
 
     try {
-        const target = await waitFor(async () => {
-            const targets = await getJson(`http://127.0.0.1:${remoteDebuggingPort}/json/list`)
-            return targets.find((entry) => entry.type === 'page' && entry.webSocketDebuggerUrl)
-        }, {message: 'Electron renderer did not expose a CDP page target'})
-
-        cdp = new CdpClient(target.webSocketDebuggerUrl)
-        await cdp.send('Runtime.enable')
-
-        await waitFor(async () => cdp.evaluate('document.readyState === "complete"'), {
-            message: 'Renderer did not finish loading',
-        })
-
         await waitFor(async () => cdp.evaluate('Boolean(window.versions && window.appShell && window.db)'), {
             message: 'Preload APIs were not exposed to the renderer',
         })
@@ -223,46 +243,33 @@ async function runSmokeTest() {
         const version = await cdp.evaluate('window.appShell.getVersion()', {awaitPromise: true})
         assert(typeof version === 'string' && version.length > 0, 'Expected app version to be readable')
 
-        const accountCount = await cdp.evaluate('window.db.account.list().then((rows) => rows.length)', {awaitPromise: true})
-        assert(accountCount === 0, 'Expected the E2E test database to start empty')
-
         await waitFor(async () => cdp.evaluate('document.body.innerText.includes("Budget")'), {
             message: 'Budget shell did not render',
         })
 
         const navMarkers = await cdp.evaluate(`Array.from(document.querySelectorAll('nav button')).map((button) => button.innerText.trim().split(/\\s+/)[0])`)
-        for (const marker of ['OV', 'TX', 'AC', 'CA', 'BG', 'RC', 'RP']) {
+        for (const marker of ['OV', 'TX', 'AC', 'CA', 'BG', 'RC', 'RP', 'WL', 'IM']) {
             assert(navMarkers.includes(marker), `Expected navigation marker ${marker} to be rendered`)
         }
 
         for (const marker of ['TX', 'AC', 'CA', 'BG', 'RC', 'RP', 'OV']) {
-            const clicked = await cdp.evaluate(`(() => {
-                const button = Array.from(document.querySelectorAll('nav button')).find((entry) => entry.innerText.trim().startsWith('${marker}'))
-                if (!button) return false
-                button.click()
-                return true
-            })()`)
-
-            assert(clicked, `Could not click navigation marker ${marker}`)
-
-            await waitFor(async () => cdp.evaluate(`(() => {
-                const active = document.querySelector('nav button.nav-item-active')
-                return Boolean(active && active.innerText.trim().startsWith('${marker}'))
-            })()`), {
-                message: `Navigation did not activate marker ${marker}`,
-            })
+            await navigateTo(cdp, marker)
         }
 
-        console.log(`Desktop E2E smoke test passed against app version ${version}`)
+        const flow = await runCoreDataFlow(cdp)
+        await verifyUiReflectsData(cdp)
+
+        console.log(
+            `Desktop E2E smoke test passed against app version ${version}. Steps=${flow.steps.join(', ')}. Generated rows=${flow.generatedTransactionCount}`,
+        )
     } catch (error) {
+        const artifacts = await harness.captureFailureArtifacts('electron-core-smoke-failure')
         console.error('\nElectron output before failure:\n')
         console.error(logs.join('\n'))
+        console.error(`\nE2E artifacts written to ${artifacts.artifactsDir}`)
         throw error
     } finally {
-        if (cdp) cdp.close()
-        electron.kill('SIGTERM')
-        await sleep(500)
-        fs.rmSync(tempRoot, {recursive: true, force: true})
+        await harness.cleanup()
     }
 }
 
