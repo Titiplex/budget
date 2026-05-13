@@ -34,6 +34,19 @@ async function assertText(cdp, text, label = text) {
     })
 }
 
+async function reloadRenderer(cdp) {
+    await cdp.send('Page.reload', {ignoreCache: true})
+    await waitFor(async () => cdp.evaluate('document.readyState === "complete"'), {
+        message: 'Renderer did not reload after IPC data flow',
+    })
+    await waitFor(async () => cdp.evaluate('Boolean(window.versions && window.appShell && window.db)'), {
+        message: 'Preload APIs were not exposed after renderer reload',
+    })
+    await waitFor(async () => cdp.evaluate('document.body.innerText.includes("Budget")'), {
+        message: 'Budget shell did not render after renderer reload',
+    })
+}
+
 async function runCoreDataFlow(cdp) {
     const result = await cdp.evaluate(`(async () => {
         const out = {steps: []}
@@ -257,6 +270,7 @@ async function runSmokeTest() {
         }
 
         const flow = await runCoreDataFlow(cdp)
+        await reloadRenderer(cdp)
         await verifyUiReflectsData(cdp)
 
         console.log(

@@ -17,6 +17,8 @@ describe('audit event model helpers', () => {
             'restoreDryRun',
             'restoreApplied',
             'restoreFailed',
+            'recoverySnapshotCreated',
+            'recoverySnapshotRestored',
             'criticalDelete',
             'bulkDelete',
             'secretCreated',
