@@ -199,10 +199,26 @@ async function navigateTo(cdp, marker, expectedText) {
     })
 
     if (expectedText) {
-        await waitFor(async () => cdp.evaluate(`document.body.innerText.includes(${JSON.stringify(expectedText)})`), {
-            message: `Expected section text ${expectedText} after clicking ${marker}`,
+        const expectedTexts = Array.isArray(expectedText) ? expectedText : [expectedText]
+        await waitFor(async () => cdp.evaluate(`(() => {
+            const text = document.body.innerText
+            return ${JSON.stringify(expectedTexts)}.some((entry) => text.includes(entry))
+        })()`), {
+            message: `Expected section text ${expectedTexts.join(' / ')} after clicking ${marker}`,
         })
     }
+}
+
+async function refreshRendererData(cdp) {
+    await cdp.evaluate(`window.appShell?.sendMenuCommand?.('refresh-data')`)
+
+    await waitFor(async () => cdp.evaluate(`(() => {
+        const text = document.body.innerText
+        return text.includes('2 cpt') && text.includes('2 cat')
+    })()`), {
+        timeoutMs: 45000,
+        message: 'Renderer did not refresh the advanced E2E core dataset after IPC writes',
+    })
 }
 
 async function runAdvancedFlows() {
@@ -582,17 +598,19 @@ async function runAdvancedFlows() {
 
         assert(result && result.ok, `Advanced renderer/preload flow failed: ${result?.message}\n${result?.stack || ''}`)
 
-        await navigateTo(cdp, 'WL', 'Patrimoine')
+        await refreshRendererData(cdp)
+
+        await navigateTo(cdp, 'WL', ['Patrimoine', 'Wealth'])
         await waitFor(async () => cdp.evaluate(`document.body.innerText.includes('E2E Advanced Condo') || document.body.innerText.includes('90')`), {
             message: 'Wealth UI did not show advanced scenario data',
         })
 
-        await navigateTo(cdp, 'IM', 'Historique')
+        await navigateTo(cdp, 'IM', ['Historique', 'Imports', 'Import history'])
         await waitFor(async () => cdp.evaluate(`document.body.innerText.includes('advanced-import.csv') || document.body.innerText.includes('advanced-e2e') || document.body.innerText.includes('Import')`), {
             message: 'Import history UI did not render advanced import data',
         })
 
-        await navigateTo(cdp, 'RP', 'Rapports')
+        await navigateTo(cdp, 'RP', ['Rapports', 'Reports'])
         await waitFor(async () => cdp.evaluate(`document.body.innerText.includes('E2E Advanced') || document.body.innerText.includes('Rapport') || document.body.innerText.includes('Reports')`), {
             message: 'Reports UI did not render after advanced dataset creation',
         })
