@@ -186,7 +186,7 @@ describe('ImportWizardDialog', () => {
         await reconcileButton!.trigger('click')
         await wrapper.vm.$nextTick()
 
-        expect(wrapper.text()).toContain('1 ligne(s) restent trop ambiguës')
+        expect(wrapper.text()).toContain('1 ligne(s) ambiguë(s) doivent être résolues')
         const disabledConfirm = wrapper.findAll('button').find((button) => button.text().includes('Voir le résumé des décisions'))
         expect(disabledConfirm?.attributes('disabled')).toBeDefined()
 
@@ -224,7 +224,7 @@ describe('ImportWizardDialog', () => {
         const bulkButton = wrapper.findAll('button').find((button) => button.text().includes('Appliquer décisions sûres en masse'))
         await bulkButton!.trigger('click')
         expect(wrapper.text()).toContain('1 ligne(s) sûre(s) préparée(s)')
-        expect(wrapper.text()).toContain('1 ligne(s) restent trop ambiguës')
+        expect(wrapper.text()).toContain('1 cas à résoudre')
 
         wrapper.unmount()
     })
