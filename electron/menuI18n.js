@@ -16,6 +16,10 @@ const messages = {
             window: 'Fenêtre',
         },
         items: {
+            new: 'Ajouter',
+            backup: 'Sauvegarde',
+            csv: 'CSV',
+            language: 'Langue',
             newTransaction: 'Nouvelle transaction',
             newAccount: 'Nouveau compte',
             newCategory: 'Nouvelle catégorie',
@@ -52,6 +56,10 @@ const messages = {
             window: 'Window',
         },
         items: {
+            new: 'New',
+            backup: 'Backup',
+            csv: 'CSV',
+            language: 'Language',
             newTransaction: 'New Transaction',
             newAccount: 'New Account',
             newCategory: 'New Category',

@@ -70,50 +70,31 @@ function buildAppMenu(locale = currentMenuLocale) {
             label: m.menu.file,
             submenu: [
                 {
-                    label: m.items.newTransaction,
-                    accelerator: 'CmdOrCtrl+N',
-                    click: () => sendMenuCommand('create-transaction'),
-                },
-                {
-                    label: m.items.newAccount,
-                    accelerator: 'CmdOrCtrl+Shift+A',
-                    click: () => sendMenuCommand('create-account'),
-                },
-                {
-                    label: m.items.newCategory,
-                    accelerator: 'CmdOrCtrl+Shift+C',
-                    click: () => sendMenuCommand('create-category'),
+                    label: m.items.new,
+                    submenu: [
+                        {
+                            label: m.items.newTransaction,
+                            accelerator: 'CmdOrCtrl+N',
+                            click: () => sendMenuCommand('create-transaction'),
+                        },
+                        {
+                            label: m.items.newAccount,
+                            accelerator: 'CmdOrCtrl+Shift+A',
+                            click: () => sendMenuCommand('create-account'),
+                        },
+                        {
+                            label: m.items.newCategory,
+                            accelerator: 'CmdOrCtrl+Shift+C',
+                            click: () => sendMenuCommand('create-category'),
+                        }
+                    ]
                 },
                 {type: 'separator'},
-                {
-                    label: m.items.openBudgets,
-                    accelerator: 'CmdOrCtrl+B',
-                    click: () => sendMenuCommand('open-budgets'),
-                },
-                {
-                    label: m.items.openGoals,
-                    accelerator: 'CmdOrCtrl+G',
-                    click: () => sendMenuCommand('open-goals'),
-                },
-                {
-                    label: m.items.openWealth,
-                    accelerator: 'CmdOrCtrl+Shift+W',
-                    click: () => sendMenuCommand('open-wealth'),
-                },
-                {
-                    label: m.items.openRecurring,
-                    click: () => sendMenuCommand('open-recurring'),
-                },
                 {
                     label: m.items.generateDueRecurring,
                     click: () => sendMenuCommand('generate-due-recurring'),
                 },
                 {type: 'separator'},
-                {
-                    label: m.items.openReports,
-                    accelerator: 'CmdOrCtrl+R',
-                    click: () => sendMenuCommand('open-reports'),
-                },
                 {
                     label: m.items.exportPeriodReport,
                     accelerator: 'CmdOrCtrl+Shift+R',
@@ -121,33 +102,43 @@ function buildAppMenu(locale = currentMenuLocale) {
                 },
                 {type: 'separator'},
                 {
-                    label: m.items.importCsv,
-                    accelerator: 'CmdOrCtrl+I',
-                    click: () => sendMenuCommand('import-csv'),
-                },
-                {
-                    label: m.items.exportCsv,
-                    accelerator: 'CmdOrCtrl+E',
-                    click: () => sendMenuCommand('export-csv'),
+                    label: m.items.csv,
+                    submenu: [
+                        {
+                            label: m.items.importCsv,
+                            accelerator: 'CmdOrCtrl+I',
+                            click: () => sendMenuCommand('import-csv'),
+                        },
+                        {
+                            label: m.items.exportCsv,
+                            accelerator: 'CmdOrCtrl+E',
+                            click: () => sendMenuCommand('export-csv'),
+                        }
+                    ]
                 },
                 {type: 'separator'},
                 {
-                    label: m.items.exportJsonBackup,
-                    accelerator: 'CmdOrCtrl+Shift+E',
-                    click: () => sendMenuCommand('export-json'),
-                },
-                {
-                    label: m.items.exportEncryptedBackup,
-                    click: () => sendMenuCommand('export-encrypted-json'),
-                },
-                {
-                    label: m.items.restoreJsonBackup,
-                    accelerator: 'CmdOrCtrl+Shift+I',
-                    click: () => sendMenuCommand('restore-json'),
-                },
-                {
-                    label: m.items.restoreEncryptedBackup,
-                    click: () => sendMenuCommand('restore-encrypted-json'),
+                    label: m.items.backup,
+                    submenu: [
+                        {
+                            label: m.items.exportJsonBackup,
+                            accelerator: 'CmdOrCtrl+Shift+E',
+                            click: () => sendMenuCommand('export-json'),
+                        },
+                        {
+                            label: m.items.exportEncryptedBackup,
+                            click: () => sendMenuCommand('export-encrypted-json'),
+                        },
+                        {
+                            label: m.items.restoreJsonBackup,
+                            accelerator: 'CmdOrCtrl+Shift+I',
+                            click: () => sendMenuCommand('restore-json'),
+                        },
+                        {
+                            label: m.items.restoreEncryptedBackup,
+                            click: () => sendMenuCommand('restore-encrypted-json'),
+                        }
+                    ]
                 },
                 {type: 'separator'},
                 {
@@ -204,6 +195,7 @@ function buildAppMenu(locale = currentMenuLocale) {
                 },
                 {
                     label: m.items.openReports,
+                    accelerator: 'CmdOrCtrl+R',
                     click: () => sendMenuCommand('open-reports'),
                 },
                 {type: 'separator'},
@@ -237,12 +229,17 @@ function buildAppMenu(locale = currentMenuLocale) {
                 },
                 {type: 'separator'},
                 {
-                    label: m.items.french,
-                    click: () => sendMenuCommand('set-locale-fr'),
-                },
-                {
-                    label: m.items.english,
-                    click: () => sendMenuCommand('set-locale-en'),
+                    label: m.items.language,
+                    submenu: [
+                        {
+                            label: m.items.french,
+                            click: () => sendMenuCommand('set-locale-fr'),
+                        },
+                        {
+                            label: m.items.english,
+                            click: () => sendMenuCommand('set-locale-en'),
+                        }
+                    ]
                 },
             ],
         },
