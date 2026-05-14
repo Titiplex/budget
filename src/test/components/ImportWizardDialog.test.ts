@@ -161,7 +161,7 @@ describe('ImportWizardDialog', () => {
 
         expect(wrapper.text()).toContain('Doublons')
         expect(wrapper.text()).toContain('À revoir')
-        expect(wrapper.text()).toContain('1 doublon(s) probable(s)')
+        expect(wrapper.text()).toContain('Doublon probable à valider manuellement.')
 
         const duplicateFilter = wrapper.findAll('button').find((button) => button.text() === 'Doublons')
         await duplicateFilter!.trigger('click')
@@ -197,7 +197,7 @@ describe('ImportWizardDialog', () => {
         const confirmButton = wrapper.findAll('button').find((button) => button.text().includes('Voir le résumé des décisions'))
         expect(confirmButton?.attributes('disabled')).toBeUndefined()
         await confirmButton!.trigger('click')
-        expect(wrapper.text()).toContain('Marquer comme doublon')
+        expect(wrapper.text()).toContain('Confirmation finale')
 
         wrapper.unmount()
     })
