@@ -1,0 +1,77 @@
+name: Rapport de bug
+description: Signaler un problème reproductible dans Budget
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de prendre le temps de signaler un bug. N’inclus aucune donnée financière réelle, aucun secret et aucun fichier `.env`.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Décris clairement le problème observé.
+      placeholder: Ce qui se passe actuellement…
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Étapes de reproduction
+      description: Donne les étapes exactes pour reproduire le bug.
+      placeholder: |
+        1. Aller dans …
+        2. Cliquer sur …
+        3. Observer …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportement attendu
+      description: Explique ce qui aurait dû se passer.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportement obtenu
+      description: Explique ce qui se passe à la place.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / branche / commit
+      placeholder: v1.5.0, master, commit SHA…
+    validations:
+      required: false
+  - type: dropdown
+    id: os
+    attributes:
+      label: Système
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Autre
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs ou captures anonymisées
+      description: Colle seulement des logs ou captures sans données personnelles.
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Vérifications
+      options:
+        - label: J’ai vérifié que l’issue ne contient pas de données financières réelles, secrets ou tokens.
+          required: true
+        - label: J’ai cherché une issue existante similaire.
+          required: true
