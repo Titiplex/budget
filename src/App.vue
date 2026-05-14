@@ -452,15 +452,6 @@ onMounted(async () => {
               <button class="ghost-btn" @click="settings.openSettings">
                 {{ t('common.settings') }}
               </button>
-              <button class="ghost-btn" @click="settings.toggleTheme">
-                {{ settings.darkMode.value ? t('common.lightMode') : t('common.darkMode') }}
-              </button>
-              <button class="ghost-btn" @click="openImportWizard">
-                Import CSV
-              </button>
-              <button class="ghost-btn" @click="budget.selectSection(importHistorySectionKey)">
-                Historique imports
-              </button>
               <button class="primary-btn" @click="budget.openCreatePanel('transaction')">
                 {{ t('common.add') }}
               </button>
