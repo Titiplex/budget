@@ -169,7 +169,7 @@ describe('GoalsProjectionDashboard', () => {
         await toggle!.trigger('click')
 
         expect(wrapper.find('table').exists()).toBe(true)
-        expect(wrapper.find('table').text()).toContain('Montant restant')
+        expect(wrapper.find('table').text()).toContain('Contribution')
         expect(wrapper.find('table').text()).toContain('Croissance estimée')
         expect(wrapper.find('table').text()).toContain('Valeur projetée')
     })

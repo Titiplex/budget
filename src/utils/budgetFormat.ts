@@ -17,7 +17,7 @@ export function formatMoney(amount: number, currency = 'CAD') {
             maximumFractionDigits: 2,
         }).format(amount)
     } catch {
-        return new Intl.NumberFormat(currentLocaleCode(), {
+        return new Intl.NumberFormat('en-CA', {
             style: 'currency',
             currency: 'CAD',
             maximumFractionDigits: 2,

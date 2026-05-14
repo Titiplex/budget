@@ -3,12 +3,35 @@ import en from './locales/en'
 import fr from './locales/fr'
 import taxEn from './locales/tax.en'
 import taxFr from './locales/tax.fr'
+import uiEn from './locales/ui.en'
+import uiFr from './locales/ui.fr'
 
 export type SupportedLocale = 'fr' | 'en'
 
 const LOCALE_STORAGE_KEY = 'budget-locale'
 
-const frMessages = {
+function mergeMessages<T extends Record<string, unknown>>(base: T, extension: Record<string, unknown>): T {
+    return Object.entries(extension).reduce((acc, [key, value]) => {
+        const baseValue = acc[key]
+
+        if (
+            baseValue
+            && typeof baseValue === 'object'
+            && !Array.isArray(baseValue)
+            && value
+            && typeof value === 'object'
+            && !Array.isArray(value)
+        ) {
+            acc[key] = mergeMessages(baseValue as Record<string, unknown>, value as Record<string, unknown>)
+        } else {
+            acc[key] = value
+        }
+
+        return acc
+    }, {...base} as Record<string, unknown>) as T
+}
+
+const frMessages = mergeMessages({
     ...fr,
     common: {
         ...fr.common,
@@ -16,9 +39,9 @@ const frMessages = {
         import: 'Importer',
     },
     tax: taxFr,
-}
+}, uiFr)
 
-const enMessages = {
+const enMessages = mergeMessages({
     ...en,
     common: {
         ...en.common,
@@ -26,7 +49,7 @@ const enMessages = {
         import: 'Import',
     },
     tax: taxEn,
-}
+}, uiEn)
 
 export function normalizeLocale(value?: string | null): SupportedLocale {
     const normalized = (value || '').toLowerCase()
