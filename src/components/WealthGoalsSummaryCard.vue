@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
+import {useI18n} from 'vue-i18n'
 
 import {buildMonthlyProjection, type MonthlyProjectionResult} from '../utils/monthlyProjectionEngine'
 import type {ProjectionScenarioKind} from '../types/goals'
@@ -14,6 +15,8 @@ const props = withDefaults(
       summaryCurrency: 'CAD',
     },
 )
+
+const {t} = useI18n()
 
 type GoalStatusDto = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED'
 type GoalTypeDto = 'SAVINGS' | 'EMERGENCY_FUND' | 'DEBT_PAYOFF' | 'PURCHASE' | 'INVESTMENT' | 'RETIREMENT' | 'NET_WORTH' | 'OTHER'
@@ -162,7 +165,7 @@ const projectionRows = computed<GoalProjectionRow[]>(() => {
         variation: 0,
         progressPercent: Number(goal.targetAmount || 0) > 0 ? Math.min((currentValueUsed / Number(goal.targetAmount)) * 100, 100) : 0,
         estimatedReachDate: null,
-        error: 'Aucun scénario actif disponible.',
+        error: t('wealthGoalsSummary.noActiveScenario'),
       }
     }
 
@@ -200,7 +203,7 @@ const projectionRows = computed<GoalProjectionRow[]>(() => {
         variation: 0,
         progressPercent: Number(goal.targetAmount || 0) > 0 ? Math.min((currentValueUsed / Number(goal.targetAmount)) * 100, 100) : 0,
         estimatedReachDate: null,
-        error: error instanceof Error ? error.message : 'Projection indisponible.',
+        error: error instanceof Error ? error.message : t('wealthGoalsSummary.projectionUnavailable'),
       }
     }
   })
@@ -255,7 +258,7 @@ const selectedTrajectoryPoints = computed(() => {
 async function loadGoalSummary() {
   const api = window.goals
   if (!api) {
-    warningMessage.value = 'API Objectifs indisponible.'
+    warningMessage.value = t('wealthGoalsSummary.goalsApiUnavailable')
     return
   }
 
@@ -273,11 +276,11 @@ async function loadGoalSummary() {
       }),
     ])
 
-    goals.value = unwrapResult(goalRows, 'Objectifs indisponibles.') as FinancialGoalRow[]
-    scenarios.value = unwrapResult(scenarioRows, 'Scénarios indisponibles.') as ProjectionScenarioRow[]
-    surplusEstimate.value = unwrapResult(surplusRows, 'Surplus indisponible.') as MonthlySurplusEstimate
+    goals.value = unwrapResult(goalRows, t('wealthGoalsSummary.goalsUnavailable')) as FinancialGoalRow[]
+    scenarios.value = unwrapResult(scenarioRows, t('wealthGoalsSummary.scenariosUnavailable')) as ProjectionScenarioRow[]
+    surplusEstimate.value = unwrapResult(surplusRows, t('wealthGoalsSummary.surplusUnavailable')) as MonthlySurplusEstimate
   } catch (error) {
-    warningMessage.value = error instanceof Error ? error.message : 'Résumé objectifs indisponible.'
+    warningMessage.value = error instanceof Error ? error.message : t('wealthGoalsSummary.summaryUnavailable')
     goals.value = []
     scenarios.value = []
     surplusEstimate.value = null
@@ -306,50 +309,50 @@ onMounted(() => {
   <section class="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-sm">
     <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-violet-300">Objectifs projetés</p>
-        <h3 class="mt-2 text-xl font-semibold text-white">Où je vais</h3>
+        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-violet-300">{{ t('wealthGoalsSummary.eyebrow') }}</p>
+        <h3 class="mt-2 text-xl font-semibold text-white">{{ t('wealthGoalsSummary.title') }}</h3>
         <p class="mt-1 max-w-3xl text-sm leading-6 text-slate-400">
-          Résumé descriptif des objectifs et de leur trajectoire. Les projections dépendent des hypothèses visibles et ne constituent pas une promesse.
+          {{ t('wealthGoalsSummary.description') }}
         </p>
       </div>
       <button type="button" class="inline-flex items-center justify-center rounded-2xl border border-violet-700 bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500" @click="openGoalDetails()">
-        Ouvrir le détail
+        {{ t('wealthGoalsSummary.openDetail') }}
       </button>
     </div>
 
     <div v-if="warningMessage" class="mt-4 rounded-2xl border border-amber-900/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
-      Les objectifs n’ont pas pu être projetés pour le moment. Le dashboard patrimoine reste disponible. {{ warningMessage }}
+      {{ t('wealthGoalsSummary.unavailablePrefix') }} {{ warningMessage }}
     </div>
 
     <div v-if="loading" class="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-5 text-sm text-slate-300">
-      Chargement du résumé des objectifs…
+      {{ t('wealthGoalsSummary.loading') }}
     </div>
 
     <div v-else-if="!warningMessage && activeGoals.length === 0" class="mt-4 rounded-2xl border border-dashed border-slate-700 bg-slate-900/50 px-4 py-8 text-center">
-      <p class="text-sm font-semibold text-white">Aucun objectif actif.</p>
-      <p class="mt-1 text-sm text-slate-400">Ajoute un objectif pour voir sa trajectoire dans le dashboard patrimoine.</p>
+      <p class="text-sm font-semibold text-white">{{ t('wealthGoalsSummary.emptyTitle') }}</p>
+      <p class="mt-1 text-sm text-slate-400">{{ t('wealthGoalsSummary.emptyDescription') }}</p>
     </div>
 
     <div v-else-if="!warningMessage" class="mt-5 space-y-5">
       <div class="grid gap-3 md:grid-cols-5">
         <article class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">Actifs</p>
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ t('wealthGoalsSummary.active') }}</p>
           <p class="mt-2 text-2xl font-semibold text-white">{{ activeGoals.length }}</p>
         </article>
         <article class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">Atteints</p>
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ t('wealthGoalsSummary.reached') }}</p>
           <p class="mt-2 text-2xl font-semibold text-white">{{ reachedGoalCount }}</p>
         </article>
         <article class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">En retard</p>
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ t('wealthGoalsSummary.overdue') }}</p>
           <p class="mt-2 text-2xl font-semibold text-white">{{ overdueGoalCount }}</p>
         </article>
         <article class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">Prochaine atteinte</p>
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ t('wealthGoalsSummary.nextReach') }}</p>
           <p class="mt-2 text-lg font-semibold text-white">{{ formatDate(nextReachDate) }}</p>
         </article>
         <article class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">Progression globale</p>
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ t('wealthGoalsSummary.globalProgress') }}</p>
           <p class="mt-2 text-2xl font-semibold text-white">{{ formatPercent(globalProgress) }}</p>
         </article>
       </div>
@@ -358,9 +361,9 @@ onMounted(() => {
         <article class="rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-5">
           <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Carte où je vais</p>
-              <h4 class="mt-2 text-lg font-semibold text-white">{{ selectedTrajectory?.goal.name || 'Trajectoire objectif' }}</h4>
-              <p class="mt-1 text-sm text-slate-400">Valeur actuelle utilisée, valeur projetée à horizon et variation estimée.</p>
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">{{ t('wealthGoalsSummary.trajectoryMap') }}</p>
+              <h4 class="mt-2 text-lg font-semibold text-white">{{ selectedTrajectory?.goal.name || t('wealthGoalsSummary.trajectoryTitleFallback') }}</h4>
+              <p class="mt-1 text-sm text-slate-400">{{ t('wealthGoalsSummary.trajectoryDescription') }}</p>
             </div>
             <span class="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300">
               {{ selectedTrajectory?.projection?.status || '—' }}
@@ -369,36 +372,36 @@ onMounted(() => {
 
           <div class="mt-5 grid gap-3 md:grid-cols-3">
             <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <p class="text-xs text-slate-500">Valeur actuelle utilisée</p>
+              <p class="text-xs text-slate-500">{{ t('wealthGoalsSummary.currentValueUsed') }}</p>
               <p class="mt-2 text-2xl font-semibold text-white">{{ formatMoney(selectedTrajectory?.currentValueUsed, selectedTrajectory?.goal.currency || props.summaryCurrency) }}</p>
             </div>
             <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <p class="text-xs text-slate-500">Valeur projetée</p>
+              <p class="text-xs text-slate-500">{{ t('wealthGoalsSummary.projectedValue') }}</p>
               <p class="mt-2 text-2xl font-semibold text-white">{{ formatMoney(selectedTrajectory?.projectedValue, selectedTrajectory?.goal.currency || props.summaryCurrency) }}</p>
             </div>
             <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <p class="text-xs text-slate-500">Variation projetée</p>
+              <p class="text-xs text-slate-500">{{ t('wealthGoalsSummary.projectedVariation') }}</p>
               <p class="mt-2 text-2xl font-semibold text-white">{{ formatMoney(selectedTrajectory?.variation, selectedTrajectory?.goal.currency || props.summaryCurrency) }}</p>
             </div>
           </div>
 
           <div v-if="selectedTrajectoryPoints" class="mt-5 overflow-hidden rounded-2xl border border-slate-800">
-            <svg viewBox="0 0 620 150" class="h-40 w-full bg-slate-950/70" role="img" aria-label="Trajectoire projetée objectif patrimoine">
+            <svg viewBox="0 0 620 150" class="h-40 w-full bg-slate-950/70" role="img" :aria-label="t('wealthGoalsSummary.trajectoryMap')">
               <polyline :points="selectedTrajectoryPoints" fill="none" stroke="#8b5cf6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
               <line x1="32" y1="30" x2="588" y2="30" stroke="#94a3b8" stroke-dasharray="6 6" />
-              <text x="38" y="24" fill="#cbd5e1" font-size="12">Cible</text>
+              <text x="38" y="24" fill="#cbd5e1" font-size="12">{{ t('wealthGoalsSummary.target') }}</text>
             </svg>
           </div>
         </article>
 
         <article class="rounded-3xl border border-slate-800 bg-slate-900/60 p-5">
-          <h4 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Hypothèses principales</h4>
+          <h4 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">{{ t('wealthGoalsSummary.mainAssumptions') }}</h4>
           <dl class="mt-4 space-y-3 text-sm">
-            <div class="flex justify-between gap-3"><dt class="text-slate-500">Scénario</dt><dd class="font-semibold text-white">{{ hypothesisSummary.scenarioName }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="text-slate-500">Contribution mensuelle</dt><dd class="font-semibold text-white">{{ formatMoney(hypothesisSummary.contribution, props.summaryCurrency) }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="text-slate-500">Horizon</dt><dd class="font-semibold text-white">{{ hypothesisSummary.horizonMonths }} mois</dd></div>
-            <div class="flex justify-between gap-3"><dt class="text-slate-500">Croissance</dt><dd class="font-semibold text-white">{{ formatRate(hypothesisSummary.annualGrowthRate) }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="text-slate-500">Inflation</dt><dd class="font-semibold text-white">{{ formatRate(hypothesisSummary.annualInflationRate) }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">{{ t('wealthGoalsSummary.scenario') }}</dt><dd class="font-semibold text-white">{{ hypothesisSummary.scenarioName }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">{{ t('wealthGoalsSummary.monthlyContribution') }}</dt><dd class="font-semibold text-white">{{ formatMoney(hypothesisSummary.contribution, props.summaryCurrency) }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">{{ t('wealthGoalsSummary.horizon') }}</dt><dd class="font-semibold text-white">{{ t('wealthGoalsSummary.horizonMonths', {count: hypothesisSummary.horizonMonths}) }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">{{ t('wealthGoalsSummary.growth') }}</dt><dd class="font-semibold text-white">{{ formatRate(hypothesisSummary.annualGrowthRate) }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">{{ t('wealthGoalsSummary.inflation') }}</dt><dd class="font-semibold text-white">{{ formatRate(hypothesisSummary.annualInflationRate) }}</dd></div>
           </dl>
         </article>
       </div>
@@ -407,26 +410,26 @@ onMounted(() => {
         <table class="min-w-full divide-y divide-slate-800 text-sm">
           <thead class="bg-slate-900 text-xs uppercase tracking-[0.16em] text-slate-500">
           <tr>
-            <th class="px-4 py-3 text-left">Objectif</th>
-            <th class="px-4 py-3 text-right">Valeur utilisée</th>
-            <th class="px-4 py-3 text-right">Projection</th>
-            <th class="px-4 py-3 text-right">Atteinte estimée</th>
-            <th class="px-4 py-3 text-right">Progression</th>
-            <th class="px-4 py-3 text-right">Action</th>
+            <th class="px-4 py-3 text-left">{{ t('wealthGoalsSummary.goal') }}</th>
+            <th class="px-4 py-3 text-right">{{ t('wealthGoalsSummary.currentValueUsed') }}</th>
+            <th class="px-4 py-3 text-right">{{ t('wealthGoalsSummary.projection') }}</th>
+            <th class="px-4 py-3 text-right">{{ t('wealthGoalsSummary.estimatedReach') }}</th>
+            <th class="px-4 py-3 text-right">{{ t('wealthGoalsSummary.progress') }}</th>
+            <th class="px-4 py-3 text-right">{{ t('wealthGoalsSummary.action') }}</th>
           </tr>
           </thead>
           <tbody class="divide-y divide-slate-800 bg-slate-950">
           <tr v-for="row in projectionRows" :key="row.goal.id">
             <td class="px-4 py-3 text-slate-200">
               <div class="font-semibold text-white">{{ row.goal.name }}</div>
-              <div v-if="row.error" class="mt-1 text-xs text-amber-300">Projection partielle : {{ row.error }}</div>
+              <div v-if="row.error" class="mt-1 text-xs text-amber-300">{{ t('wealthGoalsSummary.partialProjection', {error: row.error}) }}</div>
             </td>
             <td class="px-4 py-3 text-right text-slate-300">{{ formatMoney(row.currentValueUsed, row.goal.currency) }}</td>
             <td class="px-4 py-3 text-right text-slate-300">{{ formatMoney(row.projectedValue, row.goal.currency) }}</td>
             <td class="px-4 py-3 text-right text-slate-300">{{ formatDate(row.estimatedReachDate) }}</td>
             <td class="px-4 py-3 text-right text-slate-300">{{ formatPercent(row.progressPercent) }}</td>
             <td class="px-4 py-3 text-right">
-              <button type="button" class="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800" @click="openGoalDetails(row.goal.id)">Détail</button>
+              <button type="button" class="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800" @click="openGoalDetails(row.goal.id)">{{ t('wealthGoalsSummary.detail') }}</button>
             </td>
           </tr>
           </tbody>
