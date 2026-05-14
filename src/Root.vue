@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import {onBeforeUnmount, onMounted, ref} from 'vue'
+import {useI18n} from 'vue-i18n'
 
 import App from './App.vue'
 import GoalsProjectionDashboard from './components/GoalsProjectionDashboard.vue'
 
+const {t} = useI18n()
 const goalsOpen = ref(false)
 
 function openGoals() {
@@ -42,13 +44,13 @@ onBeforeUnmount(() => {
         <div class="mx-auto max-w-7xl">
           <div class="mb-4 flex items-center justify-between gap-4 rounded-3xl border border-slate-800 bg-slate-950 px-5 py-4 shadow-2xl">
             <div>
-              <p class="text-xs font-semibold uppercase tracking-[0.24em] text-violet-300">Objectifs</p>
-              <h2 class="mt-1 text-xl font-semibold text-white">Pilotage des objectifs et projections</h2>
+              <p class="text-xs font-semibold uppercase tracking-[0.24em] text-violet-300">{{ t('goals.modalEyebrow') }}</p>
+              <h2 class="mt-1 text-xl font-semibold text-white">{{ t('goals.modalTitle') }}</h2>
             </div>
             <button
                 type="button"
                 class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 text-slate-200 transition hover:bg-slate-800"
-                aria-label="Fermer les objectifs"
+                :aria-label="t('goals.closeAria')"
                 @click="goalsOpen = false"
             >
               ✕
