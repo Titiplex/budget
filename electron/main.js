@@ -84,10 +84,21 @@ function buildAppMenu(locale = currentMenuLocale) {
                     accelerator: 'CmdOrCtrl+Shift+C',
                     click: () => sendMenuCommand('create-category'),
                 },
+                {type: 'separator'},
                 {
                     label: m.items.openBudgets,
                     accelerator: 'CmdOrCtrl+B',
                     click: () => sendMenuCommand('open-budgets'),
+                },
+                {
+                    label: m.items.openGoals,
+                    accelerator: 'CmdOrCtrl+G',
+                    click: () => sendMenuCommand('open-goals'),
+                },
+                {
+                    label: m.items.openWealth,
+                    accelerator: 'CmdOrCtrl+Shift+W',
+                    click: () => sendMenuCommand('open-wealth'),
                 },
                 {
                     label: m.items.openRecurring,
@@ -178,6 +189,16 @@ function buildAppMenu(locale = currentMenuLocale) {
                     click: () => sendMenuCommand('open-budgets'),
                 },
                 {
+                    label: m.items.openGoals,
+                    accelerator: 'CmdOrCtrl+G',
+                    click: () => sendMenuCommand('open-goals'),
+                },
+                {
+                    label: m.items.openWealth,
+                    accelerator: 'CmdOrCtrl+Shift+W',
+                    click: () => sendMenuCommand('open-wealth'),
+                },
+                {
                     label: m.items.openRecurring,
                     click: () => sendMenuCommand('open-recurring'),
                 },
@@ -185,6 +206,7 @@ function buildAppMenu(locale = currentMenuLocale) {
                     label: m.items.openReports,
                     click: () => sendMenuCommand('open-reports'),
                 },
+                {type: 'separator'},
                 {
                     label: m.items.toggleTheme,
                     accelerator: 'CmdOrCtrl+D',
