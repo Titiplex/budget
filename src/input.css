@@ -209,11 +209,14 @@
     }
 
     .dialog-backdrop {
-        @apply fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm;
+        @apply fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm;
+        overscroll-behavior: contain;
     }
 
     .dialog-card {
         @apply w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900;
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
     }
 
     .dialog-title {
