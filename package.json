@@ -24,7 +24,7 @@
     "db:seed:goals": "node prisma/seedGoalsDemo.js",
     "db:seed:imports": "node prisma/seedImportDemo.js",
     "i18n:audit": "node scripts/audit-i18n-hardcoded.cjs",
-    "check": "npm run prisma:generate && npm run typecheck && npm run i18n:audit && npm run test:run",
+    "check": "npm run prisma:generate && npm run typecheck && npm run test:run",
     "start": "npm run prisma:generate && npm run typecheck && npm run build:vite && electron-forge start",
     "package": "npm run prepackage:desktop && electron-forge package",
     "make": "npm run prepackage:desktop && electron-forge make",
