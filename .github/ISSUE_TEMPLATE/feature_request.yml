@@ -1,0 +1,60 @@
+name: Demande de fonctionnalité
+description: Proposer une amélioration ou une nouvelle fonctionnalité
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de proposer une amélioration. Essaie de décrire le besoin utilisateur avant la solution technique.
+  - type: textarea
+    id: need
+    attributes:
+      label: Besoin utilisateur
+      description: Quel problème ou besoin cette fonctionnalité résout-elle ?
+      placeholder: En tant qu’utilisateur, je veux…
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposition
+      description: Décris la solution souhaitée.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives envisagées
+      description: Décris les autres options possibles si tu en as.
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Zone concernée
+      options:
+        - Comptes
+        - Transactions
+        - Budgets
+        - Récurrences
+        - Patrimoine
+        - Objectifs et projections
+        - Imports CSV
+        - Rapports
+        - Sécurité et récupération
+        - Packaging / release
+        - Documentation
+        - Autre
+    validations:
+      required: false
+  - type: textarea
+    id: validation
+    attributes:
+      label: Critères d’acceptation
+      description: Comment saura-t-on que la fonctionnalité est terminée ?
+      placeholder: |
+        - …
+        - …
+    validations:
+      required: false
