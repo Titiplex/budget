@@ -89,8 +89,6 @@ dist
 
 # Gatsby files
 .cache/
-# Comment in the public line in if your project uses Gatsby and not Next.js
-# https://nextjs.org/blog/next-9-1#public-directory-support
 # public
 
 # vuepress build output
@@ -153,3 +151,24 @@ dev.db
 # Desktop packaging generated files
 /assets/database/*.db
 /assets/database/*.db-*
+
+# Capacitor generated build outputs
+android/.gradle/
+android/app/build/
+android/build/
+android/capacitor-cordova-android-plugins/build/
+android/local.properties
+android/.idea/
+ios/App/build/
+ios/App/Pods/
+ios/App/Podfile.lock
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Mobile signing secrets
+*.keystore
+*.jks
+*.p8
+*.p12
+mobile-signing/
