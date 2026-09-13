@@ -164,11 +164,11 @@ export function useReports(options: UseReportsOptions) {
             .sort((a, b) => b.transactionCount - a.transactionCount || b.net - a.net)
     })
 
-    const categoryRows = computed<ReportCategoryRow[]>(() => {
+    function buildCategoryRowsForKinds(kinds: Array<'INCOME' | 'EXPENSE'>) {
         const map = new Map<number | null, ReportCategoryRow>()
 
         for (const tx of filteredTransactions.value) {
-            if (tx.kind === 'TRANSFER') continue
+            if (tx.kind === 'TRANSFER' || !kinds.includes(tx.kind)) continue
 
             const key = tx.categoryId ?? null
             const existing = map.get(key)
@@ -191,7 +191,13 @@ export function useReports(options: UseReportsOptions) {
         }
 
         return [...map.values()].sort((a, b) => b.total - a.total)
-    })
+    }
+
+    const categoryRows = computed<ReportCategoryRow[]>(() => buildCategoryRowsForKinds(['INCOME', 'EXPENSE']))
+
+    const incomeCategoryRows = computed<ReportCategoryRow[]>(() => buildCategoryRowsForKinds(['INCOME']))
+
+    const expenseCategoryRows = computed<ReportCategoryRow[]>(() => buildCategoryRowsForKinds(['EXPENSE']))
 
     const foreignCurrencyRows = computed<ReportCurrencyRow[]>(() => {
         const map = new Map<string, ReportCurrencyRow>()
@@ -350,6 +356,8 @@ export function useReports(options: UseReportsOptions) {
         accountTypeRows,
         accountRows,
         categoryRows,
+        incomeCategoryRows,
+        expenseCategoryRows,
         foreignCurrencyRows,
         weekdayRows,
         insights,

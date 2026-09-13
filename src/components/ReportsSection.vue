@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {computed, toRefs} from 'vue'
 import {useI18n} from 'vue-i18n'
 import type {
   ReportAccountRow,
@@ -13,7 +14,7 @@ import type {
 } from '../types/budget'
 import {accountTypeLabel, formatDate, formatMoney, kindLabel} from '../utils/budgetFormat'
 
-defineProps<{
+const props = defineProps<{
   preset: ReportPreset
   startDate: string
   endDate: string
@@ -22,10 +23,28 @@ defineProps<{
   accountTypeRows: ReportAccountTypeRow[]
   accountRows: ReportAccountRow[]
   categoryRows: ReportCategoryRow[]
+  incomeCategoryRows: ReportCategoryRow[]
+  expenseCategoryRows: ReportCategoryRow[]
   foreignCurrencyRows: ReportCurrencyRow[]
   weekdayRows: ReportWeekdayRow[]
   insights: ReportInsight[]
 }>()
+
+const {
+  preset,
+  startDate,
+  endDate,
+  summary,
+  comparison,
+  accountTypeRows,
+  accountRows,
+  categoryRows,
+  incomeCategoryRows,
+  expenseCategoryRows,
+  foreignCurrencyRows,
+  weekdayRows,
+  insights,
+} = toRefs(props)
 
 const emit = defineEmits<{
   (e: 'set-preset', value: ReportPreset): void
@@ -35,6 +54,25 @@ const emit = defineEmits<{
 }>()
 
 const {t} = useI18n()
+
+const PIE_COLORS = ['#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899']
+const PIE_RADIUS = 54
+const PIE_CIRCUMFERENCE = 2 * Math.PI * PIE_RADIUS
+const PIE_VISIBLE_SLICE_LIMIT = 6
+
+type CategoryPieSegment = {
+  name: string
+  total: number
+  percent: number
+  color: string
+  dasharray: string
+  dashoffset: string
+}
+
+type CategoryPieChart = {
+  total: number
+  segments: CategoryPieSegment[]
+}
 
 function categoryNatureLabel(kind: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'MIXED') {
   if (kind === 'MIXED') {
@@ -59,6 +97,55 @@ function deltaClass(value: number, invert = false) {
   if (value === 0) return 'text-slate-500 dark:text-slate-400'
   const positive = invert ? value < 0 : value > 0
   return positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+}
+
+function buildCategoryPieChart(rows: ReportCategoryRow[]): CategoryPieChart {
+  const total = rows.reduce((sum, row) => sum + row.total, 0)
+  if (!total) {
+    return {total: 0, segments: []}
+  }
+
+  const visibleRows = rows.slice(0, PIE_VISIBLE_SLICE_LIMIT)
+  const hiddenRows = rows.slice(PIE_VISIBLE_SLICE_LIMIT)
+  const combinedRows = [...visibleRows]
+
+  if (hiddenRows.length) {
+    combinedRows.push({
+      categoryId: -1,
+      name: t('reports.otherCategories'),
+      transactionCount: hiddenRows.reduce((sum, row) => sum + row.transactionCount, 0),
+      total: hiddenRows.reduce((sum, row) => sum + row.total, 0),
+      kind: visibleRows[0]?.kind || 'EXPENSE',
+    })
+  }
+
+  let offsetRatio = 0
+  const segments = combinedRows.map((row, index) => {
+    const percent = row.total / total
+    const dashLength = percent * PIE_CIRCUMFERENCE
+    const segment: CategoryPieSegment = {
+      name: row.name,
+      total: row.total,
+      percent: percent * 100,
+      color: PIE_COLORS[index % PIE_COLORS.length],
+      dasharray: `${dashLength.toFixed(3)} ${(PIE_CIRCUMFERENCE - dashLength).toFixed(3)}`,
+      dashoffset: `${(-offsetRatio * PIE_CIRCUMFERENCE).toFixed(3)}`,
+    }
+    offsetRatio += percent
+    return segment
+  })
+
+  return {total, segments}
+}
+
+const expenseCategoryPieChart = computed(() => buildCategoryPieChart(props.expenseCategoryRows))
+const incomeCategoryPieChart = computed(() => buildCategoryPieChart(props.incomeCategoryRows))
+
+function pieChartAriaLabel(kindLabel: string, total: number) {
+  return t('reports.categoryPieAria', {
+    kind: kindLabel,
+    amount: formatMoney(total),
+  })
 }
 </script>
 
@@ -383,6 +470,116 @@ function deltaClass(value: number, invert = false) {
 
         <div v-else class="empty-state">
           {{ t('reports.noForeignCurrencyTransactions') }}
+        </div>
+      </section>
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-12">
+      <section class="panel xl:col-span-6">
+        <div class="panel-header">
+          <div>
+            <p class="panel-eyebrow">{{ t('reports.categoryDistribution') }}</p>
+            <h3 class="panel-title">{{ t('reports.expenseByCategory') }}</h3>
+            <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">{{ t('reports.expenseCategoryChartDescription') }}</p>
+          </div>
+        </div>
+
+        <div v-if="expenseCategoryPieChart.segments.length" class="grid gap-6 px-6 pb-6 lg:grid-cols-[200px_1fr] lg:items-center">
+          <div class="mx-auto flex w-full max-w-[200px] items-center justify-center">
+            <svg viewBox="0 0 160 160" class="h-40 w-40" role="img" :aria-label="pieChartAriaLabel(t('reports.summary.expense'), expenseCategoryPieChart.total)">
+              <circle cx="80" cy="80" :r="PIE_RADIUS" fill="none" stroke="rgba(148, 163, 184, 0.16)" stroke-width="28" />
+              <circle
+                  v-for="segment in expenseCategoryPieChart.segments"
+                  :key="`expense-${segment.name}`"
+                  cx="80"
+                  cy="80"
+                  :r="PIE_RADIUS"
+                  fill="none"
+                  :stroke="segment.color"
+                  stroke-width="28"
+                  :stroke-dasharray="segment.dasharray"
+                  :stroke-dashoffset="segment.dashoffset"
+                  transform="rotate(-90 80 80)"
+              />
+              <text x="80" y="74" text-anchor="middle" class="fill-slate-400 text-[10px] font-semibold uppercase tracking-[0.24em]">{{ t('reports.chartTotal') }}</text>
+              <text x="80" y="92" text-anchor="middle" class="fill-slate-900 text-[12px] font-bold dark:fill-white">{{ formatMoney(expenseCategoryPieChart.total) }}</text>
+            </svg>
+          </div>
+
+          <div class="space-y-3">
+            <div
+                v-for="segment in expenseCategoryPieChart.segments"
+                :key="`expense-legend-${segment.name}`"
+                class="mini-card flex items-center justify-between gap-4"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-3">
+                  <span class="h-3 w-3 rounded-full" :style="{ backgroundColor: segment.color }" />
+                  <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ segment.name }}</p>
+                </div>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ segment.percent.toFixed(1) }}% {{ t('reports.shareOfTotal') }}</p>
+              </div>
+              <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ formatMoney(segment.total) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="empty-state">
+          {{ t('reports.noExpenseCategoryData') }}
+        </div>
+      </section>
+
+      <section class="panel xl:col-span-6">
+        <div class="panel-header">
+          <div>
+            <p class="panel-eyebrow">{{ t('reports.categoryDistribution') }}</p>
+            <h3 class="panel-title">{{ t('reports.incomeByCategory') }}</h3>
+            <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">{{ t('reports.incomeCategoryChartDescription') }}</p>
+          </div>
+        </div>
+
+        <div v-if="incomeCategoryPieChart.segments.length" class="grid gap-6 px-6 pb-6 lg:grid-cols-[200px_1fr] lg:items-center">
+          <div class="mx-auto flex w-full max-w-[200px] items-center justify-center">
+            <svg viewBox="0 0 160 160" class="h-40 w-40" role="img" :aria-label="pieChartAriaLabel(t('reports.summary.income'), incomeCategoryPieChart.total)">
+              <circle cx="80" cy="80" :r="PIE_RADIUS" fill="none" stroke="rgba(148, 163, 184, 0.16)" stroke-width="28" />
+              <circle
+                  v-for="segment in incomeCategoryPieChart.segments"
+                  :key="`income-${segment.name}`"
+                  cx="80"
+                  cy="80"
+                  :r="PIE_RADIUS"
+                  fill="none"
+                  :stroke="segment.color"
+                  stroke-width="28"
+                  :stroke-dasharray="segment.dasharray"
+                  :stroke-dashoffset="segment.dashoffset"
+                  transform="rotate(-90 80 80)"
+              />
+              <text x="80" y="74" text-anchor="middle" class="fill-slate-400 text-[10px] font-semibold uppercase tracking-[0.24em]">{{ t('reports.chartTotal') }}</text>
+              <text x="80" y="92" text-anchor="middle" class="fill-slate-900 text-[12px] font-bold dark:fill-white">{{ formatMoney(incomeCategoryPieChart.total) }}</text>
+            </svg>
+          </div>
+
+          <div class="space-y-3">
+            <div
+                v-for="segment in incomeCategoryPieChart.segments"
+                :key="`income-legend-${segment.name}`"
+                class="mini-card flex items-center justify-between gap-4"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-3">
+                  <span class="h-3 w-3 rounded-full" :style="{ backgroundColor: segment.color }" />
+                  <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ segment.name }}</p>
+                </div>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ segment.percent.toFixed(1) }}% {{ t('reports.shareOfTotal') }}</p>
+              </div>
+              <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ formatMoney(segment.total) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="empty-state">
+          {{ t('reports.noIncomeCategoryData') }}
         </div>
       </section>
     </div>

@@ -82,5 +82,7 @@ describe('useReports', () => {
         expect(reports.reportSummary.value.internalTransferCount).toBe(1)
 
         expect(reports.categoryRows.value[0].kind).toBe('MIXED')
+        expect(reports.expenseCategoryRows.value[0]).toMatchObject({total: 40, kind: 'EXPENSE'})
+        expect(reports.incomeCategoryRows.value[0]).toMatchObject({total: 100, kind: 'INCOME'})
     })
 })

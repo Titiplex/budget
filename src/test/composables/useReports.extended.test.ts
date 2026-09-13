@@ -152,6 +152,13 @@ describe('useReports extended workflows', () => {
         expect(reports.categoryRows.value[0]).toMatchObject({categoryId: 11, name: 'Salary', transactionCount: 1, total: 3000, kind: 'INCOME'})
         expect(groceriesRow).toMatchObject({categoryId: 10, name: 'Groceries', transactionCount: 3, total: 355, kind: 'EXPENSE'})
         expect(uncategorizedRow).toMatchObject({categoryId: null, name: 'No category', transactionCount: 1, total: 80})
+        expect(reports.incomeCategoryRows.value).toEqual([
+            expect.objectContaining({categoryId: 11, name: 'Salary', transactionCount: 1, total: 3000, kind: 'INCOME'}),
+        ])
+        expect(reports.expenseCategoryRows.value).toEqual(expect.arrayContaining([
+            expect.objectContaining({categoryId: 10, name: 'Groceries', transactionCount: 3, total: 355, kind: 'EXPENSE'}),
+            expect.objectContaining({categoryId: null, name: 'No category', transactionCount: 1, total: 80, kind: 'EXPENSE'}),
+        ]))
         expect(reports.foreignCurrencyRows.value).toEqual([{currency: 'EUR', transactionCount: 1, sourceTotal: 100, bookedTotal: 150}])
         expect(reports.weekdayRows.value.reduce((sum, row) => sum + row.total, 0)).toBe(435)
         expect(reports.insights.value.map((insight) => insight.title)).toEqual(expect.arrayContaining([
@@ -174,6 +181,8 @@ describe('useReports extended workflows', () => {
         reports.applyPreset('ALL')
 
         expect(reports.categoryRows.value[0]).toMatchObject({kind: 'MIXED', total: 140, transactionCount: 2})
+        expect(reports.expenseCategoryRows.value[0]).toMatchObject({kind: 'EXPENSE', total: 40, transactionCount: 1})
+        expect(reports.incomeCategoryRows.value[0]).toMatchObject({kind: 'INCOME', total: 100, transactionCount: 1})
     })
 
     it('exports report markdown and skips notice on canceled export', async () => {
