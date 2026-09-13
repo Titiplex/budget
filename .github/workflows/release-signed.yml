@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [windows-2022, macos-latest, ubuntu-latest]
 
     steps:
       - name: Checkout
@@ -27,6 +27,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      - name: Configure Windows native build toolchain
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          npm config set msvs_version 2022
+          echo "GYP_MSVS_VERSION=2022" >> $env:GITHUB_ENV
 
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
