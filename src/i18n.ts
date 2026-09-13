@@ -10,6 +10,19 @@ export type SupportedLocale = 'fr' | 'en'
 
 const LOCALE_STORAGE_KEY = 'budget-locale'
 
+function readStoredLocale() {
+    try {
+        if (typeof window === 'undefined' || !window.localStorage) {
+            return null
+        }
+
+        return window.localStorage.getItem(LOCALE_STORAGE_KEY)
+    } catch {
+        return null
+    }
+}
+
+
 function mergeMessages<T extends Record<string, unknown>>(base: T, extension: Record<string, unknown>): T {
     return Object.entries(extension).reduce((acc, [key, value]) => {
         const baseValue = acc[key]
@@ -57,21 +70,25 @@ export function normalizeLocale(value?: string | null): SupportedLocale {
 }
 
 export function resolveInitialLocale(): SupportedLocale {
-    if (typeof window === 'undefined') {
-        return 'fr'
-    }
-
-    const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY)
+    const stored = readStoredLocale()
     if (stored) {
         return normalizeLocale(stored)
     }
 
-    return normalizeLocale(window.navigator.language)
+    if (typeof window === 'undefined') {
+        return 'fr'
+    }
+
+    return normalizeLocale(window.navigator?.language)
 }
 
 export function persistLocale(locale: SupportedLocale) {
-    if (typeof window !== 'undefined') {
-        window.localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+    try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+        }
+    } catch {
+        // Some test or embedded runtimes expose window without localStorage.
     }
 }
 

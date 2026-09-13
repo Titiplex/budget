@@ -540,6 +540,24 @@ describe('useBudgetData workflows', () => {
         expect(budget.deleteDialog.label).toBe('Fallback')
     })
 
+    it('applies internal transfer movements to each account net without counting them as income or expenses', () => {
+        const main = makeAccount({id: 1, name: 'Main', currency: 'CAD'})
+        const savings = makeAccount({id: 2, name: 'Savings', type: 'SAVINGS', currency: 'CAD'})
+        const {budget} = createBudget()
+        budget.accounts.value = [main, savings]
+        budget.transactions.value = [
+            makeTransaction({id: 1, label: 'Salary', amount: 1000, kind: 'INCOME', date: '2026-04-01', accountId: 1, categoryId: null, account: main, category: null}),
+            makeTransaction({id: 2, label: 'Transfer out', amount: 250, sourceAmount: 250, kind: 'TRANSFER', date: '2026-04-02', accountId: 1, categoryId: null, account: main, category: null, transferGroup: 'grp-1', transferDirection: 'OUT', transferPeerAccountId: 2, transferPeerAccount: savings}),
+            makeTransaction({id: 3, label: 'Transfer in', amount: 250, sourceAmount: 250, kind: 'TRANSFER', date: '2026-04-02', accountId: 2, categoryId: null, account: savings, category: null, transferGroup: 'grp-1', transferDirection: 'IN', transferPeerAccountId: 1, transferPeerAccount: main}),
+        ]
+
+        expect(budget.totalIncome.value).toBe(1000)
+        expect(budget.totalExpense.value).toBe(0)
+        expect(budget.netFlow.value).toBe(1000)
+        expect(budget.accountSummaries.value.find((account) => account.id === 1)).toMatchObject({income: 1000, expense: 0, net: 750})
+        expect(budget.accountSummaries.value.find((account) => account.id === 2)).toMatchObject({income: 0, expense: 0, net: 250})
+    })
+
     it('computes dashboard summaries, filters and panel metadata', () => {
         const main = makeAccount({id: 1, name: 'Main', currency: 'CAD'})
         const savings = makeAccount({id: 2, name: 'Savings', type: 'SAVINGS', currency: 'CAD'})
@@ -563,7 +581,7 @@ describe('useBudgetData workflows', () => {
         expect(budget.totalExpense.value).toBe(1249)
         expect(budget.netFlow.value).toBe(1751)
         expect(budget.recentTransactions.value.map((tx) => tx.id)).toContain(4)
-        expect(budget.accountSummaries.value[0]).toMatchObject({id: 1, transactionCount: 4, income: 3000, expense: 1199, net: 1801})
+        expect(budget.accountSummaries.value[0]).toMatchObject({id: 1, transactionCount: 4, income: 3000, expense: 1199, net: 1701})
         expect(budget.categorySummaries.value[0]).toMatchObject({id: 10, transactionCount: 2, total: 1199})
         expect(budget.topExpenseCategories.value[0]).toMatchObject({name: 'Groceries', total: 1199, color: null})
         expect(budget.expenseCategoryBreakdown.value[0].percent).toBeCloseTo(96, 0)

@@ -39,9 +39,19 @@ beforeEach(() => {
     i18n.global.locale.value = 'fr'
 })
 
+function clearTestLocalStorage() {
+    try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.clear()
+        }
+    } catch {
+        // jsdom/Node can expose a window without storage depending on runtime flags.
+    }
+}
+
 afterEach(() => {
     vi.restoreAllMocks()
-    localStorage.clear()
+    clearTestLocalStorage()
     document.documentElement.className = ''
     i18n.global.locale.value = 'fr'
 })

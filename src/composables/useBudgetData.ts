@@ -788,13 +788,15 @@ export function useBudgetData(
     })
 
     const accountSummaries = computed<AccountSummary[]>(() => {
-        const stats = new Map<number, { transactionCount: number; income: number; expense: number }>()
+        const stats = new Map<number, { transactionCount: number; income: number; expense: number; transferIn: number; transferOut: number }>()
 
         for (const tx of transactions.value) {
             const current = stats.get(tx.accountId) ?? {
                 transactionCount: 0,
                 income: 0,
                 expense: 0,
+                transferIn: 0,
+                transferOut: 0,
             }
 
             current.transactionCount += 1
@@ -803,6 +805,13 @@ export function useBudgetData(
                 current.income += Math.abs(tx.amount)
             } else if (tx.kind === 'EXPENSE') {
                 current.expense += Math.abs(tx.amount)
+            } else if (tx.kind === 'TRANSFER') {
+                const amount = Math.abs(tx.amount)
+                if (tx.transferDirection === 'IN') {
+                    current.transferIn += amount
+                } else if (tx.transferDirection === 'OUT') {
+                    current.transferOut += amount
+                }
             }
 
             stats.set(tx.accountId, current)
@@ -814,6 +823,8 @@ export function useBudgetData(
                     transactionCount: 0,
                     income: 0,
                     expense: 0,
+                    transferIn: 0,
+                    transferOut: 0,
                 }
 
                 return {
@@ -821,7 +832,7 @@ export function useBudgetData(
                     transactionCount: accountStats.transactionCount,
                     income: accountStats.income,
                     expense: accountStats.expense,
-                    net: accountStats.income - accountStats.expense,
+                    net: accountStats.income + accountStats.transferIn - accountStats.expense - accountStats.transferOut,
                 }
             })
             .sort((a, b) => b.transactionCount - a.transactionCount || b.net - a.net)
