@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {currentLocaleCode} from '../i18n'
+import {useI18n} from 'vue-i18n'
 import {computed, onMounted, ref} from 'vue'
 import {
   AUDIT_EVENT_DOMAINS,
@@ -11,6 +13,8 @@ import {
   type AuditEventStatus,
   type AuditEventType,
 } from '../types/audit'
+
+const {t} = useI18n()
 
 const emit = defineEmits<{
   (event: 'notice', type: 'success' | 'error', text: string): void
@@ -67,7 +71,7 @@ function queryPayload(): AuditEventListFilters {
 function formatDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('fr-CA', {dateStyle: 'medium', timeStyle: 'short'}).format(date)
+  return new Intl.DateTimeFormat(currentLocaleCode(), {dateStyle: 'medium', timeStyle: 'short'}).format(date)
 }
 
 function severityClass(severity: AuditEventSeverity | string) {
@@ -117,12 +121,12 @@ async function loadEvents() {
   errorMessage.value = null
   try {
     const result = await window.auditLog.list(queryPayload())
-    events.value = unwrapIpcResult<AuditEventRecord[]>(result, 'Impossible de charger l’historique de sécurité.')
+    events.value = unwrapIpcResult<AuditEventRecord[]>(result, t('operationText.loadHistory'))
     if (selected.value) {
       selected.value = events.value.find((event) => event.id === selected.value?.id) || events.value[0] || null
     }
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Impossible de charger l’historique de sécurité.'
+    errorMessage.value = error instanceof Error ? error.message : t('operationText.loadHistory')
   } finally {
     loading.value = false
   }
@@ -138,16 +142,16 @@ async function exportAudit(format: 'markdown' | 'csv') {
     const contentResult = format === 'markdown'
         ? await window.auditLog.exportMarkdown(queryPayload())
         : await window.auditLog.exportCsv(queryPayload())
-    const content = unwrapIpcResult<string>(contentResult, 'Export impossible.')
+    const content = unwrapIpcResult<string>(contentResult, t('operationText.exportFailed'))
     const saved = await window.file.saveText({
-      title: format === 'markdown' ? 'Exporter l’historique de sécurité Markdown' : 'Exporter l’historique de sécurité CSV',
+      title: format === 'markdown' ? t('operationText.exportSecurityMd') : t('operationText.exportSecurityCsv'),
       defaultPath: format === 'markdown' ? 'security-history.md' : 'security-history.csv',
       content,
       filters: format === 'markdown' ? [{name: 'Markdown', extensions: ['md']}] : [{name: 'CSV', extensions: ['csv']}],
     })
-    if (!saved?.canceled) emit('notice', 'success', 'Historique de sécurité exporté.')
+    if (!saved?.canceled) emit('notice', 'success', t('operationText.exportedHistory'))
   } catch (error) {
-    emit('notice', 'error', error instanceof Error ? error.message : 'Export impossible.')
+    emit('notice', 'error', error instanceof Error ? error.message : t('operationText.exportFailed'))
   }
 }
 
@@ -158,19 +162,19 @@ onMounted(loadEvents)
   <section class="space-y-5">
     <div class="grid gap-4 lg:grid-cols-3">
       <div class="panel lg:col-span-2">
-        <p class="soft-kicker">Historique de sécurité</p>
-        <h2 class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">Opérations sensibles</h2>
+        <p class="soft-kicker">{{ t('interfaceText.securityHistorySection.securityHistory') }}</p>
+        <h2 class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{{ t('interfaceText.securityHistorySection.sensitiveOperations') }}</h2>
         <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          Consulte les imports appliqués, exports de backup, restaurations, suppressions critiques et erreurs visibles localement.
+          {{ t('interfaceText.securityHistorySection.reviewImportsBackupExportsRestoresCriticalDeletions') }}
         </p>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div class="mini-card">
-          <p class="text-xs uppercase tracking-[0.16em] text-slate-400">Succès</p>
+          <p class="text-xs uppercase tracking-[0.16em] text-slate-400">{{ t('interfaceText.securityHistorySection.success') }}</p>
           <p class="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-300">{{ successCount }}</p>
         </div>
         <div class="mini-card">
-          <p class="text-xs uppercase tracking-[0.16em] text-slate-400">À vérifier</p>
+          <p class="text-xs uppercase tracking-[0.16em] text-slate-400">{{ t('interfaceText.securityHistorySection.needsReview') }}</p>
           <p class="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-300">{{ failureCount }}</p>
         </div>
       </div>
@@ -179,49 +183,49 @@ onMounted(loadEvents)
     <div class="panel">
       <div class="grid gap-3 md:grid-cols-5">
         <label class="field-label">
-          Depuis
+          {{ t('interfaceText.importHistorySection.from') }}
           <input v-model="filters.from" type="date" class="input mt-1" />
         </label>
         <label class="field-label">
-          Jusqu’à
+          {{ t('interfaceText.importHistorySection.to') }}
           <input v-model="filters.to" type="date" class="input mt-1" />
         </label>
         <label class="field-label">
-          Type
+          {{ t('forms.fields.type') }}
           <select v-model="filters.eventType" class="input mt-1">
-            <option value="">Tous</option>
+            <option value="">{{ t('common.all') }}</option>
             <option v-for="item in eventTypeOptions" :key="item" :value="item">{{ item }}</option>
           </select>
         </label>
         <label class="field-label">
-          Sévérité
+          {{ t('interfaceText.securityHistorySection.severity') }}
           <select v-model="filters.severity" class="input mt-1">
-            <option value="">Toutes</option>
+            <option value="">{{ t('common.allFeminine') }}</option>
             <option v-for="item in severityOptions" :key="item" :value="item">{{ item }}</option>
           </select>
         </label>
         <label class="field-label">
-          Domaine
+          {{ t('interfaceText.securityHistorySection.domain') }}
           <select v-model="filters.domain" class="input mt-1">
-            <option value="">Tous</option>
+            <option value="">{{ t('common.all') }}</option>
             <option v-for="item in domainOptions" :key="item" :value="item">{{ item }}</option>
           </select>
         </label>
       </div>
       <div class="mt-4 flex flex-wrap gap-2">
-        <button class="primary-btn" :disabled="loading" @click="loadEvents">Filtrer</button>
-        <button class="ghost-btn" :disabled="!hasFilters" @click="resetFilters">Réinitialiser</button>
-        <button class="ghost-btn" @click="exportAudit('markdown')">Exporter Markdown</button>
-        <button class="ghost-btn" @click="exportAudit('csv')">Exporter CSV</button>
+        <button class="primary-btn" :disabled="loading" @click="loadEvents">{{ t('interfaceText.securityHistorySection.filter') }}</button>
+        <button class="ghost-btn" :disabled="!hasFilters" @click="resetFilters">{{ t('common.reset') }}</button>
+        <button class="ghost-btn" @click="exportAudit('markdown')">{{ t('interfaceText.securityHistorySection.exportMarkdown') }}</button>
+        <button class="ghost-btn" @click="exportAudit('csv')">{{ t('interfaceText.securityHistorySection.exportCSV') }}</button>
       </div>
     </div>
 
     <div v-if="errorMessage" class="notice notice-error">{{ errorMessage }}</div>
 
     <div v-else-if="!loading && events.length === 0" class="panel py-10 text-center">
-      <p class="text-lg font-semibold text-slate-800 dark:text-slate-100">Aucun événement de sécurité</p>
+      <p class="text-lg font-semibold text-slate-800 dark:text-slate-100">{{ t('interfaceText.securityHistorySection.noSecurityEvents') }}</p>
       <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-        Les opérations sensibles apparaîtront ici dès qu’elles seront enregistrées localement.
+        {{ t('interfaceText.securityHistorySection.recordedOperationsWillAppearHere') }}
       </p>
     </div>
 
@@ -231,17 +235,17 @@ onMounted(loadEvents)
           <table class="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
             <thead class="sticky top-0 bg-slate-50 text-xs uppercase tracking-[0.14em] text-slate-400 dark:bg-slate-900 dark:text-slate-500">
               <tr>
-                <th class="px-4 py-3 text-left">Date</th>
-                <th class="px-4 py-3 text-left">Type</th>
-                <th class="px-4 py-3 text-left">Sévérité</th>
-                <th class="px-4 py-3 text-left">Domaine</th>
-                <th class="px-4 py-3 text-left">Statut</th>
-                <th class="px-4 py-3 text-left">Résumé</th>
+                <th class="px-4 py-3 text-left">{{ t('forms.fields.date') }}</th>
+                <th class="px-4 py-3 text-left">{{ t('forms.fields.type') }}</th>
+                <th class="px-4 py-3 text-left">{{ t('interfaceText.securityHistorySection.severity') }}</th>
+                <th class="px-4 py-3 text-left">{{ t('interfaceText.securityHistorySection.domain') }}</th>
+                <th class="px-4 py-3 text-left">{{ t('budgets.statusLabel') }}</th>
+                <th class="px-4 py-3 text-left">{{ t('importWizard.steps.summary') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800/70">
               <tr v-if="loading">
-                <td colspan="6" class="px-4 py-8 text-center text-slate-500">Chargement…</td>
+                <td colspan="6" class="px-4 py-8 text-center text-slate-500">{{ t('common.loading') }}</td>
               </tr>
               <tr
                   v-for="event in events"
@@ -269,22 +273,22 @@ onMounted(loadEvents)
 
       <aside class="panel h-fit xl:sticky xl:top-24">
         <template v-if="selected">
-          <p class="soft-kicker">Détail</p>
+          <p class="soft-kicker">{{ t('wealthGoalsSummary.detail') }}</p>
           <h3 class="mt-2 text-lg font-bold text-slate-900 dark:text-white">{{ selected.eventType }}</h3>
           <dl class="mt-4 space-y-3 text-sm">
-            <div><dt class="field-label">Date</dt><dd>{{ formatDate(selected.timestamp) }}</dd></div>
-            <div><dt class="field-label">Résumé</dt><dd>{{ selected.summary }}</dd></div>
-            <div><dt class="field-label">Domaine / action</dt><dd>{{ selected.domain }} · {{ selected.action }}</dd></div>
-            <div><dt class="field-label">Source</dt><dd>{{ selected.source || 'local' }}</dd></div>
-            <div><dt class="field-label">Entités</dt><dd>{{ selected.entityIds?.length ? selected.entityIds.map((item) => `${item.type}:${item.id}`).join(', ') : '—' }}</dd></div>
+            <div><dt class="field-label">{{ t('forms.fields.date') }}</dt><dd>{{ formatDate(selected.timestamp) }}</dd></div>
+            <div><dt class="field-label">{{ t('importWizard.steps.summary') }}</dt><dd>{{ selected.summary }}</dd></div>
+            <div><dt class="field-label">{{ t('interfaceText.securityHistorySection.domainAction') }}</dt><dd>{{ selected.domain }} · {{ selected.action }}</dd></div>
+            <div><dt class="field-label">{{ t('interfaceText.goalsSection.source') }}</dt><dd>{{ selected.source || 'local' }}</dd></div>
+            <div><dt class="field-label">{{ t('interfaceText.securityHistorySection.records') }}</dt><dd>{{ selected.entityIds?.length ? selected.entityIds.map((item) => `${item.type}:${item.id}`).join(', ') : '—' }}</dd></div>
           </dl>
           <div class="mt-4">
-            <p class="field-label">Métadonnées redacted</p>
+            <p class="field-label">{{ t('interfaceText.securityHistorySection.redactedMetadata') }}</p>
             <pre class="mt-2 max-h-80 overflow-auto rounded-2xl border border-slate-200 bg-slate-950 p-3 text-xs text-slate-100 dark:border-slate-800">{{ selectedMetadata }}</pre>
           </div>
         </template>
         <template v-else>
-          <p class="text-sm text-slate-500 dark:text-slate-400">Sélectionne un événement pour afficher ses détails.</p>
+          <p class="text-sm text-slate-500 dark:text-slate-400">{{ t('interfaceText.securityHistorySection.selectAnEventToViewDetails') }}</p>
         </template>
       </aside>
     </div>

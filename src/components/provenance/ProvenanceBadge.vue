@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type {DataOrigin, DataProvenance} from '../../types/provenance'
-import {ORIGIN_LABELS, originTone, provenanceTooltip} from './provenanceDisplay'
+import {originLabel, originTone, provenanceTooltip} from './provenanceDisplay'
 
 const props = withDefaults(defineProps<{
   provenance?: DataProvenance | null
@@ -23,6 +23,6 @@ function resolvedOrigin() {
       :class="originTone(resolvedOrigin())"
       :title="provenanceTooltip(props.provenance)"
   >
-    {{ props.compact ? ORIGIN_LABELS[resolvedOrigin()].slice(0, 4) : ORIGIN_LABELS[resolvedOrigin()] }}
+    {{ props.compact ? originLabel(resolvedOrigin()).slice(0, 4) : originLabel(resolvedOrigin()) }}
   </span>
 </template>

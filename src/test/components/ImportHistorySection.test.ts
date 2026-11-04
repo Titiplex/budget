@@ -1,5 +1,6 @@
 import {mount} from '@vue/test-utils'
 import {beforeEach, describe, expect, it, vi} from 'vitest'
+import {i18n} from '../../i18n'
 import ImportHistorySection from '../../components/ImportHistorySection.vue'
 
 function ok<T>(data: T) {
@@ -68,13 +69,29 @@ describe('ImportHistorySection', () => {
         expect(window.imports.listHistory).toHaveBeenCalledWith(expect.objectContaining({}))
         expect(wrapper.text()).toContain('Historique d’import')
         expect(wrapper.text()).toContain('bank-a.csv')
-        expect(wrapper.text()).toContain('1 appliquées')
+        expect(wrapper.text()).toContain('1 appliquée')
 
         await wrapper.find('select.form-input').setValue('applied')
         const applyFiltersButton = wrapper.findAll('button').find((button) => button.text().includes('Appliquer les filtres'))
         await applyFiltersButton!.trigger('click')
 
         expect(window.imports.listHistory).toHaveBeenLastCalledWith(expect.objectContaining({status: 'applied'}))
+        wrapper.unmount()
+    })
+
+    it('updates the displayed status and retains the filter value when switching languages', async () => {
+        const wrapper = mount(ImportHistorySection)
+        await vi.dynamicImportSettled()
+        const select = wrapper.get('select')
+        await select.setValue('applied')
+        i18n.global.locale.value = 'en'
+        await wrapper.vm.$nextTick()
+
+        expect(select.get('option[value="applied"]').text()).toBe('Applied')
+        expect((select.element as HTMLSelectElement).value).toBe('applied')
+        expect(wrapper.get('h2').text()).toBe('Import history')
+        await wrapper.get('tbody button').trigger('click')
+        expect(window.imports.getDetail).toHaveBeenCalledWith('batch-1')
         wrapper.unmount()
     })
 
@@ -91,16 +108,16 @@ describe('ImportHistorySection', () => {
         expect(wrapper.text()).toContain('bank-a.csv')
         expect(wrapper.text()).toContain('Export MD')
 
-        const messagesTab = wrapper.findAll('button').find((button) => button.text() === 'messages')
+        const messagesTab = wrapper.findAll('button').find((button) => button.text() === 'Messages')
         await messagesTab!.trigger('click')
         expect(wrapper.text()).toContain('Date invalide')
         expect(wrapper.text()).toContain('Libellé manquant')
 
-        const decisionsTab = wrapper.findAll('button').find((button) => button.text() === 'decisions')
+        const decisionsTab = wrapper.findAll('button').find((button) => button.text() === 'Décisions')
         await decisionsTab!.trigger('click')
         expect(wrapper.text()).toContain('importAsNew')
 
-        const linksTab = wrapper.findAll('button').find((button) => button.text() === 'links')
+        const linksTab = wrapper.findAll('button').find((button) => button.text() === 'Éléments liés')
         await linksTab!.trigger('click')
         expect(wrapper.text()).toContain('created')
         expect(wrapper.text()).toContain('tx-1')

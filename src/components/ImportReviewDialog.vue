@@ -48,7 +48,7 @@ const {t} = useI18n()
 
       <div v-if="blockingErrors && blockingErrors.length" class="mt-5 space-y-2">
         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-rose-500">
-          Erreurs bloquantes
+          {{ t('interfaceText.importReviewDialog.blockingErrors') }}
         </p>
         <div
             v-for="error in blockingErrors"
@@ -61,7 +61,7 @@ const {t} = useI18n()
 
       <div v-if="warnings && warnings.length" class="mt-5 space-y-2">
         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-amber-500">
-          Warnings
+          {{ t('interfaceText.importReviewDialog.warnings') }}
         </p>
         <div
             v-for="warning in warnings"

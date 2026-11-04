@@ -1,5 +1,9 @@
 <script setup lang="ts">
+import {currentLocaleCode} from '../i18n'
+import {useI18n} from 'vue-i18n'
 import {onMounted, ref} from 'vue'
+
+const {t} = useI18n()
 
 interface IpcResult<T> {
   ok: boolean
@@ -45,7 +49,7 @@ function formatDate(value: string | null | undefined) {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('fr-CA', {dateStyle: 'medium', timeStyle: 'short'}).format(date)
+  return new Intl.DateTimeFormat(currentLocaleCode(), {dateStyle: 'medium', timeStyle: 'short'}).format(date)
 }
 
 function formatBytes(value: number | null | undefined) {
@@ -60,10 +64,10 @@ async function loadSnapshots() {
   if (!api) return
   loading.value = true
   try {
-    snapshots.value = unwrap(await api.list(), 'Impossible de lire les snapshots de récupération.')
-    policy.value = unwrap(await api.getPolicy(), 'Impossible de lire la politique de rétention.')
+    snapshots.value = unwrap(await api.list(), t('operationText.loadSnapshots'))
+    policy.value = unwrap(await api.getPolicy(), t('operationText.loadPolicy'))
   } catch (error) {
-    emit('notice', 'error', error instanceof Error ? error.message : 'Impossible de lire les snapshots de récupération.')
+    emit('notice', 'error', error instanceof Error ? error.message : t('operationText.loadSnapshots'))
   } finally {
     loading.value = false
   }
@@ -74,16 +78,16 @@ async function exportSnapshot(row: RecoverySnapshotRow) {
   if (!api) return
   exporting.value = row.id
   try {
-    const snapshot = unwrap(await api.read(row.id), 'Impossible de lire le snapshot.') as {metadata: RecoverySnapshotRow; content: string}
+    const snapshot = unwrap(await api.read(row.id), t('operationText.readSnapshot')) as {metadata: RecoverySnapshotRow; content: string}
     const result = await window.file.saveText({
-      title: 'Exporter un snapshot de récupération',
+      title: t('operationText.exportSnapshot'),
       defaultPath: row.fileName,
       content: snapshot.content,
       filters: [{name: 'JSON', extensions: ['json']}],
     })
-    if (!result?.canceled) emit('notice', 'success', 'Snapshot exporté. Tu peux le restaurer avec le flow JSON existant.')
+    if (!result?.canceled) emit('notice', 'success', t('operationText.snapshotExported'))
   } catch (error) {
-    emit('notice', 'error', error instanceof Error ? error.message : 'Échec de l’export du snapshot.')
+    emit('notice', 'error', error instanceof Error ? error.message : t('operationText.snapshotExportFailed'))
   } finally {
     exporting.value = null
   }
@@ -93,25 +97,25 @@ async function markRestored(row: RecoverySnapshotRow) {
   const api = window.recoverySnapshots
   if (!api) return
   try {
-    unwrap(await api.markRestored({id: row.id, filePath: row.filePath, source: 'recovery-snapshots-panel'}), 'Impossible d’auditer le snapshot.')
-    emit('notice', 'success', 'Évènement de restauration snapshot audité. Exporte le snapshot puis restaure-le via JSON si nécessaire.')
+    unwrap(await api.markRestored({id: row.id, filePath: row.filePath, source: 'recovery-snapshots-panel'}), t('operationText.auditSnapshotFailed'))
+    emit('notice', 'success', t('operationText.snapshotLogged'))
   } catch (error) {
-    emit('notice', 'error', error instanceof Error ? error.message : 'Impossible d’auditer le snapshot.')
+    emit('notice', 'error', error instanceof Error ? error.message : t('operationText.auditSnapshotFailed'))
   }
 }
 
 async function deleteSnapshot(row: RecoverySnapshotRow) {
   const api = window.recoverySnapshots
   if (!api) return
-  const accepted = window.confirm(`Supprimer le snapshot local ${row.fileName} ? Cette action ne supprime aucune donnée financière.`)
+  const accepted = window.confirm(t('operationText.confirmSnapshot', {name: row.fileName}))
   if (!accepted) return
   deleting.value = row.id
   try {
-    unwrap(await api.delete(row.id), 'Impossible de supprimer le snapshot.')
+    unwrap(await api.delete(row.id), t('operationText.deleteSnapshotFailed'))
     await loadSnapshots()
-    emit('notice', 'success', 'Snapshot supprimé.')
+    emit('notice', 'success', t('operationText.snapshotDeleted'))
   } catch (error) {
-    emit('notice', 'error', error instanceof Error ? error.message : 'Impossible de supprimer le snapshot.')
+    emit('notice', 'error', error instanceof Error ? error.message : t('operationText.deleteSnapshotFailed'))
   } finally {
     deleting.value = null
   }
@@ -125,20 +129,20 @@ onMounted(loadSnapshots)
     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-          Récupération locale
+          {{ t('interfaceText.recoverySnapshotsPanel.localRecovery') }}
         </p>
         <h4 class="mt-1 text-sm font-bold text-slate-900 dark:text-white">
-          Snapshots avant actions critiques
+          {{ t('interfaceText.recoverySnapshotsPanel.recoverySnapshots') }}
         </h4>
         <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-          Budget crée automatiquement un backup JSON local avant les suppressions critiques et les restores complets. Les secrets locaux ne sont pas inclus.
+          {{ t('interfaceText.recoverySnapshotsPanel.aLocalJSONCopyIsSavedBefore') }}
         </p>
         <p v-if="policy" class="mt-1 text-[11px] text-slate-400">
-          Rétention : {{ policy.maxSnapshots }} snapshots · {{ formatBytes(policy.maxBytes) }} max · {{ policy.directory }}
+          {{ t('interfaceText.recoverySnapshotsPanel.retention') }} {{ policy.maxSnapshots }} {{ t('interfaceText.recoverySnapshotsPanel.snapshots') }} {{ formatBytes(policy.maxBytes) }} {{ t('interfaceText.recoverySnapshotsPanel.max') }} {{ policy.directory }}
         </p>
       </div>
       <button class="ghost-btn !px-3 !py-2 text-xs" :disabled="loading" @click="loadSnapshots">
-        {{ loading ? 'Chargement…' : 'Rafraîchir' }}
+        {{ loading ? t('common.loading') : t('common.refresh') }}
       </button>
     </div>
 
@@ -158,13 +162,13 @@ onMounted(loadSnapshots)
           </div>
           <div class="flex flex-wrap gap-2">
             <button class="mini-action-btn" :disabled="exporting === snapshot.id" @click="exportSnapshot(snapshot)">
-              {{ exporting === snapshot.id ? 'Export…' : 'Exporter' }}
+              {{ exporting === snapshot.id ? t('interfaceText.recoverySnapshotsPanel.exporting') : t('interfaceText.recoverySnapshotsPanel.export') }}
             </button>
             <button class="mini-action-btn" @click="markRestored(snapshot)">
-              Auditer restore
+              {{ t('interfaceText.recoverySnapshotsPanel.reviewRestore') }}
             </button>
             <button class="mini-danger-btn" :disabled="deleting === snapshot.id" @click="deleteSnapshot(snapshot)">
-              {{ deleting === snapshot.id ? 'Suppression…' : 'Supprimer' }}
+              {{ deleting === snapshot.id ? t('interfaceText.importHistorySection.deleting') : t('common.delete') }}
             </button>
           </div>
         </div>
@@ -172,7 +176,7 @@ onMounted(loadSnapshots)
     </div>
 
     <p v-else class="mt-4 rounded-xl border border-dashed border-slate-300 px-3 py-4 text-center text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
-      Aucun snapshot de récupération pour l’instant.
+      {{ t('interfaceText.recoverySnapshotsPanel.noRecoverySnapshotsYet') }}
     </p>
   </section>
 </template>

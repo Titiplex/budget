@@ -105,7 +105,7 @@ describe('SecurityHistorySection', () => {
         await wrapper.find('tbody tr').trigger('click')
         await wrapper.vm.$nextTick()
 
-        expect(wrapper.text()).toContain('Métadonnées redacted')
+        expect(wrapper.text()).toContain('Métadonnées masquées')
         expect(wrapper.text()).toContain('[redacted]')
         expect(wrapper.text()).not.toContain('should-redact')
         expect(wrapper.text()).not.toContain('should-redact-too')

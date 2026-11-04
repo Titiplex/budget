@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type {DataFreshnessStatus, DataProvenance} from '../../types/provenance'
-import {FRESHNESS_LABELS, freshnessReason, freshnessTone} from './provenanceDisplay'
+import {freshnessLabel, freshnessReason, freshnessTone} from './provenanceDisplay'
 
 const props = withDefaults(defineProps<{
   status: DataFreshnessStatus
@@ -19,6 +19,6 @@ const props = withDefaults(defineProps<{
       :title="freshnessReason(props.status, props.provenance)"
   >
     <span class="mr-1 h-1.5 w-1.5 rounded-full bg-current opacity-70" />
-    {{ props.compact ? FRESHNESS_LABELS[props.status].slice(0, 3) : FRESHNESS_LABELS[props.status] }}
+    {{ props.compact ? freshnessLabel(props.status).slice(0, 3) : freshnessLabel(props.status) }}
   </span>
 </template>

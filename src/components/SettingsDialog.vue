@@ -38,9 +38,6 @@ function updateCurrency(event: Event) {
       @click.self="emit('close')"
   >
     <div class="dialog-card max-h-[90vh] overflow-y-auto">
-      <p class="soft-kicker">
-        {{ t('settings.subtitle') }}
-      </p>
       <h3 class="dialog-title">
         {{ t('settings.title') }}
       </h3>
@@ -50,8 +47,9 @@ function updateCurrency(event: Event) {
 
       <div class="mt-6 space-y-5">
         <div class="field-block">
-          <label class="field-label">{{ t('common.language') }}</label>
+          <label for="settings-language" class="field-label">{{ t('common.language') }}</label>
           <select
+              id="settings-language"
               :value="props.currentLocale"
               class="field-control"
               @change="emit('update-locale', ($event.target as HTMLSelectElement).value as SupportedLocale)"
@@ -62,8 +60,9 @@ function updateCurrency(event: Event) {
         </div>
 
         <div class="field-block">
-          <label class="field-label">{{ t('common.theme') }}</label>
+          <label for="settings-theme" class="field-label">{{ t('common.theme') }}</label>
           <select
+              id="settings-theme"
               :value="props.currentTheme"
               class="field-control"
               @change="emit('update-theme', ($event.target as HTMLSelectElement).value as 'light' | 'dark')"
@@ -91,17 +90,15 @@ function updateCurrency(event: Event) {
           </p>
         </div>
 
-        <SecurityRecoveryPanel @notice="(type, text) => emit('notice', type, text)" />
+        <details class="panel p-4">
+          <summary class="cursor-pointer font-semibold">{{ t('interfaceText.securityRecoveryPanel.securityAndRecovery') }}</summary>
+          <SecurityRecoveryPanel class="mt-3" @notice="(type, text) => emit('notice', type, text)" />
+        </details>
 
-        <section class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60">
-          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-            Confiance des données
-          </p>
-          <h4 class="mt-1 text-sm font-bold text-slate-900 dark:text-white">
-            Provenance et fraîcheur
-          </h4>
+        <details class="panel p-4">
+          <summary class="cursor-pointer font-semibold">{{ t('interfaceText.settingsDialog.sourceAndFreshness') }}</summary>
           <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-            Les badges indiquent si une donnée vient d’une saisie manuelle, d’un import, d’un restore, d’un calcul ou d’un provider externe. Les tooltips affichent la source, la date observée et la raison d’un statut obsolète sans exposer de secrets.
+            {{ t('interfaceText.settingsDialog.badgesShowWhereAValueCameFrom') }}
           </p>
           <div class="mt-3 flex flex-wrap gap-2">
             <ProvenanceBadge origin="manual" />
@@ -113,7 +110,7 @@ function updateCurrency(event: Event) {
             <FreshnessBadge status="stale" />
             <FreshnessBadge status="unknown" />
           </div>
-        </section>
+        </details>
       </div>
 
       <div class="form-actions mt-6">

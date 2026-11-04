@@ -245,7 +245,7 @@ const transferModeSummary = computed(() => {
                   v-model="transactionForm.label"
                   type="text"
                   class="field-control"
-                  :placeholder="isTransferMode ? 'Virement vers épargne, déplacement de fonds...' : 'Courses, salaire, abonnement...'"
+                  :placeholder="isTransferMode ? t('operationText.transferExample') : t('operationText.transactionExample')"
               >
             </div>
 
@@ -394,7 +394,7 @@ const transferModeSummary = computed(() => {
                       {{ t('transfer.accountToCredit') }}
                     </span>
                     <select v-model="transactionForm.transferTargetAccountId" class="field-control">
-                      <option value="">Sélectionner un compte</option>
+                      <option value="">{{ t('forms.placeholders.selectAccount') }}</option>
                       <option
                           v-for="account in accounts.filter((entry) => String(entry.id) !== transactionForm.accountId)"
                           :key="account.id"
@@ -479,7 +479,7 @@ const transferModeSummary = computed(() => {
                         v-model="transactionForm.exchangeProvider"
                         type="text"
                         class="field-control"
-                        placeholder="MANUAL / ECB via Frankfurter"
+                        :placeholder="t('recurring.placeholders.exchangeProvider')"
                         :readonly="transactionForm.conversionMode === 'AUTOMATIC'"
                     >
                   </label>
@@ -508,7 +508,7 @@ const transferModeSummary = computed(() => {
                 <div v-if="fxPreview" class="mt-4 inline-warning">
                   {{ transactionForm.amount || '0' }} {{ sourceCurrency }}
                   ≈ {{ fxPreview.convertedAmount.toFixed(2) }} {{ targetCurrency }}
-                  avec un taux de {{ fxPreview.rate.toFixed(6) }}
+                  {{ t('interfaceText.entityDrawer.atARateOf') }} {{ fxPreview.rate.toFixed(6) }}
                   ({{ fxPreview.provider }}, {{ fxPreview.date }})
                 </div>
               </div>
@@ -535,7 +535,7 @@ const transferModeSummary = computed(() => {
                 <div
                     class="rounded-2xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900/60 dark:bg-rose-950/30">
                   <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-600 dark:text-rose-300">
-                    Débit
+                    {{ t('transfer.debit') }}
                   </p>
                   <p class="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
                     {{ transferPreview.debitLabel }}
@@ -548,7 +548,7 @@ const transferModeSummary = computed(() => {
                 <div
                     class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30">
                   <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-600 dark:text-emerald-300">
-                    Crédit
+                    {{ t('budget.accountType.CREDIT') }}
                   </p>
                   <p class="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
                     {{ transferPreview.creditLabel }}
@@ -605,9 +605,9 @@ const transferModeSummary = computed(() => {
               </div>
 
               <div class="field-block">
-                <label class="field-label">Compte</label>
+                <label class="field-label">{{ t('forms.fields.account') }}</label>
                 <select v-model="transactionForm.accountId" class="field-control">
-                  <option value="">Sélectionner un compte</option>
+                  <option value="">{{ t('forms.placeholders.selectAccount') }}</option>
                   <option
                       v-for="account in accounts"
                       :key="account.id"
@@ -633,7 +633,7 @@ const transferModeSummary = computed(() => {
               </div>
 
               <div class="field-block md:col-span-2">
-                <label class="field-label">Note</label>
+                <label class="field-label">{{ t('forms.fields.note') }}</label>
                 <textarea
                     v-model="transactionForm.note"
                     rows="4"
@@ -659,8 +659,8 @@ const transferModeSummary = computed(() => {
                   <label class="field-block">
                     <span class="field-label">{{ t('forms.fields.conversionMode') }}</span>
                     <select v-model="transactionForm.conversionMode" class="field-control">
-                      <option value="AUTOMATIC">Automatique</option>
-                      <option value="MANUAL">Manuel</option>
+                      <option value="AUTOMATIC">{{ t('common.automatic') }}</option>
+                      <option value="MANUAL">{{ t('common.manual') }}</option>
                     </select>
                   </label>
 
@@ -678,7 +678,7 @@ const transferModeSummary = computed(() => {
                   </label>
 
                   <label class="field-block">
-                    <span class="field-label">Taux mémorisé</span>
+                    <span class="field-label">{{ t('forms.fields.exchangeRate') }}</span>
                     <input
                         v-model="transactionForm.exchangeRate"
                         type="number"
@@ -693,18 +693,18 @@ const transferModeSummary = computed(() => {
 
                 <div class="mt-4 grid gap-4 md:grid-cols-2">
                   <label class="field-block">
-                    <span class="field-label">Source du taux</span>
+                    <span class="field-label">{{ t('forms.fields.exchangeProvider') }}</span>
                     <input
                         v-model="transactionForm.exchangeProvider"
                         type="text"
                         class="field-control"
-                        placeholder="MANUAL / ECB via Frankfurter"
+                        :placeholder="t('recurring.placeholders.exchangeProvider')"
                         :readonly="transactionForm.conversionMode === 'AUTOMATIC'"
                     >
                   </label>
 
                   <label class="field-block">
-                    <span class="field-label">Date du taux</span>
+                    <span class="field-label">{{ t('forms.fields.exchangeDate') }}</span>
                     <input
                         v-model="transactionForm.exchangeDate"
                         type="date"
@@ -727,7 +727,7 @@ const transferModeSummary = computed(() => {
                 <div v-if="fxPreview" class="mt-4 inline-warning">
                   {{ transactionForm.amount || '0' }} {{ sourceCurrency }}
                   ≈ {{ fxPreview.convertedAmount.toFixed(2) }} {{ targetCurrency }}
-                  avec un taux de {{ fxPreview.rate.toFixed(6) }}
+                  {{ t('interfaceText.entityDrawer.atARateOf') }} {{ fxPreview.rate.toFixed(6) }}
                   ({{ fxPreview.provider }}, {{ fxPreview.date }})
                 </div>
               </div>
@@ -775,7 +775,7 @@ const transferModeSummary = computed(() => {
             </div>
 
             <div class="field-block">
-              <label class="field-label">Type</label>
+              <label class="field-label">{{ t('forms.fields.type') }}</label>
               <select v-model="accountForm.type" class="field-control">
                 <option
                     v-for="type in accountTypeOptions"
@@ -811,7 +811,7 @@ const transferModeSummary = computed(() => {
 
           <div class="form-actions">
             <button type="button" class="ghost-btn" @click="emit('reset-account')">
-              Réinitialiser
+              {{ t('common.reset') }}
             </button>
 
             <button
@@ -820,11 +820,11 @@ const transferModeSummary = computed(() => {
                 class="danger-btn"
                 @click="emit('request-delete')"
             >
-              Supprimer
+              {{ t('common.delete') }}
             </button>
 
             <button type="submit" class="primary-btn" :disabled="saving">
-              {{ saving ? 'Enregistrement…' : panelSubmitLabel }}
+              {{ saving ? t('interfaceText.entityDrawer.saving') : panelSubmitLabel }}
             </button>
           </div>
         </form>
@@ -836,7 +836,7 @@ const transferModeSummary = computed(() => {
         >
           <div class="grid gap-5 md:grid-cols-2">
             <div class="field-block md:col-span-2">
-              <label class="field-label">Nom</label>
+              <label class="field-label">{{ t('forms.fields.name') }}</label>
               <input
                   v-model="categoryForm.name"
                   type="text"
@@ -846,7 +846,7 @@ const transferModeSummary = computed(() => {
             </div>
 
             <div class="field-block">
-              <label class="field-label">Type</label>
+              <label class="field-label">{{ t('forms.fields.type') }}</label>
               <select v-model="categoryForm.kind" class="field-control">
                 <option
                     v-for="kind in transactionKindOptions"
@@ -868,19 +868,19 @@ const transferModeSummary = computed(() => {
             </div>
 
             <div class="field-block md:col-span-2">
-              <label class="field-label">Description</label>
+              <label class="field-label">{{ t('forms.fields.description') }}</label>
               <textarea
                   v-model="categoryForm.description"
                   rows="4"
                   class="field-control field-textarea"
-                  placeholder="Optionnel"
+                  :placeholder="t('common.optional')"
               ></textarea>
             </div>
           </div>
 
           <div class="form-actions">
             <button type="button" class="ghost-btn" @click="emit('reset-category')">
-              Réinitialiser
+              {{ t('common.reset') }}
             </button>
 
             <button
@@ -889,11 +889,11 @@ const transferModeSummary = computed(() => {
                 class="danger-btn"
                 @click="emit('request-delete')"
             >
-              Supprimer
+              {{ t('common.delete') }}
             </button>
 
             <button type="submit" class="primary-btn" :disabled="saving">
-              {{ saving ? 'Enregistrement…' : panelSubmitLabel }}
+              {{ saving ? t('interfaceText.entityDrawer.saving') : panelSubmitLabel }}
             </button>
           </div>
         </form>

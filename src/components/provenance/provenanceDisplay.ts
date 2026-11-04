@@ -1,22 +1,12 @@
+import {currentLocaleCode, tr} from '../../i18n'
 import type {DataFreshnessStatus, DataOrigin, DataProvenance} from '../../types/provenance'
 
-export const ORIGIN_LABELS: Record<DataOrigin, string> = {
-    manual: 'Saisie manuelle',
-    csvImport: 'Importé',
-    backupRestore: 'Restauré',
-    generatedFromRecurring: 'Récurrence',
-    calculated: 'Calculé',
-    marketDataProvider: 'Provider externe',
-    connectorReadOnly: 'Connecteur',
-    migration: 'Migration',
+export function originLabel(value: DataOrigin) {
+    return tr(`dataOrigin.${value}`)
 }
 
-export const FRESHNESS_LABELS: Record<DataFreshnessStatus, string> = {
-    fresh: 'Frais',
-    stale: 'Obsolète',
-    unknown: 'Inconnu',
-    userProvided: 'Utilisateur',
-    unavailable: 'Indisponible',
+export function freshnessLabel(value: DataFreshnessStatus) {
+    return tr(`dataOrigin.${value}`)
 }
 
 export function freshnessTone(status: DataFreshnessStatus) {
@@ -40,29 +30,26 @@ export function formatProvenanceDate(value: string | null | undefined) {
     if (!value) return '—'
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return value
-    return new Intl.DateTimeFormat('fr-CA', {dateStyle: 'medium', timeStyle: 'short'}).format(date)
+    return new Intl.DateTimeFormat(currentLocaleCode(), {dateStyle: 'medium', timeStyle: 'short'}).format(date)
 }
 
 export function freshnessReason(status: DataFreshnessStatus, provenance?: DataProvenance | null) {
-    if (status === 'stale') {
-        return `Donnée considérée obsolète${provenance?.staleAfter ? ` après ${provenance.staleAfter}` : ''}.`
+    if (status === 'stale' && provenance?.staleAfter) {
+        return tr('dataOrigin.staleAfter', {age: provenance.staleAfter})
     }
-    if (status === 'fresh') return 'Donnée encore dans sa fenêtre de fraîcheur.'
-    if (status === 'userProvided') return 'Donnée fournie ou confirmée manuellement par l’utilisateur.'
-    if (status === 'unavailable') return 'Aucune donnée exploitable n’est disponible.'
-    return 'Fraîcheur impossible à déterminer avec les métadonnées actuelles.'
+    return tr(`dataOrigin.reason_${status}`)
 }
 
 export function provenanceTooltip(provenance: DataProvenance | null | undefined, freshnessStatus?: DataFreshnessStatus | null) {
-    if (!provenance) return freshnessStatus ? freshnessReason(freshnessStatus) : 'Aucune provenance disponible.'
+    if (!provenance) return freshnessStatus ? freshnessReason(freshnessStatus) : tr('dataOrigin.none')
     const lines = [
-        `Origine: ${ORIGIN_LABELS[provenance.origin] || provenance.origin}`,
-        `Source: ${provenance.sourceLabel || provenance.provider || provenance.sourceType}`,
-        provenance.provider ? `Provider: ${provenance.provider}` : null,
-        provenance.importBatchId != null ? `Batch import: ${provenance.importBatchId}` : null,
-        `Observé le: ${formatProvenanceDate(provenance.observedAt)}`,
-        `Mis à jour le: ${formatProvenanceDate(provenance.updatedAt)}`,
-        freshnessStatus ? `Statut: ${FRESHNESS_LABELS[freshnessStatus] || freshnessStatus}` : null,
+        tr('dataOrigin.originLine', {value: originLabel(provenance.origin) || provenance.origin}),
+        tr('dataOrigin.sourceLine', {value: provenance.sourceLabel || provenance.provider || provenance.sourceType}),
+        provenance.provider ? tr('dataOrigin.providerLine', {value: provenance.provider}) : null,
+        provenance.importBatchId != null ? tr('dataOrigin.importbatchLine', {value: provenance.importBatchId}) : null,
+        tr('dataOrigin.observedLine', {value: formatProvenanceDate(provenance.observedAt)}),
+        tr('dataOrigin.updatedLine', {value: formatProvenanceDate(provenance.updatedAt)}),
+        freshnessStatus ? tr('dataOrigin.statusLine', {value: freshnessLabel(freshnessStatus) || freshnessStatus}) : null,
         freshnessStatus ? freshnessReason(freshnessStatus, provenance) : null,
     ].filter(Boolean)
 
