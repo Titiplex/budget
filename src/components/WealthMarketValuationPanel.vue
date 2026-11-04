@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {currentLocaleCode} from '../i18n'
 import {computed, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 
@@ -261,7 +262,7 @@ async function loadLatestSnapshot(marketDataApi: MarketDataRendererApi | null, i
 function formatMoney(amount: number | null | undefined, currency = props.summaryCurrency) {
   if (amount == null) return '—'
 
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(currentLocaleCode(), {
     style: 'currency',
     currency,
     maximumFractionDigits: 2,
@@ -271,7 +272,7 @@ function formatMoney(amount: number | null | undefined, currency = props.summary
 function formatDate(value: string | null | undefined) {
   if (!value) return '—'
 
-  return new Intl.DateTimeFormat(undefined, {dateStyle: 'medium'}).format(new Date(value))
+  return new Intl.DateTimeFormat(currentLocaleCode(), {dateStyle: 'medium'}).format(new Date(value))
 }
 
 function statusClass(status: WealthMarketFreshnessStatus) {

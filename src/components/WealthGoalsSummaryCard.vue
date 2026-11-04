@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {currentLocaleCode} from '../i18n'
 import {computed, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 
@@ -82,7 +83,7 @@ function normalizeCurrency(value: string | null | undefined) {
 function formatMoney(amount: number | null | undefined, currency = props.summaryCurrency) {
   if (amount == null || Number.isNaN(Number(amount))) return '—'
 
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(currentLocaleCode(), {
     style: 'currency',
     currency: normalizeCurrency(currency),
     maximumFractionDigits: 0,
@@ -92,13 +93,13 @@ function formatMoney(amount: number | null | undefined, currency = props.summary
 function formatDate(value: string | null | undefined) {
   if (!value) return '—'
 
-  return new Intl.DateTimeFormat(undefined, {dateStyle: 'medium'}).format(new Date(value))
+  return new Intl.DateTimeFormat(currentLocaleCode(), {dateStyle: 'medium'}).format(new Date(value))
 }
 
 function formatPercent(value: number | null | undefined) {
   if (value == null || Number.isNaN(Number(value))) return '—'
 
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(currentLocaleCode(), {
     style: 'percent',
     maximumFractionDigits: 1,
   }).format(Number(value) / 100)
@@ -107,7 +108,7 @@ function formatPercent(value: number | null | undefined) {
 function formatRate(value: number | null | undefined) {
   if (value == null) return '—'
 
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(currentLocaleCode(), {
     style: 'percent',
     maximumFractionDigits: 2,
   }).format(Number(value))

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {currentLocaleCode} from '../i18n'
 import {computed, onMounted, reactive, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 
@@ -225,7 +226,7 @@ const tabs = computed(() => [
 function formatMoney(amount: number | null | undefined, currency = overviewCurrency.value) {
   if (amount == null) return '—'
 
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(currentLocaleCode(), {
     style: 'currency',
     currency,
     maximumFractionDigits: 0,
@@ -235,13 +236,13 @@ function formatMoney(amount: number | null | undefined, currency = overviewCurre
 function formatDate(value: string | null | undefined) {
   if (!value) return '—'
 
-  return new Intl.DateTimeFormat(undefined, {dateStyle: 'medium'}).format(new Date(value))
+  return new Intl.DateTimeFormat(currentLocaleCode(), {dateStyle: 'medium'}).format(new Date(value))
 }
 
 function formatPercent(value: number | null | undefined) {
   if (value == null) return '—'
 
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(currentLocaleCode(), {
     style: 'percent',
     maximumFractionDigits: 1,
   }).format(value)
@@ -628,20 +629,13 @@ onMounted(() => {
     >
       {{ successMessage }}
     </div>
-    <WealthMarketValuationPanel
-        :assets="assets"
-        :portfolios="portfolios"
-        :summary-currency="props.summaryCurrency"
-        @refresh="loadWealth"
-    />
-    <MarketWatchlistPanel :summary-currency="props.summaryCurrency"/>
-
-    <div class="grid gap-6 xl:grid-cols-[430px_minmax(0,1fr)]">
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-[430px_minmax(0,1fr)]">
       <article class="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-sm">
-        <div class="mb-5 flex rounded-2xl bg-slate-900 p-1">
+        <div class="mb-5 flex flex-wrap rounded-2xl bg-slate-900 p-1">
           <button
               v-for="tab in tabs"
               :key="tab.key"
+              :aria-pressed="activeTab === tab.key"
               type="button"
               class="flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition"
               :class="activeTab === tab.key ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'"
@@ -661,7 +655,7 @@ onMounted(() => {
               activeTab === 'asset'
                   ? t('wealth.form.assetDescription')
                   : activeTab === 'portfolio'
-                      ? 'Un compte ou portefeuille d’investissement.'
+                      ? t('wealth.form.portfolioDescription')
                       : t('wealth.form.liabilityDescription')
             }}
           </p>
@@ -1085,7 +1079,7 @@ onMounted(() => {
                       {{ asset.ownershipPercent ?? 100 }}%
                     </p>
                     <p class="mt-1 text-xs text-slate-500">
-                      Valorisation : {{ formatDate(asset.valueAsOf) }}
+                      {{ t('interfaceText.wealthSection.valuation') }} {{ formatDate(asset.valueAsOf) }}
                       <span v-if="asset.includeInNetWorth === false"> · {{ t('wealth.status.netWorthExcluded') }}</span>
                       <span v-if="asset.status === 'ARCHIVED'"> · {{ t('wealth.status.archivedMasc') }}</span>
                     </p>
@@ -1124,7 +1118,7 @@ onMounted(() => {
                       {{ PORTFOLIO_TAX_WRAPPER_LABELS[portfolio.taxWrapper] }} · {{ portfolio.currency }}
                     </p>
                     <p class="mt-1 text-xs text-slate-500">
-                      Valorisation : {{ formatDate(portfolio.valueAsOf) }}
+                      {{ t('interfaceText.wealthSection.valuation') }} {{ formatDate(portfolio.valueAsOf) }}
                       <span
                           v-if="portfolio.includeInNetWorth === false"> · {{ t('wealth.status.netWorthExcluded') }}</span>
                       <span v-if="portfolio.status === 'ARCHIVED'"> · {{ t('wealth.status.archivedMasc') }}</span>
@@ -1135,7 +1129,7 @@ onMounted(() => {
                       {{ formatMoney(portfolio.currentValue, portfolio.currency) }}
                     </p>
                     <p class="text-xs text-slate-500">
-                      Cash : {{ formatMoney(portfolio.cashBalance, portfolio.currency) }}
+                      {{ t('interfaceText.wealthSection.cash') }} {{ formatMoney(portfolio.cashBalance, portfolio.currency) }}
                     </p>
                     <div class="mt-2 flex gap-2 sm:justify-end">
                       <button class="text-sm font-semibold text-violet-300 hover:text-violet-200"
@@ -1167,8 +1161,8 @@ onMounted(() => {
                       <span v-if="liability.interestRate != null"> · {{ liability.interestRate }}%</span>
                     </p>
                     <p class="mt-1 text-xs text-slate-500">
-                      Solde au : {{ formatDate(liability.balanceAsOf) }}
-                      <span v-if="liability.minimumPayment != null"> · Min. {{
+                      {{ t('interfaceText.wealthSection.balanceAsOf') }} {{ formatDate(liability.balanceAsOf) }}
+                      <span v-if="liability.minimumPayment != null"> {{ t('interfaceText.wealthSection.min') }} {{
                           formatMoney(liability.minimumPayment, liability.currency)
                         }}</span>
                       <span v-if="liability.includeInNetWorth === false"> · {{ t('wealth.status.netWorthExcluded') }}</span>
@@ -1199,7 +1193,7 @@ onMounted(() => {
           <h3 class="text-lg font-semibold text-white">
             {{ t('wealth.section.breakdown') }}
           </h3>
-          <div class="mt-4 overflow-hidden rounded-2xl border border-slate-800">
+          <div class="mt-4 overflow-x-auto rounded-2xl border border-slate-800">
             <table class="min-w-full divide-y divide-slate-800 text-sm">
               <thead class="bg-slate-900/70 text-left text-xs uppercase tracking-[0.16em] text-slate-500">
               <tr>
@@ -1230,7 +1224,7 @@ onMounted(() => {
 
         <article class="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-sm">
           <h3 class="text-lg font-semibold text-white">
-            Snapshots
+            {{ t('interfaceText.securityRecoveryPanel.snapshots') }}
           </h3>
           <div class="mt-4 space-y-3">
             <div
@@ -1255,5 +1249,17 @@ onMounted(() => {
         </article>
       </div>
     </div>
+    <details class="panel p-4">
+      <summary class="cursor-pointer font-semibold">{{ t('appShell.marketData') }}</summary>
+      <div class="mt-4 space-y-4">
+        <WealthMarketValuationPanel
+            :assets="assets"
+            :portfolios="portfolios"
+            :summary-currency="props.summaryCurrency"
+            @refresh="loadWealth"
+        />
+        <MarketWatchlistPanel :summary-currency="props.summaryCurrency"/>
+      </div>
+    </details>
   </section>
 </template>

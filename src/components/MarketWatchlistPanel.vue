@@ -262,7 +262,7 @@ onMounted(() => {
         class="mt-5 grid gap-3 rounded-3xl border border-slate-800 bg-slate-900/60 p-4 lg:grid-cols-[1fr_1.5fr_0.8fr_0.8fr_0.9fr_0.9fr_auto]"
         @submit.prevent="addInstrument">
       <label class="space-y-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-        Symbole
+        {{ t('wealth.market.symbol') }}
         <input
             v-model.trim="form.symbol"
             required
@@ -297,7 +297,7 @@ onMounted(() => {
         />
       </label>
       <label class="space-y-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-        Type
+        {{ t('forms.fields.type') }}
         <select
             v-model="form.instrumentType"
             class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm normal-case tracking-normal text-white outline-none transition focus:border-sky-500"
@@ -307,17 +307,17 @@ onMounted(() => {
           <option value="MUTUAL_FUND">{{ t('wealth.market.instrumentTypes.MUTUAL_FUND') }}</option>
           <option value="BOND">{{ t('wealth.market.instrumentTypes.BOND') }}</option>
           <option value="CRYPTO">Crypto</option>
-          <option value="FOREX">Forex</option>
+          <option value="FOREX">{{ t('wealth.market.instrumentTypes.FOREX') }}</option>
           <option value="INDEX">{{ t('wealth.market.instrumentTypes.INDEX') }}</option>
           <option value="OTHER">{{ t('wealth.market.instrumentTypes.OTHER') }}</option>
         </select>
       </label>
       <label class="space-y-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-        Provider
+        {{ t('interfaceText.marketWatchlistPanel.provider') }}
         <input
             v-model.trim="form.provider"
             class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm normal-case tracking-normal text-white outline-none transition focus:border-sky-500"
-            placeholder="local"
+            :placeholder="t('interfaceText.marketWatchlistPanel.local')"
         />
       </label>
       <div class="flex items-end">
@@ -352,7 +352,7 @@ onMounted(() => {
     <div v-else-if="activeRows.length === 0"
          class="mt-5 rounded-3xl border border-dashed border-slate-700 bg-slate-900/40 px-4 py-8 text-center">
       <p class="text-sm font-semibold text-slate-200">{{ t('wealth.market.empty') }}</p>
-      <p class="mt-1 text-sm text-slate-500">{{ t('wealth.market.emptyHelpBeforeProvider') }} <code>local</code>
+      <p class="mt-1 text-sm text-slate-500">{{ t('wealth.market.emptyHelpBeforeProvider') }} <code>{{ t('interfaceText.marketWatchlistPanel.local') }}</code>
         {{ t('wealth.market.emptyHelpAfterProvider') }}</p>
     </div>
 

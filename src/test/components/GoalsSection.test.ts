@@ -135,7 +135,7 @@ describe('GoalsSection', () => {
         expect(wrapper.text()).toContain('Objectifs financiers')
         expect(wrapper.text()).toContain('Fonds urgence')
         expect(wrapper.text()).toContain('Projection mensuelle')
-        expect(wrapper.text()).toContain('Atteignable dans l’horizon')
+        expect(wrapper.text()).toContain('Atteint dans l’horizon')
         expect(wrapper.text()).toContain('Budget / historique')
         expect(wrapper.text()).toContain('Simulation déterministe')
     })

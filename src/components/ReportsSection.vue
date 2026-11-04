@@ -154,7 +154,6 @@ function pieChartAriaLabel(kindLabel: string, total: number) {
     <section class="panel p-6">
       <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p class="soft-kicker">{{ t('reports.sectionName') }}</p>
           <h2 class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
             {{ t('reports.title') }}
           </h2>
