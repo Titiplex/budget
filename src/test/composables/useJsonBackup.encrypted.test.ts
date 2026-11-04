@@ -125,7 +125,7 @@ describe('useJsonBackup encrypted backup flows', () => {
             defaultPath: 'budget-backup.budget.enc.json',
             content: '{"kind":"budget-encrypted-backup","ciphertext":"opaque"}',
         }))
-        expect(showNotice).toHaveBeenCalledWith('success', 'Backup chiffré exporté.')
+        expect(showNotice).toHaveBeenCalledWith('success', 'Encrypted backup exported.')
     })
 
     it('cancels encrypted export when password confirmation differs', async () => {
@@ -138,7 +138,7 @@ describe('useJsonBackup encrypted backup flows', () => {
 
         expect((window as any).backupEncryption.encrypt).not.toHaveBeenCalled()
         expect((window as any).file.saveText).not.toHaveBeenCalled()
-        expect(showNotice).toHaveBeenCalledWith('error', expect.stringContaining('ne correspondent pas'))
+        expect(showNotice).toHaveBeenCalledWith('error', expect.stringContaining('do not match'))
     })
 
     it('decrypts an encrypted backup in memory before opening the restore preview', async () => {
@@ -186,7 +186,7 @@ describe('useJsonBackup encrypted backup flows', () => {
         expect(backup.restorePreviewOpen.value).toBe(false)
         expect((window as any).db.account.delete).not.toHaveBeenCalled()
         expect(refreshAllData).not.toHaveBeenCalled()
-        expect(showNotice).toHaveBeenCalledWith('error', expect.stringContaining('Mot de passe incorrect'))
+        expect(showNotice).toHaveBeenCalledWith('error', expect.stringContaining('Incorrect password'))
     })
 
     it('continues to export plain JSON backups unchanged', async () => {

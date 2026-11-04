@@ -113,7 +113,7 @@ export default {
         densityHint: 'Densité actuelle des données.',
     },
     toolbar: {
-        title: 'Structure, analytics, paramètres et sauvegarde.',
+        title: 'Synthèse financière',
         description: 'Tu peux changer la langue et le thème, et piloter les imports / exports depuis le menu natif.',
         activeScope: 'Scope CSV actif',
     },
@@ -305,6 +305,7 @@ export default {
         transferAccountsMustDiffer: 'Le compte source et le compte destination doivent être différents.',
     },
     transfer: {
+        debitedAmount: 'Montant débité',
         internal: 'Transfert interne',
         accountFallback: 'Compte',
         linkedAccountFallback: 'Compte lié',
@@ -432,8 +433,6 @@ export default {
         createRecurring: 'Créer une récurrence',
         dialogDescription: 'Configure un template, puis génère les occurrences dues quand tu le souhaites.',
         noCategory: 'Sans catégorie',
-        otherCategories: 'Autres',
-        categoryPieAria: 'Répartition {kind} par catégorie, total {amount}',
         multicurrencyConversion: 'Conversion multidevise',
         automaticFxNotice: 'Le taux sera recalculé à chaque occurrence, à sa date propre.',
         placeholders: {
@@ -482,6 +481,8 @@ export default {
         },
     },
     reports: {
+        otherCategories: 'Autres',
+        categoryPieAria: 'Répartition {kind} par catégorie, total {amount}',
         sectionName: 'Rapports',
         title: 'Rapports de période et analyses avancées',
         description: 'Défini une période, inspecte les finances par type de compte, compte, catégorie et devise, puis exporte un rapport avec comparaison à la période précédente équivalente.',

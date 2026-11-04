@@ -312,9 +312,9 @@ describe('useJsonBackup restore flows', () => {
         await backup.beginRestoreBackupJson()
         await backup.confirmRestoreBackupJson()
 
-        expect((window as any).confirm).toHaveBeenCalledWith(expect.stringContaining('sauvegarde pré-restore'))
+        expect((window as any).confirm).toHaveBeenCalledWith(expect.stringContaining('A backup will be created first'))
         expect((window as any).file.saveText).toHaveBeenCalledWith(expect.objectContaining({
-            title: 'Sauvegarde automatique avant restauration',
+            title: 'Automatic backup before restore',
             defaultPath: expect.stringContaining('pre-restore-backup-'),
             filters: [{name: 'JSON', extensions: ['json']}],
         }))
@@ -394,7 +394,7 @@ describe('useJsonBackup restore flows', () => {
         }))
         expect(refreshAllData).toHaveBeenCalledTimes(1)
         expect(backup.restorePreviewOpen.value).toBe(false)
-        expect(showNotice).toHaveBeenCalledWith('success', expect.stringContaining('Sauvegarde pré-restore'))
+        expect(showNotice).toHaveBeenCalledWith('success', expect.stringContaining('Pre-restore backup'))
     })
 
     it('blocks restore with dry-run errors before confirmation or writes', async () => {
@@ -416,7 +416,7 @@ describe('useJsonBackup restore flows', () => {
         expect((window as any).file.saveText).not.toHaveBeenCalled()
         expect((window as any).db.account.delete).not.toHaveBeenCalled()
         expect(refreshAllData).not.toHaveBeenCalled()
-        expect(showNotice).toHaveBeenCalledWith('error', expect.stringContaining('erreurs bloquantes'))
+        expect(showNotice).toHaveBeenCalledWith('error', expect.stringContaining('blocking errors'))
     })
 
     it('does not modify data when the pre-restore backup is canceled', async () => {
@@ -434,7 +434,7 @@ describe('useJsonBackup restore flows', () => {
         expect((window as any).db.account.delete).not.toHaveBeenCalled()
         expect((window as any).db.account.create).not.toHaveBeenCalled()
         expect(refreshAllData).not.toHaveBeenCalled()
-        expect(showNotice).toHaveBeenCalledWith('error', expect.stringContaining('sauvegarde pré-restore'))
+        expect(showNotice).toHaveBeenCalledWith('error', expect.stringContaining('automatic backup must be created first'))
     })
 
     it('reports restore failures without closing the preview after the recovery backup exists', async () => {
@@ -450,7 +450,7 @@ describe('useJsonBackup restore flows', () => {
         await backup.confirmRestoreBackupJson()
 
         expect((window as any).file.saveText).toHaveBeenCalledWith(expect.objectContaining({
-            title: 'Sauvegarde automatique avant restauration',
+            title: 'Automatic backup before restore',
         }))
         expect(refreshAllData).not.toHaveBeenCalled()
         expect(backup.restorePreviewOpen.value).toBe(true)

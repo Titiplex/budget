@@ -113,7 +113,7 @@ export default {
         densityHint: 'Current data density.',
     },
     toolbar: {
-        title: 'Structure, analytics, settings and backup.',
+        title: 'Financial summary',
         description: 'You can change the UI language and theme, and control imports / exports from the native menu.',
         activeScope: 'Active CSV scope',
     },
@@ -304,6 +304,7 @@ export default {
         transferAccountsMustDiffer: 'Source and destination accounts must be different.',
     },
     transfer: {
+        debitedAmount: 'Debited amount',
         internal: 'Internal transfer',
         accountFallback: 'Account',
         linkedAccountFallback: 'Linked account',
@@ -431,8 +432,6 @@ export default {
         createRecurring: 'Create recurring template',
         dialogDescription: 'Configure a template, then generate due occurrences whenever you want.',
         noCategory: 'No category',
-        otherCategories: 'Other',
-        categoryPieAria: '{kind} by category, total {amount}',
         multicurrencyConversion: 'Multi-currency conversion',
         automaticFxNotice: 'The rate will be recalculated for each occurrence on its own date.',
         placeholders: {
@@ -481,6 +480,8 @@ export default {
         },
     },
     reports: {
+        otherCategories: 'Other',
+        categoryPieAria: '{kind} by category, total {amount}',
         sectionName: 'Reports',
         title: 'Period reports and advanced analysis',
         description: 'Set a period, inspect finances by account type, account, category and currency, then export a report with comparison to the equivalent previous period.',

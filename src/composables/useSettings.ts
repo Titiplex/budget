@@ -24,6 +24,7 @@ export function useSettings() {
 
     function applyLocale() {
         i18n.global.locale.value = locale.value
+        document.documentElement.lang = locale.value
         persistLocale(locale.value)
         if (window.appShell) {
             window.appShell.setLocale(locale.value)

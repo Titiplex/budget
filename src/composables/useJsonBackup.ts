@@ -44,7 +44,7 @@ interface UseJsonBackupOptions {
 
 type IpcResult<T> = {ok?: boolean; data?: T | null; error?: {code?: string; message?: string} | null} | T
 
-const ENCRYPTED_BACKUP_FILTERS = [{name: 'Budget encrypted backup', extensions: ['budget.enc.json', 'budget-backup.enc', 'enc', 'json']}]
+const encryptedBackupFilters = () => [{name: tr('encryptedBackup.filter'), extensions: ['budget.enc.json', 'budget-backup.enc', 'enc', 'json']}]
 const JSON_BACKUP_FILTERS = [{name: 'JSON', extensions: ['json']}]
 
 const EMPTY_IMPORT_BACKUP: BudgetBackupImportData = {
@@ -88,17 +88,17 @@ function unwrapIpcResult<T>(result: IpcResult<T>, fallback: string): T {
 function encryptedBackupErrorMessage(error: {code?: string; message?: string} | null | undefined) {
     switch (error?.code) {
         case 'wrongPassword':
-            return 'Mot de passe incorrect. Aucune donnée n’a été modifiée.'
+            return tr('encryptedBackup.wrongPassword')
         case 'corruptedCiphertext':
-            return 'Le backup chiffré semble corrompu ou modifié. Aucune donnée n’a été modifiée.'
+            return tr('encryptedBackup.corrupted')
         case 'unsupportedEncryptionVersion':
-            return 'Cette version de backup chiffré n’est pas supportée par cette version de Budget.'
+            return tr('encryptedBackup.unsupported')
         case 'invalidEncryptedBackup':
-            return 'Le fichier sélectionné ne correspond pas à un backup chiffré Budget valide.'
+            return tr('encryptedBackup.invalidFile')
         case 'invalidEncryptionInput':
-            return 'Le mot de passe ou le contenu du backup chiffré est invalide.'
+            return tr('encryptedBackup.invalidInput')
         default:
-            return error?.message || 'Échec du traitement du backup chiffré.'
+            return error?.message || tr('encryptedBackup.processingFailed')
     }
 }
 
@@ -196,8 +196,8 @@ async function readGoalsBackupData(accounts: Account[]) {
         api.listFinancialGoals({status: 'ALL'}),
         api.listProjectionScenarios({isActive: 'ALL'}),
     ])
-    const financialGoals = unwrapIpcResult<any[]>(goalRows, 'Impossible de lire les objectifs pour le backup.').map(normalizeGoalForBackup)
-    const projectionScenarios = unwrapIpcResult<any[]>(scenarioRows, 'Impossible de lire les scénarios pour le backup.').map(normalizeScenarioForBackup)
+    const financialGoals = unwrapIpcResult<any[]>(goalRows, tr('encryptedBackup.readGoals')).map(normalizeGoalForBackup)
+    const projectionScenarios = unwrapIpcResult<any[]>(scenarioRows, tr('encryptedBackup.readScenarios')).map(normalizeScenarioForBackup)
     return {financialGoals, projectionScenarios, projectionSettings: inferProjectionSettings(projectionScenarios, accounts)}
 }
 
@@ -209,14 +209,14 @@ async function readImportBackupData(): Promise<Partial<BudgetBackupImportData>> 
         api.listSources?.() ?? {ok: true, data: []},
         api.listHistory?.({}) ?? {ok: true, data: []},
     ])
-    const mappingTemplates = unwrapIpcResult<any[]>(templatesResult, 'Impossible de lire les templates de mapping pour le backup.')
+    const mappingTemplates = unwrapIpcResult<any[]>(templatesResult, tr('encryptedBackup.readMappings'))
         .filter((template) => template && template.isSystem !== true)
-    const importSources = unwrapIpcResult<string[]>(sourcesResult, 'Impossible de lire les sources d’import pour le backup.')
-    const historyItems = unwrapIpcResult<any[]>(historyResult, 'Impossible de lire l’historique d’import pour le backup.')
+    const importSources = unwrapIpcResult<string[]>(sourcesResult, tr('encryptedBackup.readSources'))
+    const historyItems = unwrapIpcResult<any[]>(historyResult, tr('encryptedBackup.readHistory'))
     const importHistory = [] as any[]
     for (const item of historyItems) {
         const detail = await api.getDetail?.(item.id)
-        if (detail) importHistory.push(unwrapIpcResult<any>(detail, `Impossible de lire le détail de l’import ${item.id}.`))
+        if (detail) importHistory.push(unwrapIpcResult<any>(detail, tr('encryptedBackup.readBatch', {id: item.id})))
     }
     return {mappingTemplates, importSources, importHistory}
 }
@@ -224,11 +224,11 @@ async function readImportBackupData(): Promise<Partial<BudgetBackupImportData>> 
 async function restoreImportBackupData(importBackup: BudgetBackupImportData) {
     const api = window.imports as any
     if (!api) return
-    const existingTemplates = unwrapIpcResult<any[]>(await api.mappingTemplate.list({userOnly: true, includeInactive: true}), 'Impossible de lire les templates existants.')
+    const existingTemplates = unwrapIpcResult<any[]>(await api.mappingTemplate.list({userOnly: true, includeInactive: true}), tr('encryptedBackup.readTemplates'))
     const existingIds = new Set(existingTemplates.map((template) => String(template.id)))
     for (const template of importBackup.mappingTemplates) {
         const payload = existingIds.has(String(template.id))
-            ? {...template, id: undefined, name: `${template.name} (restauré)`}
+            ? {...template, id: undefined, name: tr('encryptedBackup.restoredName', {name: template.name})}
             : template
         await api.mappingTemplate.create(payload)
     }
@@ -282,20 +282,20 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
     }
 
     function requestEncryptedExportPassword() {
-        const password = window.prompt('Choisis un mot de passe pour chiffrer ce backup. Budget ne pourra pas le récupérer si tu le perds.')
+        const password = window.prompt(tr('encryptedBackup.choosePassword'))
         if (!password) return null
-        const confirmation = window.prompt('Confirme le mot de passe du backup chiffré.')
+        const confirmation = window.prompt(tr('encryptedBackup.confirmPassword'))
         if (confirmation == null) return null
         if (password !== confirmation) {
-            options.showNotice('error', 'Les deux mots de passe ne correspondent pas. Export chiffré annulé.')
+            options.showNotice('error', tr('encryptedBackup.passwordMismatch'))
             return null
         }
-        const accepted = window.confirm('Important : si tu perds ce mot de passe, ce backup chiffré ne pourra pas être restauré. Continuer ?')
+        const accepted = window.confirm(tr('encryptedBackup.confirmEncryption'))
         return accepted ? password : null
     }
 
     function requestEncryptedRestorePassword() {
-        return window.prompt('Entre le mot de passe du backup chiffré. Le fichier sera déchiffré uniquement en mémoire avant validation.')
+        return window.prompt(tr('encryptedBackup.enterPassword'))
     }
 
     async function exportBackupJson() {
@@ -315,7 +315,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
             if (!password) return
             const backupJson = await createCanonicalBackupContent()
             const api = (window as any).backupEncryption
-            if (!api?.encrypt) throw new Error('Le module de chiffrement de backup est indisponible.')
+            if (!api?.encrypt) throw new Error(tr('encryptedBackup.encryptUnavailable'))
             const encrypted = await api.encrypt({
                 backupJson,
                 password,
@@ -324,16 +324,16 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
                     encryptedExport: true,
                 },
             })
-            const encryptedData = unwrapIpcResult<{content: string}>(encrypted, 'Impossible de chiffrer le backup JSON.')
+            const encryptedData = unwrapIpcResult<{content: string}>(encrypted, tr('encryptedBackup.encryptFailed'))
             const result = await window.file.saveText({
-                title: 'Exporter une sauvegarde chiffrée',
+                title: tr('encryptedBackup.exportTitle'),
                 defaultPath: 'budget-backup.budget.enc.json',
                 content: encryptedData.content,
-                filters: ENCRYPTED_BACKUP_FILTERS,
+                filters: encryptedBackupFilters(),
             })
-            if (!result?.canceled) options.showNotice('success', 'Backup chiffré exporté.')
+            if (!result?.canceled) options.showNotice('success', tr('encryptedBackup.exportSuccess'))
         } catch (error) {
-            options.showNotice('error', error instanceof Error ? error.message : 'Échec de l’export chiffré.')
+            options.showNotice('error', error instanceof Error ? error.message : tr('encryptedBackup.exportFailed'))
         }
     }
 
@@ -359,7 +359,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         restorePreviewPath.value = filePath
         restorePreviewOpen.value = true
         if (!report.canApply) {
-            options.showNotice('error', 'Le dry-run de restauration a détecté des erreurs bloquantes. Aucune donnée n’a été modifiée.')
+            options.showNotice('error', tr('encryptedBackup.previewErrors'))
         }
     }
 
@@ -375,23 +375,23 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
 
     async function beginRestoreEncryptedBackupJson() {
         const result = await window.file.openText({
-            title: 'Restaurer une sauvegarde chiffrée',
-            filters: ENCRYPTED_BACKUP_FILTERS,
+            title: tr('encryptedBackup.restoreTitle'),
+            filters: encryptedBackupFilters(),
         })
         if (!result || result.canceled || !result.content) return
         const password = requestEncryptedRestorePassword()
         if (!password) return
         try {
             const api = (window as any).backupEncryption
-            if (!api?.decrypt) throw new Error('Le module de déchiffrement de backup est indisponible.')
+            if (!api?.decrypt) throw new Error(tr('encryptedBackup.decryptUnavailable'))
             const decrypted = await api.decrypt({content: result.content, password})
             if (decrypted && typeof decrypted === 'object' && 'ok' in decrypted && !decrypted.ok) {
                 throw new Error(encryptedBackupErrorMessage(decrypted.error))
             }
-            const data = unwrapIpcResult<{backupJson: string}>(decrypted, 'Impossible de déchiffrer le backup.')
+            const data = unwrapIpcResult<{backupJson: string}>(decrypted, tr('encryptedBackup.decryptFailed'))
             prepareRestorePreview(data.backupJson, result.filePath)
         } catch (error) {
-            options.showNotice('error', error instanceof Error ? error.message : 'Échec de la restauration chiffrée.')
+            options.showNotice('error', error instanceof Error ? error.message : tr('encryptedBackup.restoreFailed'))
         }
     }
 
@@ -452,13 +452,13 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
         const content = await createCanonicalBackupContent()
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').replace('Z', '')
         const result = await window.file.saveText({
-            title: 'Sauvegarde automatique avant restauration',
+            title: tr('encryptedBackup.autoBackupTitle'),
             defaultPath: `pre-restore-backup-${timestamp}.json`,
             content,
             filters: JSON_BACKUP_FILTERS,
         })
         if (!result || result.canceled || !result.filePath) {
-            throw new Error('Restauration annulée : la sauvegarde pré-restore doit être créée avant toute modification.')
+            throw new Error(tr('encryptedBackup.autoBackupRequired'))
         }
         return result.filePath
     }
@@ -470,9 +470,9 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
             const report = createRestoreDryRunReport(snapshot, currentRestoreState())
             restorePreviewReport.value = report
             if (!report.canApply) {
-                throw new Error('Restauration bloquée : corrige les erreurs du dry-run avant de restaurer.')
+                throw new Error(tr('encryptedBackup.resolveErrors'))
             }
-            const accepted = window.confirm('La restauration va remplacer toutes les données actuelles. Une sauvegarde pré-restore sera créée avant modification. Continuer ?')
+            const accepted = window.confirm(tr('encryptedBackup.confirmReplace'))
             if (!accepted) return
             const recoveryPath = await createPreRestoreBackup()
             restorePreviewReport.value = markRecoveryBackupCreated(report, recoveryPath)
@@ -492,12 +492,12 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
             for (const taxProfile of snapshot.data.taxProfiles || []) await window.db.taxProfile.create({year: taxProfile.year, residenceCountry: taxProfile.residenceCountry, residenceRegion: taxProfile.residenceRegion, currency: taxProfile.currency})
             for (const budgetTarget of snapshot.data.budgetTargets) {
                 const mappedCategoryId = categoryIdMap.get(budgetTarget.categoryId)
-                if (!mappedCategoryId) throw new Error(`Budget "${budgetTarget.name}" référence une catégorie absente.`)
+                if (!mappedCategoryId) throw new Error(tr('encryptedBackup.missingCategory', {name: budgetTarget.name}))
                 await window.db.budgetTarget.create({name: budgetTarget.name, amount: budgetTarget.amount, period: budgetTarget.period, startDate: budgetTarget.startDate, endDate: budgetTarget.endDate, currency: budgetTarget.currency, isActive: budgetTarget.isActive, note: budgetTarget.note, categoryId: mappedCategoryId})
             }
             for (const template of snapshot.data.recurringTemplates) {
                 const mappedAccountId = accountIdMap.get(template.accountId)
-                if (!mappedAccountId) throw new Error(`Récurrence "${template.label}" référence un compte absent.`)
+                if (!mappedAccountId) throw new Error(tr('encryptedBackup.missingAccount', {name: template.label}))
                 const mappedCategoryId = template.categoryId == null ? null : (categoryIdMap.get(template.categoryId) ?? null)
                 await window.db.recurringTemplate.create({label: template.label, sourceAmount: template.sourceAmount, sourceCurrency: template.sourceCurrency, accountAmount: template.accountAmount, conversionMode: template.conversionMode, exchangeRate: template.exchangeRate, exchangeProvider: template.exchangeProvider, kind: template.kind, note: template.note, frequency: template.frequency, intervalCount: template.intervalCount, startDate: template.startDate, nextOccurrenceDate: template.nextOccurrenceDate, endDate: template.endDate, isActive: template.isActive, accountId: mappedAccountId, categoryId: mappedCategoryId})
             }
@@ -507,7 +507,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
             await restoreImportBackupData(importBackup)
             await options.refreshAllData()
             closeRestorePreview()
-            options.showNotice('success', `${tr('notices.jsonRestored')} Sauvegarde pré-restore : ${recoveryPath}`)
+            options.showNotice('success', `${tr('notices.jsonRestored')} ${tr('encryptedBackup.recoveryPath', {path: recoveryPath})}`)
         } catch (error) {
             options.showNotice('error', error instanceof Error ? error.message : tr('notices.jsonRestoreFailed'))
         }
