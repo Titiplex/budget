@@ -8,23 +8,23 @@ function js(value) {
     return JSON.stringify(value)
 }
 
-async function navigateTo(cdp, marker) {
+async function navigateTo(cdp, section) {
     const clicked = await cdp.evaluate(`(() => {
         const button = Array.from(document.querySelectorAll('nav button')).find((entry) =>
-            String(entry.innerText || '').trim().startsWith(${js(marker)})
+            entry.dataset.section === ${js(section)}
         )
         if (!button) return false
         button.click()
         return true
     })()`)
 
-    assert(clicked, `Could not click navigation marker ${marker}`)
+    assert(clicked, `Could not click navigation section ${section}`)
 
     await waitFor(async () => cdp.evaluate(`(() => {
         const active = document.querySelector('nav button.nav-item-active')
-        return Boolean(active && String(active.innerText || '').trim().startsWith(${js(marker)}))
+        return Boolean(active && active.dataset.section === ${js(section)})
     })()`), {
-        message: `Navigation did not activate marker ${marker}`,
+        message: `Navigation did not activate section ${section}`,
     })
 }
 
@@ -199,22 +199,22 @@ async function runCoreDataFlow(cdp) {
 }
 
 async function verifyUiReflectsData(cdp) {
-    await navigateTo(cdp, 'AC')
+    await navigateTo(cdp, 'accounts')
     await assertText(cdp, 'E2E Chequing', 'created account')
 
-    await navigateTo(cdp, 'CA')
+    await navigateTo(cdp, 'categories')
     await assertText(cdp, 'E2E Groceries', 'created category')
 
-    await navigateTo(cdp, 'BG')
+    await navigateTo(cdp, 'budgets')
     await assertText(cdp, 'E2E Monthly grocery budget', 'created budget')
 
-    await navigateTo(cdp, 'RC')
+    await navigateTo(cdp, 'recurring')
     await assertText(cdp, 'E2E Weekly grocery recurring', 'created recurring template')
 
-    await navigateTo(cdp, 'TX')
+    await navigateTo(cdp, 'transactions')
     await assertText(cdp, 'E2E Weekly grocery recurring', 'generated recurring transaction')
 
-    await navigateTo(cdp, 'RP')
+    await navigateTo(cdp, 'reports')
     // Fixtures are in May 2026; the UI intentionally defaults to the current month.
     // Select the period through the UI so this check also works in later months/years.
     await waitFor(async () => cdp.evaluate(`(() => {
@@ -276,13 +276,13 @@ async function runSmokeTest() {
             message: 'Budget shell did not render',
         })
 
-        const navMarkers = await cdp.evaluate(`Array.from(document.querySelectorAll('nav button')).map((button) => button.innerText.trim().split(/\\s+/)[0])`)
-        for (const marker of ['OV', 'TX', 'AC', 'CA', 'BG', 'RC', 'RP', 'WL', 'IM']) {
-            assert(navMarkers.includes(marker), `Expected navigation marker ${marker} to be rendered`)
+        const navSections = await cdp.evaluate(`Array.from(document.querySelectorAll('nav button')).map((button) => button.dataset.section)`)
+        for (const section of ['overview', 'transactions', 'accounts', 'categories', 'budgets', 'recurring', 'reports', 'wealth', 'imports']) {
+            assert(navSections.includes(section), `Expected navigation section ${section} to be rendered`)
         }
 
-        for (const marker of ['TX', 'AC', 'CA', 'BG', 'RC', 'RP', 'OV']) {
-            await navigateTo(cdp, marker)
+        for (const section of ['transactions', 'accounts', 'categories', 'budgets', 'recurring', 'reports', 'overview']) {
+            await navigateTo(cdp, section)
         }
 
         const flow = await runCoreDataFlow(cdp)

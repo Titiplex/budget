@@ -181,21 +181,21 @@ class CdpClient {
     }
 }
 
-async function navigateTo(cdp, marker, expectedText) {
+async function navigateTo(cdp, section, expectedText) {
     const clicked = await cdp.evaluate(`(() => {
-        const button = Array.from(document.querySelectorAll('nav button')).find((entry) => entry.innerText.trim().startsWith('${marker}'))
+        const button = Array.from(document.querySelectorAll('nav button')).find((entry) => entry.dataset.section === '${section}')
         if (!button) return false
         button.click()
         return true
     })()`)
 
-    assert(clicked, `Could not click navigation marker ${marker}`)
+    assert(clicked, `Could not click navigation section ${section}`)
 
     await waitFor(async () => cdp.evaluate(`(() => {
         const active = document.querySelector('nav button.nav-item-active')
-        return Boolean(active && active.innerText.trim().startsWith('${marker}'))
+        return Boolean(active && active.dataset.section === '${section}')
     })()`), {
-        message: `Navigation did not activate marker ${marker}`,
+        message: `Navigation did not activate section ${section}`,
     })
 
     if (expectedText) {
@@ -204,7 +204,7 @@ async function navigateTo(cdp, marker, expectedText) {
             const text = document.body.innerText
             return ${JSON.stringify(expectedTexts)}.some((entry) => text.includes(entry))
         })()`), {
-            message: `Expected section text ${expectedTexts.join(' / ')} after clicking ${marker}`,
+            message: `Expected section text ${expectedTexts.join(' / ')} after clicking ${section}`,
         })
     }
 }
@@ -212,12 +212,16 @@ async function navigateTo(cdp, marker, expectedText) {
 async function refreshRendererData(cdp) {
     await cdp.evaluate(`window.appShell?.sendMenuCommand?.('refresh-data')`)
 
-    await waitFor(async () => cdp.evaluate(`(() => {
-        const text = document.body.innerText
-        return text.includes('2 cpt') && text.includes('2 cat')
-    })()`), {
-        timeoutMs: 45000,
-        message: 'Renderer did not refresh the advanced E2E core dataset after IPC writes',
+    await navigateTo(cdp, 'accounts')
+    await waitFor(async () => cdp.evaluate(`['E2E Advanced Main', 'E2E Advanced Savings']
+        .every(name => document.querySelector('main').innerText.includes(name))`), {
+        message: 'Refreshed accounts were not visible in the renderer',
+    })
+
+    await navigateTo(cdp, 'categories')
+    await waitFor(async () => cdp.evaluate(`['E2E Advanced Expense', 'E2E Advanced Income']
+        .every(name => document.querySelector('main').innerText.includes(name))`), {
+        message: 'Refreshed categories were not visible in the renderer',
     })
 }
 
@@ -600,17 +604,17 @@ async function runAdvancedFlows() {
 
         await refreshRendererData(cdp)
 
-        await navigateTo(cdp, 'WL', ['Patrimoine', 'Wealth'])
+        await navigateTo(cdp, 'wealth', ['Patrimoine', 'Wealth'])
         await waitFor(async () => cdp.evaluate(`document.body.innerText.includes('E2E Advanced Condo') || document.body.innerText.includes('90')`), {
             message: 'Wealth UI did not show advanced scenario data',
         })
 
-        await navigateTo(cdp, 'IM', ['Historique', 'Imports', 'Import history'])
+        await navigateTo(cdp, 'imports', ['Historique', 'Imports', 'Import history'])
         await waitFor(async () => cdp.evaluate(`document.body.innerText.includes('advanced-import.csv') || document.body.innerText.includes('advanced-e2e') || document.body.innerText.includes('Import')`), {
             message: 'Import history UI did not render advanced import data',
         })
 
-        await navigateTo(cdp, 'RP', ['Rapports', 'Reports'])
+        await navigateTo(cdp, 'reports', ['Rapports', 'Reports'])
         await waitFor(async () => cdp.evaluate(`document.body.innerText.includes('E2E Advanced') || document.body.innerText.includes('Rapport') || document.body.innerText.includes('Reports')`), {
             message: 'Reports UI did not render after advanced dataset creation',
         })

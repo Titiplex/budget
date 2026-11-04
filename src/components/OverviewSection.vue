@@ -248,7 +248,7 @@ function categoryLabel(transaction: Transaction) {
           <h2 class="panel-title">{{ t('overview.latestTransactionsLabel') }}</h2>
         </div>
 
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
           <button class="ghost-btn" @click="emit('create-account')">
             {{ t('accounts.addAccount') }}
           </button>

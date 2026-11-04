@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {useI18n} from 'vue-i18n'
-import type {EntityType} from '../types/budget'
-import {entityCollectionLabel, formatMoney} from '../utils/budgetFormat'
+import {formatMoney} from '../utils/budgetFormat'
 
 withDefaults(defineProps<{
   loading: boolean
@@ -12,7 +11,6 @@ withDefaults(defineProps<{
   transactionCount: number
   accountCount: number
   categoryCount: number
-  currentCsvEntity: EntityType
   compact?: boolean
 }>(), {
   compact: false,
@@ -38,24 +36,12 @@ const {t} = useI18n()
         :class="compact ? 'gap-4' : 'gap-6 xl:flex-row xl:items-end xl:justify-between'"
     >
       <div :class="compact ? 'max-w-none' : 'max-w-3xl'">
-        <p class="soft-kicker">
-          {{ t('settings.title') }}
-        </p>
         <h2
             class="mt-2 font-bold tracking-tight text-slate-900 dark:text-white"
             :class="compact ? 'text-xl' : 'text-3xl'"
         >
           {{ t('toolbar.title') }}
         </h2>
-        <p
-            class="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400"
-            :class="compact ? 'line-clamp-2' : ''"
-        >
-          {{ t('toolbar.description') }}
-          <span class="font-semibold text-slate-800 dark:text-slate-100">
-            {{ entityCollectionLabel(currentCsvEntity) }}
-          </span>.
-        </p>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
@@ -66,16 +52,13 @@ const {t} = useI18n()
     </div>
 
     <div
-        class="grid"
+        class="grid grid-cols-1"
         :class="compact ? 'mt-4 gap-3 sm:grid-cols-2' : 'mt-6 gap-4 md:grid-cols-2 xl:grid-cols-4'"
     >
       <div class="stat-card" :class="compact ? '!rounded-2xl !p-4' : ''">
         <p class="stat-label">{{ t('analytics.netFlow') }}</p>
         <p class="stat-value" :class="compact ? '!text-2xl' : ''">
           {{ formatMoney(netFlow, summaryCurrency) }}
-        </p>
-        <p class="stat-hint">
-          {{ t('analytics.overviewHint') }}
         </p>
       </div>
 
@@ -84,9 +67,6 @@ const {t} = useI18n()
         <p class="stat-value" :class="compact ? '!text-2xl' : ''">
           {{ formatMoney(totalIncome, summaryCurrency) }}
         </p>
-        <p class="stat-hint">
-          {{ t('analytics.incomeHint') }}
-        </p>
       </div>
 
       <div class="stat-card" :class="compact ? '!rounded-2xl !p-4' : ''">
@@ -94,18 +74,12 @@ const {t} = useI18n()
         <p class="stat-value" :class="compact ? '!text-2xl' : ''">
           {{ formatMoney(totalExpense, summaryCurrency) }}
         </p>
-        <p class="stat-hint">
-          {{ t('analytics.expenseHint') }}
-        </p>
       </div>
 
       <div class="stat-card" :class="compact ? '!rounded-2xl !p-4' : ''">
         <p class="stat-label">{{ t('analytics.volumes') }}</p>
-        <p class="stat-value text-xl" :class="compact ? '!text-lg' : ''">
-          {{ transactionCount }} tx · {{ accountCount }} cpt · {{ categoryCount }} cat
-        </p>
-        <p class="stat-hint">
-          {{ t('analytics.densityHint') }}
+        <p class="stat-value whitespace-normal !text-base">
+          {{ t('appShell.countsShort', { transactions: transactionCount, accounts: accountCount, categories: categoryCount }) }}
         </p>
       </div>
     </div>
