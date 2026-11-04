@@ -13,6 +13,12 @@ export default defineConfig({
             reporter: ['text', 'html'],
             include: ['src/utils/**/*.ts', 'src/composables/**/*.ts'],
         },
+        pool: 'forks',
+        poolOptions: {
+            forks: {
+                execArgv: ['--no-experimental-webstorage'],
+            },
+        },
     },
     resolve: {
         alias: {
