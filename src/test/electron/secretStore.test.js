@@ -4,6 +4,10 @@ import os from 'node:os'
 import path from 'node:path'
 import {afterEach, describe, expect, it, vi} from 'vitest'
 
+// Unit tests must never open the application's persistent database.
+const getPrisma = vi.fn(() => {
+    throw new Error('Unexpected application database access in an isolated IPC test')
+})
 const originalLoad = Module._load
 const handlers = new Map()
 const ipcMain = {
@@ -27,6 +31,7 @@ function clearCommonJsCache() {
 
 function installElectronMock() {
     Module._load = function loadWithSecretIpcMocks(request) {
+        if (request === '../db') return {getPrisma}
         if (request === 'electron') {
             return {
                 app: {getPath: () => '/tmp/budget-secret-tests'},
@@ -49,6 +54,9 @@ afterEach(() => {
     handlers.clear()
     ipcMain.handle.mockClear()
     clearCommonJsCache()
+    const databaseCalls = getPrisma.mock.calls.length
+    getPrisma.mockClear()
+    expect(databaseCalls).toBe(0)
 })
 
 describe('SecretStore abstraction', () => {
@@ -137,7 +145,8 @@ describe('SecretStore abstraction', () => {
         const {SECRET_IPC_CHANNELS, registerSecretHandlers} = require('../../../electron/ipc/registerSecretHandlers')
         const store = createMemorySecretStore({now: () => new Date('2026-05-08T12:00:00.000Z')})
 
-        registerSecretHandlers({ipc: ipcMain, store})
+        const auditLog = {logSecretChange: vi.fn().mockResolvedValue(null)}
+        registerSecretHandlers({ipc: ipcMain, store, auditLog})
 
         expect([...handlers.keys()]).toEqual(expect.arrayContaining([
             SECRET_IPC_CHANNELS.GET_STORAGE_INFO,
@@ -164,5 +173,13 @@ describe('SecretStore abstraction', () => {
 
         const cleared = await handlers.get(SECRET_IPC_CHANNELS.CLEAR)({}, {namespace: 'provider'})
         expect(cleared).toMatchObject({ok: true, data: {deletedCount: 1}})
+        expect(auditLog.logSecretChange).toHaveBeenCalledTimes(2)
+        expect(auditLog.logSecretChange).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            action: 'create', source: 'secret:save',
+        }))
+        expect(auditLog.logSecretChange).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            action: 'clear', source: 'secret:clear',
+        }))
+        expect(JSON.stringify(auditLog.logSecretChange.mock.calls)).not.toContain('renderer-submitted-secret')
     })
 })

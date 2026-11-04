@@ -182,7 +182,8 @@ function defaultPort(prefix) {
 
 async function launchElectronE2e({prefix = 'budget-e2e', dbFileName = 'e2e.db', port = null} = {}) {
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `${prefix}-`))
-    const artifactsDir = path.join(tempRoot, 'artifacts')
+    // Keep diagnostics outside tempRoot, which cleanup removes after failures too.
+    const artifactsDir = path.join(repoRoot, 'e2e-artifacts', path.basename(tempRoot))
     const testDbPath = path.join(tempRoot, 'data', dbFileName)
     const remoteDebuggingPort = Number(port || process.env.BUDGET_E2E_CDP_PORT || defaultPort(prefix))
     const logs = []

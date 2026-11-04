@@ -215,15 +215,31 @@ async function verifyUiReflectsData(cdp) {
     await assertText(cdp, 'E2E Weekly grocery recurring', 'generated recurring transaction')
 
     await navigateTo(cdp, 'RP')
+    // Fixtures are in May 2026; the UI intentionally defaults to the current month.
+    // Select the period through the UI so this check also works in later months/years.
     await waitFor(async () => cdp.evaluate(`(() => {
-        const text = document.body.innerText
-        return text.includes('E2E Chequing') && text.includes('E2E Groceries')
+        const button = document.querySelector('[data-testid="reports-section"] [data-report-preset="ALL"]')
+        if (!button) return false
+        button.click()
+        return true
+    })()`), {message: 'Reports all-period preset button did not render'})
+
+    await waitFor(async () => cdp.evaluate(`(() => {
+        const reports = document.querySelector('[data-testid="reports-section"]')
+        const text = reports?.innerText || ''
+        const allPeriod = reports?.querySelector('[data-report-preset="ALL"]')
+        const count = reports?.querySelector('[data-report-metric="transaction-count"]')?.getAttribute('data-value')
+        const expense = reports?.querySelector('[data-report-metric="expense"]')?.getAttribute('data-value')
+        return Boolean(allPeriod?.classList.contains('tab-btn-active'))
+            && text.includes('E2E Chequing') && text.includes('E2E Groceries')
+            && count !== null && count !== undefined && Number(count) === 3
+            && expense !== null && expense !== undefined && Number(expense) === 99
     })()`), {
-        message: 'Reports section did not render account/category rows from generated data',
+        message: 'All-period reports did not show the generated account/category, 3 transactions and expense total 99',
     })
 
     const reportStats = await cdp.evaluate(`(() => {
-        const text = document.body.innerText
+        const text = document.querySelector('[data-testid="reports-section"]').innerText
         return {
             hasTransactionsLabel: /transactions|opérations/i.test(text),
             hasExpenseLabel: /expense|dépense/i.test(text),

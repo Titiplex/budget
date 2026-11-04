@@ -1,6 +1,10 @@
 import Module from 'node:module'
 import {afterEach, describe, expect, it, vi} from 'vitest'
 
+// Unit tests must never open the application's persistent database.
+const getPrisma = vi.fn(() => {
+    throw new Error('Unexpected application database access in an isolated IPC test')
+})
 const originalLoad = Module._load
 const handlers = new Map()
 const ipcMain = {
@@ -36,6 +40,7 @@ function clearCommonJsCache() {
 
 function installCommonJsMocks() {
     Module._load = function loadWithImportWorkflowIpcMocks(request) {
+        if (request === '../db') return {getPrisma}
         if (request === 'electron') {
             return {
                 app: {getPath: () => '/tmp/budget-tests'},
@@ -51,7 +56,21 @@ afterEach(() => {
     handlers.clear()
     ipcMain.handle.mockClear()
     clearCommonJsCache()
+    const databaseCalls = getPrisma.mock.calls.length
+    getPrisma.mockClear()
+    expect(databaseCalls).toBe(0)
 })
+
+function createAuditDependencies() {
+    return {
+        auditLog: {
+            logImportApplied: vi.fn().mockResolvedValue(null),
+            logImportFailed: vi.fn().mockResolvedValue(null),
+            recordAuditEvent: vi.fn().mockResolvedValue(null),
+        },
+        integrityCheck: {run: vi.fn().mockResolvedValue({status: 'ok'})},
+    }
+}
 
 function csvFixture() {
     return [
@@ -69,7 +88,8 @@ describe('import workflow IPC handlers', () => {
         const {registerImportWorkflowHandlers} = require('../../../electron/ipc/registerImportWorkflowHandlers')
         const store = createMemoryImportWorkflowStore()
 
-        registerImportWorkflowHandlers({ipc: ipcMain, store})
+        const {auditLog, integrityCheck} = createAuditDependencies()
+        registerImportWorkflowHandlers({ipc: ipcMain, store, auditLog, integrityCheck})
 
         expect([...handlers.keys()]).toEqual(expect.arrayContaining([
             'import:batch:create',
@@ -120,6 +140,14 @@ describe('import workflow IPC handlers', () => {
         expect(applied.ok).toBe(true)
         expect(applied.data.batch.status).toBe('applied')
         expect(applied.data.appliedLinks.map((link) => link.operation)).toEqual(['created', 'skipped'])
+        expect(auditLog.logImportApplied).toHaveBeenCalledTimes(1)
+        expect(auditLog.logImportApplied).toHaveBeenCalledWith(expect.objectContaining({batchId: created.data.id}))
+        expect(auditLog.logImportFailed).not.toHaveBeenCalled()
+        expect(integrityCheck.run).toHaveBeenCalledWith(expect.objectContaining({
+            batchId: created.data.id,
+            source: 'import-workflow',
+            auditCritical: true,
+        }))
 
         const history = await handlers.get('import:history:list')({}, {})
         expect(history.ok).toBe(true)
@@ -148,7 +176,8 @@ describe('import workflow IPC handlers', () => {
             }],
         })
 
-        registerImportWorkflowHandlers({ipc: ipcMain, store})
+        const {auditLog, integrityCheck} = createAuditDependencies()
+        registerImportWorkflowHandlers({ipc: ipcMain, store, auditLog, integrityCheck})
         const created = await handlers.get('import:batch:create')({}, {defaultCurrency: 'CAD', template: bankCsvTemplate})
         await handlers.get('import:file:parse')({}, {batchId: created.data.id, rawText: csvFixture(), defaultCurrency: 'CAD'})
         await handlers.get('import:preview:create')({}, {batchId: created.data.id, targetAccountId: 1})
@@ -172,7 +201,8 @@ describe('import workflow IPC handlers', () => {
         const {registerImportWorkflowHandlers} = require('../../../electron/ipc/registerImportWorkflowHandlers')
         const store = createMemoryImportWorkflowStore()
 
-        registerImportWorkflowHandlers({ipc: ipcMain, store})
+        const {auditLog, integrityCheck} = createAuditDependencies()
+        registerImportWorkflowHandlers({ipc: ipcMain, store, auditLog, integrityCheck})
 
         const created = await handlers.get('import:batch:create')({}, {defaultCurrency: 'CAD'})
         const invalidParse = await handlers.get('import:file:parse')({}, {batchId: created.data.id, rawText: ''})
@@ -183,6 +213,13 @@ describe('import workflow IPC handlers', () => {
             data: null,
             error: {code: 'invalidImportFile', field: 'rawText', recoverable: true},
         })
+        expect(auditLog.logImportFailed).toHaveBeenCalledWith(expect.objectContaining({
+            batchId: created.data.id,
+            stage: 'apply',
+            error: expect.any(Error),
+        }))
+        expect(auditLog.logImportApplied).not.toHaveBeenCalled()
+        expect(integrityCheck.run).not.toHaveBeenCalled()
         expect(invalidApply).toMatchObject({
             ok: false,
             data: null,
@@ -197,7 +234,8 @@ describe('import workflow IPC handlers', () => {
         const {registerImportWorkflowHandlers} = require('../../../electron/ipc/registerImportWorkflowHandlers')
         const store = createMemoryImportWorkflowStore()
 
-        registerImportWorkflowHandlers({ipc: ipcMain, store})
+        const {auditLog, integrityCheck} = createAuditDependencies()
+        registerImportWorkflowHandlers({ipc: ipcMain, store, auditLog, integrityCheck})
         const created = await handlers.get('import:batch:create')({}, {defaultCurrency: 'CAD', template: bankCsvTemplate})
         await handlers.get('import:file:parse')({}, {batchId: created.data.id, rawText: 'Date,Description,Amount,Currency\n2026-05-01,Coffee,-4.50,CAD', defaultCurrency: 'CAD'})
         const preview = await handlers.get('import:preview:create')({}, {batchId: created.data.id, targetAccountId: 1})
