@@ -172,3 +172,6 @@ ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
 *.p8
 *.p12
 mobile-signing/
+
+# Electron E2E screenshots and logs uploaded by CI
+e2e-artifacts/

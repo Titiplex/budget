@@ -63,7 +63,7 @@ function deltaClass(value: number, invert = false) {
 </script>
 
 <template>
-  <section class="space-y-6">
+  <section data-testid="reports-section" class="space-y-6">
     <section class="panel p-6">
       <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
@@ -89,7 +89,7 @@ function deltaClass(value: number, invert = false) {
                   @click="emit('set-preset', 'THIS_YEAR')">
             {{ t('reports.presets.thisYear') }}
           </button>
-          <button class="ghost-btn" :class="{ 'tab-btn-active': preset === 'ALL' }" @click="emit('set-preset', 'ALL')">
+          <button data-report-preset="ALL" class="ghost-btn" :class="{ 'tab-btn-active': preset === 'ALL' }" @click="emit('set-preset', 'ALL')">
             {{ t('reports.presets.all') }}
           </button>
           <button class="primary-btn" @click="emit('export-report')">
@@ -132,7 +132,7 @@ function deltaClass(value: number, invert = false) {
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
       <div class="stat-card">
         <p class="stat-label">{{ t('reports.summary.transactions') }}</p>
-        <p class="stat-value">{{ summary.transactionCount }}</p>
+        <p data-report-metric="transaction-count" :data-value="summary.transactionCount" class="stat-value">{{ summary.transactionCount }}</p>
         <p class="stat-hint" :class="deltaClass(comparison.transactionCount.delta)">
           {{ percentText(comparison.transactionCount.deltaPercent) }} {{ t('reports.vsPrevious') }}
         </p>
@@ -146,7 +146,7 @@ function deltaClass(value: number, invert = false) {
       </div>
       <div class="stat-card">
         <p class="stat-label">{{ t('reports.summary.expense') }}</p>
-        <p class="stat-value">{{ formatMoney(summary.expense) }}</p>
+        <p data-report-metric="expense" :data-value="summary.expense" class="stat-value">{{ formatMoney(summary.expense) }}</p>
         <p class="stat-hint" :class="deltaClass(comparison.expense.delta, true)">
           {{ percentText(comparison.expense.deltaPercent) }}
         </p>
