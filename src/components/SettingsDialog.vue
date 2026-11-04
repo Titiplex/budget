@@ -9,16 +9,26 @@ const props = defineProps<{
   open: boolean
   currentLocale: SupportedLocale
   currentTheme: 'light' | 'dark'
+  defaultTransactionCurrency: string
 }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
+  (e: 'update-default-transaction-currency', value: string): void
   (e: 'update-locale', value: SupportedLocale): void
   (e: 'update-theme', value: 'light' | 'dark'): void
   (e: 'notice', type: 'success' | 'error', text: string): void
 }>()
 
 const {t} = useI18n()
+
+function updateCurrency(event: Event) {
+  const input = event.target as HTMLInputElement
+  input.value = input.value.trim().toUpperCase()
+  if (input.reportValidity()) {
+    emit('update-default-transaction-currency', input.value)
+  }
+}
 </script>
 
 <template>
@@ -61,6 +71,24 @@ const {t} = useI18n()
             <option value="light">{{ t('settings.themeLight') }}</option>
             <option value="dark">{{ t('settings.themeDark') }}</option>
           </select>
+        </div>
+
+        <div class="field-block">
+          <label for="default-transaction-currency" class="field-label">{{ t('settings.defaultTransactionCurrency') }}</label>
+          <input
+              id="default-transaction-currency"
+              :value="props.defaultTransactionCurrency"
+              type="text"
+              required
+              pattern="[A-Za-z]{3}"
+              maxlength="3"
+              class="field-control uppercase"
+              aria-describedby="default-transaction-currency-help"
+              @change="updateCurrency"
+          />
+          <p id="default-transaction-currency-help" class="text-xs text-slate-500 dark:text-slate-400">
+            {{ t('settings.defaultTransactionCurrencyHelp') }}
+          </p>
         </div>
 
         <SecurityRecoveryPanel @notice="(type, text) => emit('notice', type, text)" />

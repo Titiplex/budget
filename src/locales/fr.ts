@@ -238,13 +238,15 @@ export default {
     },
     settings: {
         title: 'Paramètres',
-        subtitle: 'Langue et apparence',
-        description: 'Choisis la langue de l’interface et le thème visuel de l’application.',
+        subtitle: 'Préférences',
+        description: 'Choisis la langue, le thème et la devise par défaut des transactions.',
         open: 'Ouvrir les paramètres',
         languageFrench: 'Français',
         languageEnglish: 'Anglais',
         themeLight: 'Clair',
         themeDark: 'Sombre',
+        defaultTransactionCurrency: 'Devise par défaut des transactions',
+        defaultTransactionCurrencyHelp: 'Code à 3 lettres (CAD, EUR, USD…). Enregistré automatiquement pour les nouvelles dépenses et recettes. Les virements utilisent la devise du compte source.',
     },
     deleteDialog: {
         title: 'Suppression',

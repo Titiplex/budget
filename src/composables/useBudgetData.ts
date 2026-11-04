@@ -1,4 +1,4 @@
-import {computed, reactive, ref, watch} from 'vue'
+import {computed, reactive, ref, watch, type Ref} from 'vue'
 import type {
     Account,
     AccountSummary,
@@ -24,6 +24,7 @@ import {collapseTransferTransactions} from "../utils/transferDisplay";
 
 export function useBudgetData(
     showNotice: (type: 'success' | 'error', text: string) => void,
+    defaultTransactionCurrency: Readonly<Ref<string>> = ref('CAD'),
 ) {
     const accountTypeOptions: AccountType[] = [
         'BANK',
@@ -88,7 +89,7 @@ export function useBudgetData(
     const transactionForm = reactive({
         label: '',
         amount: '',
-        currency: 'CAD',
+        currency: defaultTransactionCurrency.value,
         accountAmount: '',
         conversionMode: 'NONE' as ConversionMode,
         exchangeRate: '',
@@ -148,7 +149,7 @@ export function useBudgetData(
     function resetTransactionForm() {
         transactionForm.label = ''
         transactionForm.amount = ''
-        transactionForm.currency = selectedTransactionAccountCurrency.value || 'CAD'
+        transactionForm.currency = defaultTransactionCurrency.value
         transactionForm.accountAmount = ''
         transactionForm.conversionMode = 'NONE'
         transactionForm.exchangeRate = ''
@@ -182,7 +183,6 @@ export function useBudgetData(
 
         if (tab === 'transaction' && accounts.value.length === 1) {
             transactionForm.accountId = String(accounts.value[0].id)
-            transactionForm.currency = accounts.value[0].currency
         }
 
         createPanelOpen.value = true

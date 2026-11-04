@@ -160,7 +160,7 @@ describe('useBudgetData workflows', () => {
         expect(budget.panelMode.value).toBe('create')
         expect(budget.createTab.value).toBe('transaction')
         expect(budget.transactionForm.accountId).toBe('7')
-        expect(budget.transactionForm.currency).toBe('EUR')
+        expect(budget.transactionForm.currency).toBe('CAD')
 
         budget.openEditAccount(account)
         expect(budget.panelMode.value).toBe('edit')

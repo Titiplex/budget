@@ -238,13 +238,15 @@ export default {
     },
     settings: {
         title: 'Settings',
-        subtitle: 'Language and appearance',
-        description: 'Choose the interface language and the application theme.',
+        subtitle: 'Preferences',
+        description: 'Choose the language, theme and default transaction currency.',
         open: 'Open settings',
         languageFrench: 'French',
         languageEnglish: 'English',
         themeLight: 'Light',
         themeDark: 'Dark',
+        defaultTransactionCurrency: 'Default transaction currency',
+        defaultTransactionCurrencyHelp: '3-letter code (CAD, EUR, USD…). Saved automatically for new expenses and income. Transfers use the source account currency.',
     },
     deleteDialog: {
         title: 'Deletion',

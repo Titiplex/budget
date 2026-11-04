@@ -53,7 +53,7 @@ function normalizeError(error: unknown) {
 
 const {t} = useI18n()
 const settings = useSettings()
-const budget = useBudgetData(showNotice)
+const budget = useBudgetData(showNotice, settings.defaultTransactionCurrency)
 
 const budgetTargets = useBudgetTargets({
   categories: budget.categories,
@@ -715,9 +715,11 @@ onMounted(async () => {
         :open="settings.settingsOpen.value"
         :current-locale="settings.locale.value"
         :current-theme="settings.themeMode.value"
+        :default-transaction-currency="settings.defaultTransactionCurrency.value"
         @close="settings.closeSettings"
         @update-locale="settings.setLocale"
         @update-theme="settings.setTheme"
+        @update-default-transaction-currency="settings.setDefaultTransactionCurrency"
     />
 
     <ImportWizardDialog

@@ -4,9 +4,16 @@ import {i18n, persistLocale, resolveInitialLocale, type SupportedLocale} from '.
 type ThemeMode = 'light' | 'dark'
 
 const THEME_STORAGE_KEY = 'budget-theme'
+const CURRENCY_STORAGE_KEY = 'budget-default-transaction-currency'
+
+function normalizeCurrency(value: string) {
+    const code = value.trim().toUpperCase()
+    return /^[A-Z]{3}$/.test(code) ? code : null
+}
 
 export function useSettings() {
     const settingsOpen = ref(false)
+    const defaultTransactionCurrency = ref('CAD')
     const locale = ref<SupportedLocale>('fr')
     const themeMode = ref<ThemeMode>('dark')
 
@@ -24,6 +31,7 @@ export function useSettings() {
     }
 
     function initSettings() {
+        defaultTransactionCurrency.value = normalizeCurrency(localStorage.getItem(CURRENCY_STORAGE_KEY) || '') || 'CAD'
         locale.value = resolveInitialLocale()
         applyLocale()
 
@@ -42,6 +50,13 @@ export function useSettings() {
         applyTheme()
     }
 
+    function setDefaultTransactionCurrency(value: string) {
+        const code = normalizeCurrency(value)
+        if (!code) return
+        defaultTransactionCurrency.value = code
+        localStorage.setItem(CURRENCY_STORAGE_KEY, code)
+    }
+
     function toggleTheme() {
         setTheme(themeMode.value === 'dark' ? 'light' : 'dark')
     }
@@ -58,6 +73,8 @@ export function useSettings() {
 
     return {
         settingsOpen,
+        defaultTransactionCurrency,
+        setDefaultTransactionCurrency,
         locale,
         themeMode,
         darkMode,
