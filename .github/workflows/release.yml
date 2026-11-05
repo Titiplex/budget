@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, ubuntu-latest, macos-latest]
+        os: [windows-2022, ubuntu-24.04, macos-latest]
 
     steps:
       - name: Checkout
@@ -58,6 +58,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Show Linux packaging environment
+        if: runner.os == 'Linux'
+        run: |
+          cat /etc/os-release
+          rpmbuild --version
 
       - name: Generate Prisma client
         run: npm run prisma:generate
