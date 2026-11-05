@@ -204,7 +204,8 @@ function setCreateTab(tab: CreateTabKey) {
   budget.createTab.value = tab
 }
 
-function closeCompactAnalyticsAfterAction() {
+function createFromCompactAnalytics(tab: CreateTabKey) {
+  budget.openCreatePanel(tab)
   analyticsPanelOpen.value = false
 }
 
@@ -495,17 +496,10 @@ onMounted(async () => {
                   :category-count="budget.categories.value.length"
                   @refresh="refreshEverything"
                   @create-transaction="
-                    budget.openCreatePanel('transaction')
-                    closeCompactAnalyticsAfterAction()
+                    createFromCompactAnalytics('transaction')
                   "
-                  @create-account="
-                    budget.openCreatePanel('account')
-                    closeCompactAnalyticsAfterAction()
-                  "
-                  @create-category="
-                    budget.openCreatePanel('category')
-                    closeCompactAnalyticsAfterAction()
-                  "
+                  @create-account="createFromCompactAnalytics('account')"
+                  @create-category="createFromCompactAnalytics('category')"
                 />
               </div>
             </Transition>
