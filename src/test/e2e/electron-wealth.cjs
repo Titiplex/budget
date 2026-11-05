@@ -1,7 +1,7 @@
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const {spawn, spawnSync} = require('node:child_process')
+const { spawn, spawnSync } = require('node:child_process')
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..')
 const electronPath = require('electron')
@@ -10,227 +10,253 @@ const testDbPath = path.join(tempRoot, 'data', 'wealth-e2e.db')
 const remoteDebuggingPort = Number(process.env.BUDGET_E2E_CDP_PORT || 9344)
 
 function sqliteUrl(filePath) {
-    return `file:${filePath.replace(/\\/g, '/')}`
+  return `file:${filePath.replace(/\\/g, '/')}`
 }
 
 function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms))
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function runNodeScript(scriptPath, args, options = {}) {
-    const result = spawnSync(process.execPath, [scriptPath, ...args], {
-        cwd: repoRoot,
-        stdio: 'inherit',
-        shell: false,
-        windowsHide: true,
-        ...options,
-        env: {
-            ...process.env,
-            ...options.env,
-        },
-    })
+  const result = spawnSync(process.execPath, [scriptPath, ...args], {
+    cwd: repoRoot,
+    stdio: 'inherit',
+    shell: false,
+    windowsHide: true,
+    ...options,
+    env: {
+      ...process.env,
+      ...options.env,
+    },
+  })
 
-    if (result.error) {
-        throw new Error(`${path.basename(scriptPath)} ${args.join(' ')} failed to start: ${result.error.message}`)
-    }
+  if (result.error) {
+    throw new Error(
+      `${path.basename(scriptPath)} ${args.join(' ')} failed to start: ${result.error.message}`,
+    )
+  }
 
-    if (result.signal) {
-        throw new Error(`${path.basename(scriptPath)} ${args.join(' ')} was terminated by signal ${result.signal}`)
-    }
+  if (result.signal) {
+    throw new Error(
+      `${path.basename(scriptPath)} ${args.join(' ')} was terminated by signal ${result.signal}`,
+    )
+  }
 
-    if (result.status !== 0) {
-        throw new Error(`${path.basename(scriptPath)} ${args.join(' ')} failed with exit code ${result.status}`)
-    }
+  if (result.status !== 0) {
+    throw new Error(
+      `${path.basename(scriptPath)} ${args.join(' ')} failed with exit code ${result.status}`,
+    )
+  }
 }
 
 function findPrismaCliPath() {
-    const candidates = [
-        path.join(repoRoot, 'node_modules', 'prisma', 'build', 'index.js'),
-        path.join(repoRoot, 'node_modules', 'prisma', 'build', 'public', 'assets', 'index.js'),
-    ]
+  const candidates = [
+    path.join(repoRoot, 'node_modules', 'prisma', 'build', 'index.js'),
+    path.join(
+      repoRoot,
+      'node_modules',
+      'prisma',
+      'build',
+      'public',
+      'assets',
+      'index.js',
+    ),
+  ]
 
-    for (const candidate of candidates) {
-        if (fs.existsSync(candidate)) {
-            return candidate
-        }
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate
     }
+  }
 
-    throw new Error(
-        'Unable to find local Prisma CLI. Expected node_modules/prisma/build/index.js. Run npm install first.',
-    )
+  throw new Error(
+    'Unable to find local Prisma CLI. Expected node_modules/prisma/build/index.js. Run npm install first.',
+  )
 }
 
 function runPrismaDbPush(databasePath) {
-    const prismaCliPath = findPrismaCliPath()
-    const schemaPath = path.join(repoRoot, 'prisma', 'schema.prisma')
+  const prismaCliPath = findPrismaCliPath()
+  const schemaPath = path.join(repoRoot, 'prisma', 'schema.prisma')
 
-    runNodeScript(
-        prismaCliPath,
-        ['db', 'push', '--skip-generate', '--schema', schemaPath],
-        {
-            env: {
-                DATABASE_URL: sqliteUrl(databasePath),
-            },
-        },
-    )
+  runNodeScript(
+    prismaCliPath,
+    ['db', 'push', '--skip-generate', '--schema', schemaPath],
+    {
+      env: {
+        DATABASE_URL: sqliteUrl(databasePath),
+      },
+    },
+  )
 }
 
 function assert(condition, message) {
-    if (!condition) {
-        throw new Error(message)
-    }
+  if (!condition) {
+    throw new Error(message)
+  }
 }
 
-async function waitFor(fn, {timeoutMs = 30000, intervalMs = 250, message = 'Timed out'} = {}) {
-    const startedAt = Date.now()
-    let lastError = null
+async function waitFor(
+  fn,
+  { timeoutMs = 30000, intervalMs = 250, message = 'Timed out' } = {},
+) {
+  const startedAt = Date.now()
+  let lastError = null
 
-    while (Date.now() - startedAt < timeoutMs) {
-        try {
-            const value = await fn()
-            if (value) return value
-        } catch (error) {
-            lastError = error
-        }
-
-        await sleep(intervalMs)
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const value = await fn()
+      if (value) return value
+    } catch (error) {
+      lastError = error
     }
 
-    if (lastError) {
-        throw new Error(`${message}: ${lastError.message}`)
-    }
+    await sleep(intervalMs)
+  }
 
-    throw new Error(message)
+  if (lastError) {
+    throw new Error(`${message}: ${lastError.message}`)
+  }
+
+  throw new Error(message)
 }
 
 async function getJson(url) {
-    const response = await fetch(url)
+  const response = await fetch(url)
 
-    if (!response.ok) {
-        throw new Error(`GET ${url} failed with ${response.status}`)
-    }
+  if (!response.ok) {
+    throw new Error(`GET ${url} failed with ${response.status}`)
+  }
 
-    return response.json()
+  return response.json()
 }
 
 class CdpClient {
-    constructor(webSocketUrl) {
-        this.nextId = 1
-        this.pending = new Map()
-        this.socket = new WebSocket(webSocketUrl)
+  constructor(webSocketUrl) {
+    this.nextId = 1
+    this.pending = new Map()
+    this.socket = new WebSocket(webSocketUrl)
 
-        this.ready = new Promise((resolve, reject) => {
-            this.socket.addEventListener('open', resolve, {once: true})
-            this.socket.addEventListener('error', reject, {once: true})
-        })
+    this.ready = new Promise((resolve, reject) => {
+      this.socket.addEventListener('open', resolve, { once: true })
+      this.socket.addEventListener('error', reject, { once: true })
+    })
 
-        this.socket.addEventListener('message', (event) => {
-            const payload = JSON.parse(event.data)
-            if (!payload.id) return
+    this.socket.addEventListener('message', (event) => {
+      const payload = JSON.parse(event.data)
+      if (!payload.id) return
 
-            const pending = this.pending.get(payload.id)
-            if (!pending) return
+      const pending = this.pending.get(payload.id)
+      if (!pending) return
 
-            this.pending.delete(payload.id)
+      this.pending.delete(payload.id)
 
-            if (payload.error) {
-                pending.reject(new Error(payload.error.message || JSON.stringify(payload.error)))
-                return
-            }
+      if (payload.error) {
+        pending.reject(
+          new Error(payload.error.message || JSON.stringify(payload.error)),
+        )
+        return
+      }
 
-            pending.resolve(payload.result)
-        })
+      pending.resolve(payload.result)
+    })
+  }
+
+  async send(method, params = {}) {
+    await this.ready
+
+    const id = this.nextId++
+    const payload = { id, method, params }
+
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject })
+      this.socket.send(JSON.stringify(payload))
+    })
+  }
+
+  async evaluate(expression, { awaitPromise = false } = {}) {
+    const result = await this.send('Runtime.evaluate', {
+      expression,
+      awaitPromise,
+      returnByValue: true,
+    })
+
+    if (result.exceptionDetails) {
+      throw new Error(
+        result.exceptionDetails.text || 'Runtime evaluation failed',
+      )
     }
 
-    async send(method, params = {}) {
-        await this.ready
+    return result.result.value
+  }
 
-        const id = this.nextId++
-        const payload = {id, method, params}
-
-        return new Promise((resolve, reject) => {
-            this.pending.set(id, {resolve, reject})
-            this.socket.send(JSON.stringify(payload))
-        })
-    }
-
-    async evaluate(expression, {awaitPromise = false} = {}) {
-        const result = await this.send('Runtime.evaluate', {
-            expression,
-            awaitPromise,
-            returnByValue: true,
-        })
-
-        if (result.exceptionDetails) {
-            throw new Error(result.exceptionDetails.text || 'Runtime evaluation failed')
-        }
-
-        return result.result.value
-    }
-
-    close() {
-        this.socket.close()
-    }
+  close() {
+    this.socket.close()
+  }
 }
 
 async function runWealthE2eTest() {
-    fs.mkdirSync(path.dirname(testDbPath), {recursive: true})
+  fs.mkdirSync(path.dirname(testDbPath), { recursive: true })
 
-    runPrismaDbPush(testDbPath)
+  runPrismaDbPush(testDbPath)
 
-    const electron = spawn(
-        electronPath,
-        [
-            `--remote-debugging-port=${remoteDebuggingPort}`,
-            '--no-sandbox',
-            repoRoot,
-        ],
-        {
-            cwd: repoRoot,
-            stdio: ['ignore', 'pipe', 'pipe'],
-            env: {
-                ...process.env,
-                BUDGET_DATABASE_PATH: testDbPath,
-                ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
-            },
-        },
+  const electron = spawn(
+    electronPath,
+    [
+      `--remote-debugging-port=${remoteDebuggingPort}`,
+      '--no-sandbox',
+      repoRoot,
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        BUDGET_DATABASE_PATH: testDbPath,
+        ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
+      },
+    },
+  )
+
+  const logs = []
+
+  electron.stdout.on('data', (chunk) => logs.push(chunk.toString()))
+  electron.stderr.on('data', (chunk) => logs.push(chunk.toString()))
+  electron.on('exit', (code, signal) => {
+    if (code !== 0 && signal !== 'SIGTERM') {
+      logs.push(`Electron exited with code ${code} signal ${signal}`)
+    }
+  })
+
+  let cdp = null
+
+  try {
+    const target = await waitFor(
+      async () => {
+        const targets = await getJson(
+          `http://127.0.0.1:${remoteDebuggingPort}/json/list`,
+        )
+        return targets.find(
+          (entry) => entry.type === 'page' && entry.webSocketDebuggerUrl,
+        )
+      },
+      { message: 'Electron renderer did not expose a CDP page target' },
     )
 
-    const logs = []
+    cdp = new CdpClient(target.webSocketDebuggerUrl)
+    await cdp.send('Runtime.enable')
 
-    electron.stdout.on('data', (chunk) => logs.push(chunk.toString()))
-    electron.stderr.on('data', (chunk) => logs.push(chunk.toString()))
-    electron.on('exit', (code, signal) => {
-        if (code !== 0 && signal !== 'SIGTERM') {
-            logs.push(`Electron exited with code ${code} signal ${signal}`)
-        }
-    })
+    await waitFor(
+      async () => cdp.evaluate('document.readyState === "complete"'),
+      { message: 'Renderer did not finish loading' },
+    )
 
-    let cdp = null
+    await waitFor(
+      async () =>
+        cdp.evaluate('Boolean(window.versions && window.db && window.wealth)'),
+      { message: 'Preload APIs were not exposed to the renderer' },
+    )
 
-    try {
-        const target = await waitFor(
-            async () => {
-                const targets = await getJson(`http://127.0.0.1:${remoteDebuggingPort}/json/list`)
-                return targets.find((entry) => entry.type === 'page' && entry.webSocketDebuggerUrl)
-            },
-            {message: 'Electron renderer did not expose a CDP page target'},
-        )
-
-        cdp = new CdpClient(target.webSocketDebuggerUrl)
-        await cdp.send('Runtime.enable')
-
-        await waitFor(
-            async () => cdp.evaluate('document.readyState === "complete"'),
-            {message: 'Renderer did not finish loading'},
-        )
-
-        await waitFor(
-            async () => cdp.evaluate('Boolean(window.versions && window.db && window.wealth)'),
-            {message: 'Preload APIs were not exposed to the renderer'},
-        )
-
-        const uiNavigation = await cdp.evaluate(`
+    const uiNavigation = await cdp.evaluate(`
       (() => {
         const candidates = Array.from(document.querySelectorAll('button, a, [role="button"]'))
         const wealthButton = candidates.find((element) => {
@@ -257,21 +283,22 @@ async function runWealthE2eTest() {
       })()
     `)
 
-        assert(
-            uiNavigation.ok,
-            `Expected a Wealth/Patrimoine navigation control. Found labels: ${JSON.stringify(uiNavigation.labels)}`,
-        )
+    assert(
+      uiNavigation.ok,
+      `Expected a Wealth/Patrimoine navigation control. Found labels: ${JSON.stringify(uiNavigation.labels)}`,
+    )
 
-        await waitFor(
-            async () =>
-                cdp.evaluate(`
+    await waitFor(
+      async () =>
+        cdp.evaluate(`
           document.body.innerText.includes('Patrimoine') ||
           document.body.innerText.includes('Wealth')
         `),
-            {message: 'Wealth section did not render after navigation'},
-        )
+      { message: 'Wealth section did not render after navigation' },
+    )
 
-        const wealthResult = await cdp.evaluate(`
+    const wealthResult = await cdp.evaluate(
+      `
       (async () => {
         function assert(condition, message) {
           if (!condition) throw new Error(message)
@@ -477,30 +504,32 @@ async function runWealthE2eTest() {
           }
         }
       })()
-    `, {awaitPromise: true})
+    `,
+      { awaitPromise: true },
+    )
 
-        assert(
-            wealthResult && wealthResult.ok,
-            `Wealth renderer/IPC E2E failed: ${wealthResult?.message}\n${wealthResult?.stack || ''}`,
-        )
+    assert(
+      wealthResult && wealthResult.ok,
+      `Wealth renderer/IPC E2E failed: ${wealthResult?.message}\n${wealthResult?.stack || ''}`,
+    )
 
-        console.log(
-            `Wealth E2E passed. Initial CAD net worth=${wealthResult.cadNetWorth}, updated=${wealthResult.updatedNetWorth}, snapshot=${wealthResult.snapshotId}`,
-        )
-    } catch (error) {
-        console.error('\nElectron output before failure:\n')
-        console.error(logs.join('\n'))
-        throw error
-    } finally {
-        if (cdp) cdp.close()
+    console.log(
+      `Wealth E2E passed. Initial CAD net worth=${wealthResult.cadNetWorth}, updated=${wealthResult.updatedNetWorth}, snapshot=${wealthResult.snapshotId}`,
+    )
+  } catch (error) {
+    console.error('\nElectron output before failure:\n')
+    console.error(logs.join('\n'))
+    throw error
+  } finally {
+    if (cdp) cdp.close()
 
-        electron.kill('SIGTERM')
-        await sleep(500)
-        fs.rmSync(tempRoot, {recursive: true, force: true})
-    }
+    electron.kill('SIGTERM')
+    await sleep(500)
+    fs.rmSync(tempRoot, { recursive: true, force: true })
+  }
 }
 
 runWealthE2eTest().catch((error) => {
-    console.error(error)
-    process.exit(1)
+  console.error(error)
+  process.exit(1)
 })

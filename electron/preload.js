@@ -1,4 +1,4 @@
-const {contextBridge, ipcRenderer} = require('electron')
+const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('versions', {
   node: () => process.versions.node,
@@ -6,7 +6,8 @@ contextBridge.exposeInMainWorld('versions', {
   electron: () => process.versions.electron,
   ping: () => ipcRenderer.invoke('ping'),
   send: (channel, data) => ipcRenderer.send(channel, data),
-  on: (channel, func) => ipcRenderer.on(channel, (_event, ...args) => func(...args)),
+  on: (channel, func) =>
+    ipcRenderer.on(channel, (_event, ...args) => func(...args)),
 })
 
 contextBridge.exposeInMainWorld('appShell', {
@@ -37,15 +38,18 @@ contextBridge.exposeInMainWorld('db', {
   budgetTarget: {
     list: () => ipcRenderer.invoke('db:budgetTarget:list'),
     create: (data) => ipcRenderer.invoke('db:budgetTarget:create', data),
-    update: (id, data) => ipcRenderer.invoke('db:budgetTarget:update', id, data),
+    update: (id, data) =>
+      ipcRenderer.invoke('db:budgetTarget:update', id, data),
     delete: (id) => ipcRenderer.invoke('db:budgetTarget:delete', id),
   },
   recurringTemplate: {
     list: () => ipcRenderer.invoke('db:recurringTemplate:list'),
     create: (data) => ipcRenderer.invoke('db:recurringTemplate:create', data),
-    update: (id, data) => ipcRenderer.invoke('db:recurringTemplate:update', id, data),
+    update: (id, data) =>
+      ipcRenderer.invoke('db:recurringTemplate:update', id, data),
     delete: (id) => ipcRenderer.invoke('db:recurringTemplate:delete', id),
-    generateDue: (data) => ipcRenderer.invoke('db:recurringTemplate:generateDue', data),
+    generateDue: (data) =>
+      ipcRenderer.invoke('db:recurringTemplate:generateDue', data),
   },
   taxProfile: {
     list: () => ipcRenderer.invoke('db:taxProfile:list'),
@@ -54,8 +58,10 @@ contextBridge.exposeInMainWorld('db', {
     delete: (id) => ipcRenderer.invoke('db:taxProfile:delete', id),
   },
   taxMetadata: {
-    updateAccount: (id, data) => ipcRenderer.invoke('db:taxMetadata:updateAccount', id, data),
-    updateTransaction: (id, data) => ipcRenderer.invoke('db:taxMetadata:updateTransaction', id, data),
+    updateAccount: (id, data) =>
+      ipcRenderer.invoke('db:taxMetadata:updateAccount', id, data),
+    updateTransaction: (id, data) =>
+      ipcRenderer.invoke('db:taxMetadata:updateTransaction', id, data),
   },
 })
 
@@ -65,20 +71,30 @@ contextBridge.exposeInMainWorld('file', {
 })
 
 contextBridge.exposeInMainWorld('fx', {
-  quoteHistorical: (options) => ipcRenderer.invoke('fx:quote-historical', options),
+  quoteHistorical: (options) =>
+    ipcRenderer.invoke('fx:quote-historical', options),
 })
 
 contextBridge.exposeInMainWorld('marketData', {
-  listInstruments: (filters) => ipcRenderer.invoke('marketData:instrument:list', filters),
-  getLatestSnapshot: (options) => ipcRenderer.invoke('marketData:snapshot:latest', options),
-  listSnapshotHistory: (options) => ipcRenderer.invoke('marketData:snapshot:history', options),
+  listInstruments: (filters) =>
+    ipcRenderer.invoke('marketData:instrument:list', filters),
+  getLatestSnapshot: (options) =>
+    ipcRenderer.invoke('marketData:snapshot:latest', options),
+  listSnapshotHistory: (options) =>
+    ipcRenderer.invoke('marketData:snapshot:history', options),
   refresh: (options) => ipcRenderer.invoke('marketData:refresh', options),
-  getAssetValuation: (options) => ipcRenderer.invoke('marketData:valuation:get', options),
-  listFreshnessStatuses: (filters) => ipcRenderer.invoke('marketData:freshness:list', filters),
-  listWatchlist: (options) => ipcRenderer.invoke('marketData:watchlist:list', options),
-  addWatchlistInstrument: (data) => ipcRenderer.invoke('marketData:watchlist:add', data),
-  removeWatchlistInstrument: (id) => ipcRenderer.invoke('marketData:watchlist:remove', id),
-  refreshWatchlist: (options) => ipcRenderer.invoke('marketData:watchlist:refresh', options),
+  getAssetValuation: (options) =>
+    ipcRenderer.invoke('marketData:valuation:get', options),
+  listFreshnessStatuses: (filters) =>
+    ipcRenderer.invoke('marketData:freshness:list', filters),
+  listWatchlist: (options) =>
+    ipcRenderer.invoke('marketData:watchlist:list', options),
+  addWatchlistInstrument: (data) =>
+    ipcRenderer.invoke('marketData:watchlist:add', data),
+  removeWatchlistInstrument: (id) =>
+    ipcRenderer.invoke('marketData:watchlist:remove', id),
+  refreshWatchlist: (options) =>
+    ipcRenderer.invoke('marketData:watchlist:refresh', options),
 })
 
 contextBridge.exposeInMainWorld('wealth', {
@@ -88,38 +104,56 @@ contextBridge.exposeInMainWorld('wealth', {
   deleteAsset: (id) => ipcRenderer.invoke('db:asset:delete', id),
   listPortfolios: (filters) => ipcRenderer.invoke('db:portfolio:list', filters),
   createPortfolio: (data) => ipcRenderer.invoke('db:portfolio:create', data),
-  updatePortfolio: (id, data) => ipcRenderer.invoke('db:portfolio:update', id, data),
+  updatePortfolio: (id, data) =>
+    ipcRenderer.invoke('db:portfolio:update', id, data),
   deletePortfolio: (id) => ipcRenderer.invoke('db:portfolio:delete', id),
-  listLiabilities: (filters) => ipcRenderer.invoke('db:liability:list', filters),
+  listLiabilities: (filters) =>
+    ipcRenderer.invoke('db:liability:list', filters),
   createLiability: (data) => ipcRenderer.invoke('db:liability:create', data),
-  updateLiability: (id, data) => ipcRenderer.invoke('db:liability:update', id, data),
+  updateLiability: (id, data) =>
+    ipcRenderer.invoke('db:liability:update', id, data),
   deleteLiability: (id) => ipcRenderer.invoke('db:liability:delete', id),
   getOverview: (options) => ipcRenderer.invoke('db:wealth:overview', options),
-  createGeneratedNetWorthSnapshot: (options) => ipcRenderer.invoke('db:netWorthSnapshot:createGenerated', options),
-  listNetWorthSnapshots: (filters) => ipcRenderer.invoke('db:netWorthSnapshot:list', filters),
-  getPortfolioAnalyticsDashboard: (options) => ipcRenderer.invoke('db:portfolioAnalytics:dashboard', options),
+  createGeneratedNetWorthSnapshot: (options) =>
+    ipcRenderer.invoke('db:netWorthSnapshot:createGenerated', options),
+  listNetWorthSnapshots: (filters) =>
+    ipcRenderer.invoke('db:netWorthSnapshot:list', filters),
+  getPortfolioAnalyticsDashboard: (options) =>
+    ipcRenderer.invoke('db:portfolioAnalytics:dashboard', options),
 })
 
 contextBridge.exposeInMainWorld('goals', {
-  listFinancialGoals: (filters) => ipcRenderer.invoke('db:financialGoal:list', filters),
+  listFinancialGoals: (filters) =>
+    ipcRenderer.invoke('db:financialGoal:list', filters),
   getFinancialGoal: (id) => ipcRenderer.invoke('db:financialGoal:get', id),
-  createFinancialGoal: (data) => ipcRenderer.invoke('db:financialGoal:create', data),
-  updateFinancialGoal: (id, data) => ipcRenderer.invoke('db:financialGoal:update', id, data),
-  deleteFinancialGoal: (id) => ipcRenderer.invoke('db:financialGoal:delete', id),
-  ensureDefaultProjectionScenarios: () => ipcRenderer.invoke('db:projectionScenario:ensureDefaults'),
-  listProjectionScenarios: (filters) => ipcRenderer.invoke('db:projectionScenario:list', filters),
-  getProjectionScenario: (id) => ipcRenderer.invoke('db:projectionScenario:get', id),
-  createProjectionScenario: (data) => ipcRenderer.invoke('db:projectionScenario:create', data),
-  updateProjectionScenario: (id, data) => ipcRenderer.invoke('db:projectionScenario:update', id, data),
-  removeProjectionScenario: (id) => ipcRenderer.invoke('db:projectionScenario:delete', id),
-  estimateMonthlySurplus: (options) => ipcRenderer.invoke('db:goalProjection:monthlySurplus:estimate', options),
+  createFinancialGoal: (data) =>
+    ipcRenderer.invoke('db:financialGoal:create', data),
+  updateFinancialGoal: (id, data) =>
+    ipcRenderer.invoke('db:financialGoal:update', id, data),
+  deleteFinancialGoal: (id) =>
+    ipcRenderer.invoke('db:financialGoal:delete', id),
+  ensureDefaultProjectionScenarios: () =>
+    ipcRenderer.invoke('db:projectionScenario:ensureDefaults'),
+  listProjectionScenarios: (filters) =>
+    ipcRenderer.invoke('db:projectionScenario:list', filters),
+  getProjectionScenario: (id) =>
+    ipcRenderer.invoke('db:projectionScenario:get', id),
+  createProjectionScenario: (data) =>
+    ipcRenderer.invoke('db:projectionScenario:create', data),
+  updateProjectionScenario: (id, data) =>
+    ipcRenderer.invoke('db:projectionScenario:update', id, data),
+  removeProjectionScenario: (id) =>
+    ipcRenderer.invoke('db:projectionScenario:delete', id),
+  estimateMonthlySurplus: (options) =>
+    ipcRenderer.invoke('db:goalProjection:monthlySurplus:estimate', options),
 })
 
 contextBridge.exposeInMainWorld('secrets', {
   getStorageInfo: () => ipcRenderer.invoke('secret:storage:info'),
   saveSecret: (input) => ipcRenderer.invoke('secret:save', input),
   hasSecret: (input) => ipcRenderer.invoke('secret:has', input),
-  listSecretMetadata: (filters) => ipcRenderer.invoke('secret:metadata:list', filters),
+  listSecretMetadata: (filters) =>
+    ipcRenderer.invoke('secret:metadata:list', filters),
   deleteSecret: (input) => ipcRenderer.invoke('secret:delete', input),
   clearSecrets: (filters) => ipcRenderer.invoke('secret:clear', filters),
 })
@@ -139,18 +173,25 @@ contextBridge.exposeInMainWorld('recoverySnapshots', {
   list: () => ipcRenderer.invoke('recovery:snapshot:list'),
   read: (id) => ipcRenderer.invoke('recovery:snapshot:read', id),
   delete: (id) => ipcRenderer.invoke('recovery:snapshot:delete', id),
-  markRestored: (input) => ipcRenderer.invoke('recovery:snapshot:restored', input),
+  markRestored: (input) =>
+    ipcRenderer.invoke('recovery:snapshot:restored', input),
   getPolicy: () => ipcRenderer.invoke('recovery:snapshot:policy'),
 })
 
 contextBridge.exposeInMainWorld('auditLog', {
   list: (filters) => ipcRenderer.invoke('audit:history:list', filters),
-  exportMarkdown: (filters) => ipcRenderer.invoke('audit:history:exportMarkdown', filters),
-  exportCsv: (filters) => ipcRenderer.invoke('audit:history:exportCsv', filters),
-  logBackupExported: (input) => ipcRenderer.invoke('audit:backup:exported', input),
-  logRestoreDryRun: (input) => ipcRenderer.invoke('audit:restore:dryRun', input),
-  logRestoreApplied: (input) => ipcRenderer.invoke('audit:restore:applied', input),
-  logRestoreFailed: (input) => ipcRenderer.invoke('audit:restore:failed', input),
+  exportMarkdown: (filters) =>
+    ipcRenderer.invoke('audit:history:exportMarkdown', filters),
+  exportCsv: (filters) =>
+    ipcRenderer.invoke('audit:history:exportCsv', filters),
+  logBackupExported: (input) =>
+    ipcRenderer.invoke('audit:backup:exported', input),
+  logRestoreDryRun: (input) =>
+    ipcRenderer.invoke('audit:restore:dryRun', input),
+  logRestoreApplied: (input) =>
+    ipcRenderer.invoke('audit:restore:applied', input),
+  logRestoreFailed: (input) =>
+    ipcRenderer.invoke('audit:restore:failed', input),
   getRetentionPolicy: () => ipcRenderer.invoke('audit:retention:policy'),
 })
 
@@ -159,24 +200,35 @@ contextBridge.exposeInMainWorld('imports', {
   parseFile: (input) => ipcRenderer.invoke('import:file:parse', input),
   preview: (input) => ipcRenderer.invoke('import:preview:create', input),
   apply: (input) => ipcRenderer.invoke('import:apply', input),
-  cancel: (batchId, reason) => ipcRenderer.invoke('import:cancel', batchId, reason),
+  cancel: (batchId, reason) =>
+    ipcRenderer.invoke('import:cancel', batchId, reason),
   listHistory: (filters) => ipcRenderer.invoke('import:history:list', filters),
   getDetail: (batchId) => ipcRenderer.invoke('import:detail:get', batchId),
   listErrors: (batchId) => ipcRenderer.invoke('import:errors:list', batchId),
-  listDuplicateCandidates: (batchId) => ipcRenderer.invoke('import:duplicates:list', batchId),
+  listDuplicateCandidates: (batchId) =>
+    ipcRenderer.invoke('import:duplicates:list', batchId),
   listSources: () => ipcRenderer.invoke('import:audit:sources'),
-  deleteHistory: (batchId, options) => ipcRenderer.invoke('import:audit:delete', batchId, options),
-  exportReport: (batchId, options) => ipcRenderer.invoke('import:audit:export', batchId, options),
-  restoreBackup: (input) => ipcRenderer.invoke('import:audit:restoreBackup', input),
-  applyReconciliationDecisions: (input) => ipcRenderer.invoke('import:reconciliation:apply', input),
+  deleteHistory: (batchId, options) =>
+    ipcRenderer.invoke('import:audit:delete', batchId, options),
+  exportReport: (batchId, options) =>
+    ipcRenderer.invoke('import:audit:export', batchId, options),
+  restoreBackup: (input) =>
+    ipcRenderer.invoke('import:audit:restoreBackup', input),
+  applyReconciliationDecisions: (input) =>
+    ipcRenderer.invoke('import:reconciliation:apply', input),
   mappingTemplate: {
-    list: (filters) => ipcRenderer.invoke('import:mappingTemplate:list', filters),
+    list: (filters) =>
+      ipcRenderer.invoke('import:mappingTemplate:list', filters),
     get: (id) => ipcRenderer.invoke('import:mappingTemplate:get', id),
     create: (data) => ipcRenderer.invoke('import:mappingTemplate:create', data),
-    update: (id, data) => ipcRenderer.invoke('import:mappingTemplate:update', id, data),
+    update: (id, data) =>
+      ipcRenderer.invoke('import:mappingTemplate:update', id, data),
     delete: (id) => ipcRenderer.invoke('import:mappingTemplate:delete', id),
-    duplicate: (id, overrides) => ipcRenderer.invoke('import:mappingTemplate:duplicate', id, overrides),
-    validate: (data) => ipcRenderer.invoke('import:mappingTemplate:validate', data),
-    saveFromImport: (input) => ipcRenderer.invoke('import:mappingTemplate:saveFromImport', input),
+    duplicate: (id, overrides) =>
+      ipcRenderer.invoke('import:mappingTemplate:duplicate', id, overrides),
+    validate: (data) =>
+      ipcRenderer.invoke('import:mappingTemplate:validate', data),
+    saveFromImport: (input) =>
+      ipcRenderer.invoke('import:mappingTemplate:saveFromImport', input),
   },
 })

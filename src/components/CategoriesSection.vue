@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import {useI18n} from 'vue-i18n'
-import type {CategorySummary} from '../types/budget'
-import {categoryDotStyle, formatMoney, kindLabel} from '../utils/budgetFormat'
+import { useI18n } from 'vue-i18n'
+import type { CategorySummary } from '../types/budget'
+import { categoryDotStyle, formatMoney, kindLabel } from '../utils/budgetFormat'
 
 defineProps<{
   categorySummaries: CategorySummary[]
@@ -14,7 +14,7 @@ const emit = defineEmits<{
   (e: 'delete-category', category: CategorySummary): void
 }>()
 
-const {t} = useI18n()
+const { t } = useI18n()
 </script>
 
 <template>
@@ -25,30 +25,44 @@ const {t} = useI18n()
       </button>
     </div>
 
-    <div v-if="categorySummaries.length" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div
+      v-if="categorySummaries.length"
+      class="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+    >
       <article
-          v-for="category in categorySummaries"
-          :key="category.id"
-          class="panel p-6"
+        v-for="category in categorySummaries"
+        :key="category.id"
+        class="panel p-6"
       >
         <div class="flex items-start justify-between gap-3">
           <div class="flex items-center gap-3">
-            <span class="h-3 w-3 rounded-full" :style="categoryDotStyle(category.color)"/>
+            <span
+              class="h-3 w-3 rounded-full"
+              :style="categoryDotStyle(category.color)"
+            />
             <div>
               <p class="text-sm font-semibold text-slate-900 dark:text-white">
                 {{ category.name }}
               </p>
-              <p class="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+              <p
+                class="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500"
+              >
                 {{ kindLabel(category.kind) }}
               </p>
             </div>
           </div>
 
           <div class="card-toolbar">
-            <button class="mini-action-btn" @click="emit('edit-category', category)">
+            <button
+              class="mini-action-btn"
+              @click="emit('edit-category', category)"
+            >
               {{ t('common.update') }}
             </button>
-            <button class="mini-danger-btn" @click="emit('delete-category', category)">
+            <button
+              class="mini-danger-btn"
+              @click="emit('delete-category', category)"
+            >
               {{ t('common.delete') }}
             </button>
           </div>
@@ -59,7 +73,8 @@ const {t} = useI18n()
         </p>
 
         <div
-            class="mt-6 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+          class="mt-6 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40"
+        >
           <div class="flex items-center justify-between gap-3">
             <div>
               <p class="mini-label">{{ t('categories.volume') }}</p>
@@ -68,9 +83,7 @@ const {t} = useI18n()
               </p>
             </div>
 
-            <span class="soft-badge">
-              {{ category.transactionCount }} tx
-            </span>
+            <span class="soft-badge"> {{ category.transactionCount }} tx </span>
           </div>
         </div>
       </article>

@@ -24,8 +24,8 @@ They cover:
 When a file imports both domains, prefer:
 
 ```ts
-import type {PriceSnapshot as WealthPriceSnapshot} from './wealth'
-import type {MarketPriceSnapshot} from './marketData'
+import type { PriceSnapshot as WealthPriceSnapshot } from './wealth'
+import type { MarketPriceSnapshot } from './marketData'
 ```
 
 ## Provider errors

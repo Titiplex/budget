@@ -15,15 +15,15 @@ Ils ne remplacent pas `npm run check`, `npm run test:e2e` ou la checklist de rel
 
 ## Datasets disponibles
 
-| Dataset | Usage recommandé |
-| --- | --- |
-| `npm run db:seed` | Budget personnel simple, comptes, catégories, transactions de base. |
-| `npm run db:seed:goals` | Objectifs financiers et scénarios de projection. |
-| `npm run db:seed:imports` | Historique et templates d’import. |
-| `prisma/demo/simple-budget.json` | Dataset simple si les fixtures demo de l’epic 8 sont présentes. |
-| `prisma/demo/advanced-wealth-imports.json` | Dataset avancé patrimoine, multi-devise et imports si les fixtures demo de l’epic 8 sont présentes. |
-| `src/test/fixtures/import-csv/*.csv` | Fixtures CSV réalistes pour import manuel si elles sont présentes. |
-| `src/test/e2e/fixtures/advanced-import.csv` | Fixture E2E avancée d’import si elle est présente. |
+| Dataset                                     | Usage recommandé                                                                                    |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `npm run db:seed`                           | Budget personnel simple, comptes, catégories, transactions de base.                                 |
+| `npm run db:seed:goals`                     | Objectifs financiers et scénarios de projection.                                                    |
+| `npm run db:seed:imports`                   | Historique et templates d’import.                                                                   |
+| `prisma/demo/simple-budget.json`            | Dataset simple si les fixtures demo de l’epic 8 sont présentes.                                     |
+| `prisma/demo/advanced-wealth-imports.json`  | Dataset avancé patrimoine, multi-devise et imports si les fixtures demo de l’epic 8 sont présentes. |
+| `src/test/fixtures/import-csv/*.csv`        | Fixtures CSV réalistes pour import manuel si elles sont présentes.                                  |
+| `src/test/e2e/fixtures/advanced-import.csv` | Fixture E2E avancée d’import si elle est présente.                                                  |
 
 Si un dataset optionnel n’existe pas encore dans la branche locale, utiliser les scripts `db:seed*` existants ou créer les lignes manuellement en suivant les étapes.
 
@@ -483,21 +483,21 @@ Si un dataset optionnel n’existe pas encore dans la branche locale, utiliser l
 
 À exécuter avant publication d’une version stable ou d’une version release candidate.
 
-| Domaine | Scénario | Statut | Notes |
-| --- | --- | --- | --- |
-| Démarrage | Smoke manual 10 minutes | ☐ |  |
-| Budget simple | Scénario 1 | ☐ |  |
-| Multi-devise | Scénario 2 | ☐ |  |
-| Transferts | Scénario 3 | ☐ |  |
-| Budgets | Scénario 4 | ☐ |  |
-| Récurrences | Scénario 5 | ☐ |  |
-| Rapports | Scénario 6 | ☐ |  |
-| Patrimoine | Scénario 7 | ☐ |  |
-| Objectifs/projections | Scénario 8 | ☐ |  |
-| Import CSV | Scénario 9 | ☐ |  |
-| Backup/restore | Scénario 10 | ☐ |  |
-| App packagée | Scénario 11 | ☐ |  |
-| Release checklist | `docs/release-qa-checklist.md` | ☐ |  |
+| Domaine               | Scénario                       | Statut | Notes |
+| --------------------- | ------------------------------ | ------ | ----- |
+| Démarrage             | Smoke manual 10 minutes        | ☐      |       |
+| Budget simple         | Scénario 1                     | ☐      |       |
+| Multi-devise          | Scénario 2                     | ☐      |       |
+| Transferts            | Scénario 3                     | ☐      |       |
+| Budgets               | Scénario 4                     | ☐      |       |
+| Récurrences           | Scénario 5                     | ☐      |       |
+| Rapports              | Scénario 6                     | ☐      |       |
+| Patrimoine            | Scénario 7                     | ☐      |       |
+| Objectifs/projections | Scénario 8                     | ☐      |       |
+| Import CSV            | Scénario 9                     | ☐      |       |
+| Backup/restore        | Scénario 10                    | ☐      |       |
+| App packagée          | Scénario 11                    | ☐      |       |
+| Release checklist     | `docs/release-qa-checklist.md` | ☐      |       |
 
 ## Critères bloquants
 
@@ -534,20 +534,20 @@ Bloquer la release si l’un des points suivants est observé :
 
 ## Scénarios exécutés
 
-| Scénario | Résultat | Notes |
-| --- | --- | --- |
-| Smoke manual 10 minutes |  |  |
-| Budget personnel simple |  |  |
-| Multi-compte/multi-devise |  |  |
-| Transferts internes |  |  |
-| Budget mensuel |  |  |
-| Récurrences |  |  |
-| Rapports avec comparaison |  |  |
-| Patrimoine |  |  |
-| Objectifs/projections |  |  |
-| Import CSV |  |  |
-| Backup/restore |  |  |
-| Release packagée |  |  |
+| Scénario                  | Résultat | Notes |
+| ------------------------- | -------- | ----- |
+| Smoke manual 10 minutes   |          |       |
+| Budget personnel simple   |          |       |
+| Multi-compte/multi-devise |          |       |
+| Transferts internes       |          |       |
+| Budget mensuel            |          |       |
+| Récurrences               |          |       |
+| Rapports avec comparaison |          |       |
+| Patrimoine                |          |       |
+| Objectifs/projections     |          |       |
+| Import CSV                |          |       |
+| Backup/restore            |          |       |
+| Release packagée          |          |       |
 
 ## Bugs trouvés
 
@@ -555,7 +555,7 @@ Bloquer la release si l’un des points suivants est observé :
 
 ## Captures/logs
 
-- 
+-
 
 ## Décision
 

@@ -12,14 +12,14 @@ Cette couche expose les données de marché au renderer sans donner accès à Pr
 
 ## Canaux exposés
 
-| API preload | Canal IPC | Rôle |
-| --- | --- | --- |
-| `window.marketData.listInstruments(filters)` | `marketData:instrument:list` | Liste les instruments locaux connus. |
-| `window.marketData.getLatestSnapshot(options)` | `marketData:snapshot:latest` | Lit le dernier snapshot local pour un instrument ou un lot. |
-| `window.marketData.listSnapshotHistory(options)` | `marketData:snapshot:history` | Lit l’historique local minimal des snapshots. |
-| `window.marketData.refresh(options)` | `marketData:refresh` | Déclenche un refresh manuel sans exposer le provider au renderer. |
-| `window.marketData.getAssetValuation(options)` | `marketData:valuation:get` | Retourne une valorisation exploitable par l’UI. |
-| `window.marketData.listFreshnessStatuses(filters)` | `marketData:freshness:list` | Retourne les statuts de fraîcheur des instruments. |
+| API preload                                        | Canal IPC                     | Rôle                                                              |
+| -------------------------------------------------- | ----------------------------- | ----------------------------------------------------------------- |
+| `window.marketData.listInstruments(filters)`       | `marketData:instrument:list`  | Liste les instruments locaux connus.                              |
+| `window.marketData.getLatestSnapshot(options)`     | `marketData:snapshot:latest`  | Lit le dernier snapshot local pour un instrument ou un lot.       |
+| `window.marketData.listSnapshotHistory(options)`   | `marketData:snapshot:history` | Lit l’historique local minimal des snapshots.                     |
+| `window.marketData.refresh(options)`               | `marketData:refresh`          | Déclenche un refresh manuel sans exposer le provider au renderer. |
+| `window.marketData.getAssetValuation(options)`     | `marketData:valuation:get`    | Retourne une valorisation exploitable par l’UI.                   |
+| `window.marketData.listFreshnessStatuses(filters)` | `marketData:freshness:list`   | Retourne les statuts de fraîcheur des instruments.                |
 
 ## Erreurs structurées
 

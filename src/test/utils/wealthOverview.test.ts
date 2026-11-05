@@ -1,7 +1,6 @@
+import { describe, expect, it } from 'vitest'
 
-import {describe, expect, it} from 'vitest'
-
-import {buildWealthOverview} from '../../utils/wealthOverview'
+import { buildWealthOverview } from '../../utils/wealthOverview'
 
 describe('buildWealthOverview', () => {
   it('computes net worth with ownership and liabilities', () => {

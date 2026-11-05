@@ -13,12 +13,18 @@ const ignoredFiles = new Set([
 ])
 
 function walk(dir) {
-  return fs.readdirSync(dir, {withFileTypes: true}).flatMap((entry) => {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const fullPath = path.join(dir, entry.name)
-    if (entry.isDirectory()) return ['node_modules', 'dist', 'styles'].includes(entry.name) ? [] : walk(fullPath)
+    if (entry.isDirectory())
+      return ['node_modules', 'dist', 'styles'].includes(entry.name)
+        ? []
+        : walk(fullPath)
     if (!entry.isFile() || !entry.name.endsWith('.vue')) return []
     const relative = path.relative(root, fullPath)
-    return ignoredFiles.has(relative) || relative.includes(`${path.sep}test${path.sep}`) ? [] : [fullPath]
+    return ignoredFiles.has(relative) ||
+      relative.includes(`${path.sep}test${path.sep}`)
+      ? []
+      : [fullPath]
   })
 }
 
@@ -27,7 +33,10 @@ function lineOf(content, index) {
 }
 
 function looksUserFacing(value) {
-  const text = value.replace(/{{[\s\S]*?}}/g, '').replace(/\s+/g, ' ').trim()
+  const text = value
+    .replace(/{{[\s\S]*?}}/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
   if (!/[A-Za-zÀ-ÿ]/.test(text)) return false
   if (/^[A-Z0-9_:\-\s]+$/.test(text)) return false
   if (/^[a-z0-9-]+$/.test(text)) return false
@@ -37,7 +46,9 @@ function looksUserFacing(value) {
 
 function templateOf(content) {
   const match = content.match(/<template[\s\S]*?<\/template>/)
-  return match && match.index != null ? {text: match[0], offset: match.index} : null
+  return match && match.index != null
+    ? { text: match[0], offset: match.index }
+    : null
 }
 
 function scanTemplate(file, content) {
@@ -51,7 +62,13 @@ function scanTemplate(file, content) {
 
   function flush() {
     const text = looksUserFacing(buffer)
-    if (text) findings.push({file, line: lineOf(content, template.offset + start), value: text, kind: 'template text'})
+    if (text)
+      findings.push({
+        file,
+        line: lineOf(content, template.offset + start),
+        value: text,
+        kind: 'template text',
+      })
     buffer = ''
   }
 
@@ -69,23 +86,40 @@ function scanTemplate(file, content) {
   }
   flush()
 
-  for (const match of template.text.matchAll(/\s(aria-label|placeholder|title|alt)="([^"]+)"/g)) {
+  for (const match of template.text.matchAll(
+    /\s(aria-label|placeholder|title|alt)="([^"]+)"/g,
+  )) {
     const text = looksUserFacing(match[2])
     if (text && !match[2].includes('t(')) {
-      findings.push({file, line: lineOf(content, template.offset + match.index), value: `${match[1]}="${text}"`, kind: 'template attribute'})
+      findings.push({
+        file,
+        line: lineOf(content, template.offset + match.index),
+        value: `${match[1]}="${text}"`,
+        kind: 'template attribute',
+      })
     }
   }
 
   return findings
 }
 
-const findings = walk(srcDir).flatMap((file) => scanTemplate(path.relative(root, file), fs.readFileSync(file, 'utf8')))
+const findings = walk(srcDir).flatMap((file) =>
+  scanTemplate(path.relative(root, file), fs.readFileSync(file, 'utf8')),
+)
 
 if (findings.length) {
-  console.error(`Found ${findings.length} potential hardcoded user-facing string(s):`)
-  for (const finding of findings.slice(0, 200)) console.error(`- ${finding.file}:${finding.line} [${finding.kind}] ${finding.value}`)
-  if (findings.length > 200) console.error(`...and ${findings.length - 200} more.`)
+  console.error(
+    `Found ${findings.length} potential hardcoded user-facing string(s):`,
+  )
+  for (const finding of findings.slice(0, 200))
+    console.error(
+      `- ${finding.file}:${finding.line} [${finding.kind}] ${finding.value}`,
+    )
+  if (findings.length > 200)
+    console.error(`...and ${findings.length - 200} more.`)
   process.exit(1)
 }
 
-console.log('No obvious hardcoded user-facing strings found outside locale files.')
+console.log(
+  'No obvious hardcoded user-facing strings found outside locale files.',
+)

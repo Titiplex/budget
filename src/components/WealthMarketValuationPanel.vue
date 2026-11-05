@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import {currentLocaleCode} from '../i18n'
-import {computed, onMounted, ref, watch} from 'vue'
-import {useI18n} from 'vue-i18n'
+import { currentLocaleCode } from '../i18n'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-import type {WealthAsset, WealthPortfolio} from '../types/wealth'
+import type { WealthAsset, WealthPortfolio } from '../types/wealth'
 
 import {
   createHoldingLotMarketValuationRow,
@@ -21,37 +21,44 @@ import {
   type WealthMarketValuationRow,
 } from '../utils/wealthMarketValuation'
 
-const {t} = useI18n()
+const { t } = useI18n()
 
 const props = withDefaults(
-    defineProps<{
-      assets?: WealthAsset[]
-      portfolios?: WealthPortfolio[]
-      summaryCurrency?: string
-    }>(),
-    {
-      assets: () => [],
-      portfolios: () => [],
-      summaryCurrency: 'CAD',
-    },
+  defineProps<{
+    assets?: WealthAsset[]
+    portfolios?: WealthPortfolio[]
+    summaryCurrency?: string
+  }>(),
+  {
+    assets: () => [],
+    portfolios: () => [],
+    summaryCurrency: 'CAD',
+  },
 )
 
 const emit = defineEmits<{
   (event: 'refresh'): void
 }>()
 
-type IpcResponse<T> = T | { ok: boolean; data: T | null; error: MarketDataErrorLite | null }
+type IpcResponse<T> =
+  T | { ok: boolean; data: T | null; error: MarketDataErrorLite | null }
 
 type MarketDataRendererApi = {
-  listInstruments?: (filters?: Record<string, unknown>) => Promise<IpcResponse<MarketInstrumentLite[]>>
-  getLatestSnapshot?: (options: Record<string, unknown>) => Promise<IpcResponse<MarketSnapshotLite>>
+  listInstruments?: (
+    filters?: Record<string, unknown>,
+  ) => Promise<IpcResponse<MarketInstrumentLite[]>>
+  getLatestSnapshot?: (
+    options: Record<string, unknown>,
+  ) => Promise<IpcResponse<MarketSnapshotLite>>
 }
 
 const rows = ref<WealthMarketValuationRow[]>([])
 const loading = ref(false)
 const errorMessage = ref<string | null>(null)
 
-const summary = computed(() => summarizeWealthMarketValuations(rows.value, props.summaryCurrency))
+const summary = computed(() =>
+  summarizeWealthMarketValuations(rows.value, props.summaryCurrency),
+)
 
 const sortedRows = computed(() => {
   const order = {
@@ -71,9 +78,7 @@ const sortedRows = computed(() => {
   })
 })
 
-function unwrapIpc<T>(
-    response: IpcResponse<T> | null | undefined,
-): {
+function unwrapIpc<T>(response: IpcResponse<T> | null | undefined): {
   data: T | null
   error: MarketDataErrorLite | null
 } {
@@ -88,33 +93,51 @@ function unwrapIpc<T>(
   }
 
   if (typeof response === 'object' && 'ok' in response) {
-    return response.ok ? {data: response.data, error: null} : {data: null, error: response.error}
+    return response.ok
+      ? { data: response.data, error: null }
+      : { data: null, error: response.error }
   }
 
-  return {data: response as T, error: null}
+  return { data: response as T, error: null }
 }
 
 function getMarketDataApi(): MarketDataRendererApi | null {
-  return ((window as unknown as { marketData?: MarketDataRendererApi }).marketData) || null
+  return (
+    (window as unknown as { marketData?: MarketDataRendererApi }).marketData ||
+    null
+  )
 }
 
-function activeRecords<T extends { status?: string; includeInNetWorth?: boolean }>(records: T[]) {
-  return records.filter((record) => record.status !== 'ARCHIVED' && record.includeInNetWorth !== false)
+function activeRecords<
+  T extends { status?: string; includeInNetWorth?: boolean },
+>(records: T[]) {
+  return records.filter(
+    (record) =>
+      record.status !== 'ARCHIVED' && record.includeInNetWorth !== false,
+  )
 }
 
 function activeHoldingLots(portfolio: WealthPortfolio) {
-  return ((portfolio.holdings || []) as WealthHoldingLotWithMarketInstrument[]).filter((holding) => {
+  return (
+    (portfolio.holdings || []) as WealthHoldingLotWithMarketInstrument[]
+  ).filter((holding) => {
     const quantity = Number(holding.quantity || 0)
-    const manualValue = Number(holding.marketValue || 0) || (Number(holding.unitPrice || 0) * quantity)
-    return quantity > 0 || manualValue > 0 || Boolean(getHoldingMarketInstrumentId(holding))
+    const manualValue =
+      Number(holding.marketValue || 0) ||
+      Number(holding.unitPrice || 0) * quantity
+    return (
+      quantity > 0 ||
+      manualValue > 0 ||
+      Boolean(getHoldingMarketInstrumentId(holding))
+    )
   })
 }
 
 async function appendPortfolioValuationRows(
-    targetRows: WealthMarketValuationRow[],
-    portfolio: WealthPortfolio,
-    marketDataApi: MarketDataRendererApi | null,
-    instrumentsById: Map<number, MarketInstrumentLite>,
+  targetRows: WealthMarketValuationRow[],
+  portfolio: WealthPortfolio,
+  marketDataApi: MarketDataRendererApi | null,
+  instrumentsById: Map<number, MarketInstrumentLite>,
 ) {
   const holdings = activeHoldingLots(portfolio)
 
@@ -125,19 +148,23 @@ async function appendPortfolioValuationRows(
 
   for (const holding of holdings) {
     const instrumentId = getHoldingMarketInstrumentId(holding)
-    const instrument = instrumentId ? instrumentsById.get(instrumentId) || holding.marketInstrument || null : null
+    const instrument = instrumentId
+      ? instrumentsById.get(instrumentId) || holding.marketInstrument || null
+      : null
     const snapshotResult = instrumentId
-        ? await loadLatestSnapshot(marketDataApi, instrumentId)
-        : {snapshot: null, error: null}
+      ? await loadLatestSnapshot(marketDataApi, instrumentId)
+      : { snapshot: null, error: null }
 
-    targetRows.push(createHoldingLotMarketValuationRow({
-      holding,
-      portfolio,
-      snapshot: snapshotResult.snapshot,
-      instrument,
-      error: snapshotResult.error,
-      summaryCurrency: props.summaryCurrency,
-    }))
+    targetRows.push(
+      createHoldingLotMarketValuationRow({
+        holding,
+        portfolio,
+        snapshot: snapshotResult.snapshot,
+        instrument,
+        error: snapshotResult.error,
+        summaryCurrency: props.summaryCurrency,
+      }),
+    )
   }
 }
 
@@ -145,11 +172,13 @@ function fallbackPortfolioValuationRows(portfolio: WealthPortfolio) {
   const holdings = activeHoldingLots(portfolio)
   if (!holdings.length) return [createPortfolioManualValuationRow(portfolio)]
 
-  return holdings.map((holding) => createHoldingLotMarketValuationRow({
-    holding,
-    portfolio,
-    summaryCurrency: props.summaryCurrency,
-  }))
+  return holdings.map((holding) =>
+    createHoldingLotMarketValuationRow({
+      holding,
+      portfolio,
+      summaryCurrency: props.summaryCurrency,
+    }),
+  )
 }
 
 function valuationStatusLabel(status: WealthMarketFreshnessStatus) {
@@ -157,9 +186,12 @@ function valuationStatusLabel(status: WealthMarketFreshnessStatus) {
 }
 
 function valuationErrorMessage(row: WealthMarketValuationRow) {
-  if (row.errorCode === 'NO_LOCAL_DATA') return t('wealth.marketValuation.messages.noLocalData')
-  if (row.errorCode === 'PORTFOLIO_NO_MANUAL_VALUE') return t('wealth.marketValuation.messages.portfolioNoManualValue')
-  if (row.errorCode === 'HOLDING_NO_MANUAL_VALUE') return t('wealth.marketValuation.messages.holdingNoManualValue')
+  if (row.errorCode === 'NO_LOCAL_DATA')
+    return t('wealth.marketValuation.messages.noLocalData')
+  if (row.errorCode === 'PORTFOLIO_NO_MANUAL_VALUE')
+    return t('wealth.marketValuation.messages.portfolioNoManualValue')
+  if (row.errorCode === 'HOLDING_NO_MANUAL_VALUE')
+    return t('wealth.marketValuation.messages.holdingNoManualValue')
   return row.errorMessage
 }
 
@@ -170,47 +202,63 @@ async function loadMarketValuations() {
   try {
     const marketDataApi = getMarketDataApi()
     const instrumentRows = await loadInstruments(marketDataApi)
-    const instrumentsById = new Map(instrumentRows.map((instrument) => [instrument.id, instrument]))
+    const instrumentsById = new Map(
+      instrumentRows.map((instrument) => [instrument.id, instrument]),
+    )
     const nextRows: WealthMarketValuationRow[] = []
 
-    for (const asset of activeRecords(props.assets) as WealthAssetWithMarketInstrument[]) {
+    for (const asset of activeRecords(
+      props.assets,
+    ) as WealthAssetWithMarketInstrument[]) {
       const instrumentId = getAssetMarketInstrumentId(asset)
-      const instrument = instrumentId ? instrumentsById.get(instrumentId) || asset.marketInstrument || null : null
+      const instrument = instrumentId
+        ? instrumentsById.get(instrumentId) || asset.marketInstrument || null
+        : null
 
       const snapshotResult = instrumentId
-          ? await loadLatestSnapshot(marketDataApi, instrumentId)
-          : {
+        ? await loadLatestSnapshot(marketDataApi, instrumentId)
+        : {
             snapshot: null,
             error: null,
           }
 
       nextRows.push(
-          createWealthAssetValuationRow({
-            asset,
-            snapshot: snapshotResult.snapshot,
-            instrument,
-            error: snapshotResult.error,
-            summaryCurrency: props.summaryCurrency,
-          }),
+        createWealthAssetValuationRow({
+          asset,
+          snapshot: snapshotResult.snapshot,
+          instrument,
+          error: snapshotResult.error,
+          summaryCurrency: props.summaryCurrency,
+        }),
       )
     }
 
     for (const portfolio of activeRecords(props.portfolios)) {
-      await appendPortfolioValuationRows(nextRows, portfolio, marketDataApi, instrumentsById)
+      await appendPortfolioValuationRows(
+        nextRows,
+        portfolio,
+        marketDataApi,
+        instrumentsById,
+      )
     }
 
     rows.value = nextRows
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : t('wealth.marketValuation.errors.load')
+    errorMessage.value =
+      error instanceof Error
+        ? error.message
+        : t('wealth.marketValuation.errors.load')
 
     rows.value = [
       ...activeRecords(props.assets).map((asset) =>
-          createWealthAssetValuationRow({
-            asset,
-            summaryCurrency: props.summaryCurrency,
-          }),
+        createWealthAssetValuationRow({
+          asset,
+          summaryCurrency: props.summaryCurrency,
+        }),
       ),
-      ...activeRecords(props.portfolios).flatMap((portfolio) => fallbackPortfolioValuationRows(portfolio)),
+      ...activeRecords(props.portfolios).flatMap((portfolio) =>
+        fallbackPortfolioValuationRows(portfolio),
+      ),
     ]
   } finally {
     loading.value = false
@@ -220,17 +268,24 @@ async function loadMarketValuations() {
 async function loadInstruments(marketDataApi: MarketDataRendererApi | null) {
   if (!marketDataApi?.listInstruments) return []
 
-  const response = unwrapIpc(await marketDataApi.listInstruments({activeOnly: false}))
+  const response = unwrapIpc(
+    await marketDataApi.listInstruments({ activeOnly: false }),
+  )
 
   if (response.error) {
-    errorMessage.value = response.error.message || t('wealth.marketValuation.errors.listInstruments')
+    errorMessage.value =
+      response.error.message ||
+      t('wealth.marketValuation.errors.listInstruments')
     return []
   }
 
   return response.data || []
 }
 
-async function loadLatestSnapshot(marketDataApi: MarketDataRendererApi | null, instrumentId: number) {
+async function loadLatestSnapshot(
+  marketDataApi: MarketDataRendererApi | null,
+  instrumentId: number,
+) {
   if (!marketDataApi?.getLatestSnapshot) {
     return {
       snapshot: null,
@@ -242,7 +297,9 @@ async function loadLatestSnapshot(marketDataApi: MarketDataRendererApi | null, i
   }
 
   try {
-    const response = unwrapIpc(await marketDataApi.getLatestSnapshot({instrumentId}))
+    const response = unwrapIpc(
+      await marketDataApi.getLatestSnapshot({ instrumentId }),
+    )
 
     return {
       snapshot: response.data,
@@ -253,13 +310,19 @@ async function loadLatestSnapshot(marketDataApi: MarketDataRendererApi | null, i
       snapshot: null,
       error: {
         code: 'RENDERER_ERROR',
-        message: error instanceof Error ? error.message : t('wealth.marketValuation.errors.rendererSnapshot'),
+        message:
+          error instanceof Error
+            ? error.message
+            : t('wealth.marketValuation.errors.rendererSnapshot'),
       },
     }
   }
 }
 
-function formatMoney(amount: number | null | undefined, currency = props.summaryCurrency) {
+function formatMoney(
+  amount: number | null | undefined,
+  currency = props.summaryCurrency,
+) {
   if (amount == null) return '—'
 
   return new Intl.NumberFormat(currentLocaleCode(), {
@@ -272,21 +335,27 @@ function formatMoney(amount: number | null | undefined, currency = props.summary
 function formatDate(value: string | null | undefined) {
   if (!value) return '—'
 
-  return new Intl.DateTimeFormat(currentLocaleCode(), {dateStyle: 'medium'}).format(new Date(value))
+  return new Intl.DateTimeFormat(currentLocaleCode(), {
+    dateStyle: 'medium',
+  }).format(new Date(value))
 }
 
 function statusClass(status: WealthMarketFreshnessStatus) {
-  if (status === 'FRESH') return 'border-emerald-800 bg-emerald-950/50 text-emerald-200'
-  if (status === 'STALE') return 'border-amber-800 bg-amber-950/50 text-amber-200'
+  if (status === 'FRESH')
+    return 'border-emerald-800 bg-emerald-950/50 text-emerald-200'
+  if (status === 'STALE')
+    return 'border-amber-800 bg-amber-950/50 text-amber-200'
   if (status === 'ERROR') return 'border-red-800 bg-red-950/50 text-red-200'
-  if (status === 'UNAVAILABLE') return 'border-slate-700 bg-slate-900 text-slate-300'
+  if (status === 'UNAVAILABLE')
+    return 'border-slate-700 bg-slate-900 text-slate-300'
 
   return 'border-slate-700 bg-slate-950 text-slate-400'
 }
 
 function sourceLabel(row: WealthMarketValuationRow) {
   if (row.source === 'MARKET') return t('wealth.marketValuation.sources.MARKET')
-  if (row.source === 'MANUAL_FALLBACK') return t('wealth.marketValuation.sources.MANUAL_FALLBACK')
+  if (row.source === 'MANUAL_FALLBACK')
+    return t('wealth.marketValuation.sources.MANUAL_FALLBACK')
 
   return t('wealth.marketValuation.sources.UNAVAILABLE')
 }
@@ -301,11 +370,11 @@ function refreshValuations() {
 }
 
 watch(
-    () => [props.assets, props.portfolios, props.summaryCurrency],
-    () => {
-      void loadMarketValuations()
-    },
-    {deep: true},
+  () => [props.assets, props.portfolios, props.summaryCurrency],
+  () => {
+    void loadMarketValuations()
+  },
+  { deep: true },
 )
 
 onMounted(() => {
@@ -314,13 +383,22 @@ onMounted(() => {
 </script>
 
 <template>
-  <article class="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-sm">
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+  <article
+    class="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-sm"
+  >
+    <div
+      class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between"
+    >
       <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">
-          {{ t('wealth.marketValuation.eyebrow') }}</p>
+        <p
+          class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300"
+        >
+          {{ t('wealth.marketValuation.eyebrow') }}
+        </p>
 
-        <h3 class="mt-2 text-lg font-semibold text-white">{{ t('wealth.marketValuation.title') }}</h3>
+        <h3 class="mt-2 text-lg font-semibold text-white">
+          {{ t('wealth.marketValuation.title') }}
+        </h3>
 
         <p class="mt-1 max-w-3xl text-sm leading-6 text-slate-400">
           {{ t('wealth.marketValuation.description') }}
@@ -328,70 +406,101 @@ onMounted(() => {
       </div>
 
       <button
-          type="button"
-          class="inline-flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="loading"
-          @click="refreshValuations"
+        type="button"
+        class="inline-flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+        :disabled="loading"
+        @click="refreshValuations"
       >
-        {{ loading ? t('wealth.marketValuation.reading') : t('wealth.marketValuation.refresh') }}
+        {{
+          loading
+            ? t('wealth.marketValuation.reading')
+            : t('wealth.marketValuation.refresh')
+        }}
       </button>
     </div>
 
     <div class="mt-5 grid gap-3 md:grid-cols-4">
-      <div class="rounded-2xl border border-emerald-900/70 bg-emerald-950/30 p-4">
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
-          {{ t('wealth.marketValuation.market') }}</p>
+      <div
+        class="rounded-2xl border border-emerald-900/70 bg-emerald-950/30 p-4"
+      >
+        <p
+          class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300"
+        >
+          {{ t('wealth.marketValuation.market') }}
+        </p>
 
         <p class="mt-2 text-2xl font-semibold text-white">
           {{ formatMoney(summary.totalMarketValue, summary.currency) }}
         </p>
 
-        <p class="mt-1 text-xs text-emerald-100/70">{{ t('wealth.marketValuation.marketHint') }}</p>
+        <p class="mt-1 text-xs text-emerald-100/70">
+          {{ t('wealth.marketValuation.marketHint') }}
+        </p>
       </div>
 
       <div class="rounded-2xl border border-sky-900/70 bg-sky-950/30 p-4">
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">
-          {{ t('wealth.marketValuation.manualFallback') }}</p>
+        <p
+          class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300"
+        >
+          {{ t('wealth.marketValuation.manualFallback') }}
+        </p>
 
         <p class="mt-2 text-2xl font-semibold text-white">
           {{ formatMoney(summary.totalManualFallbackValue, summary.currency) }}
         </p>
 
-        <p class="mt-1 text-xs text-sky-100/70">{{ t('wealth.marketValuation.manualFallbackHint') }}</p>
+        <p class="mt-1 text-xs text-sky-100/70">
+          {{ t('wealth.marketValuation.manualFallbackHint') }}
+        </p>
       </div>
 
       <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-          {{ t('wealth.marketValuation.unavailable') }}</p>
+        <p
+          class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"
+        >
+          {{ t('wealth.marketValuation.unavailable') }}
+        </p>
 
-        <p class="mt-2 text-2xl font-semibold text-white">{{ summary.totalUnavailableCount }}</p>
+        <p class="mt-2 text-2xl font-semibold text-white">
+          {{ summary.totalUnavailableCount }}
+        </p>
 
-        <p class="mt-1 text-xs text-slate-500">{{ t('wealth.marketValuation.unavailableHint') }}</p>
+        <p class="mt-1 text-xs text-slate-500">
+          {{ t('wealth.marketValuation.unavailableHint') }}
+        </p>
       </div>
 
       <div
-          class="rounded-2xl border p-4"
-          :class="
+        class="rounded-2xl border p-4"
+        :class="
           summary.totalErrorCount > 0
             ? 'border-red-900/60 bg-red-950/30'
             : 'border-slate-800 bg-slate-900/50'
         "
       >
         <p
-            class="text-xs font-semibold uppercase tracking-[0.18em]"
-            :class="summary.totalErrorCount > 0 ? 'text-red-300' : 'text-slate-400'"
+          class="text-xs font-semibold uppercase tracking-[0.18em]"
+          :class="
+            summary.totalErrorCount > 0 ? 'text-red-300' : 'text-slate-400'
+          "
         >
           {{ t('wealth.marketValuation.provider') }}
         </p>
 
-        <p class="mt-2 text-2xl font-semibold text-white">{{ summary.totalErrorCount }}</p>
+        <p class="mt-2 text-2xl font-semibold text-white">
+          {{ summary.totalErrorCount }}
+        </p>
 
         <p
-            class="mt-1 text-xs"
-            :class="summary.totalErrorCount > 0 ? 'text-red-100/70' : 'text-slate-500'"
+          class="mt-1 text-xs"
+          :class="
+            summary.totalErrorCount > 0 ? 'text-red-100/70' : 'text-slate-500'
+          "
         >
           {{
-            summary.totalErrorCount > 0 ? t('wealth.marketValuation.providerErrors') : t('wealth.marketValuation.providerOk')
+            summary.totalErrorCount > 0
+              ? t('wealth.marketValuation.providerErrors')
+              : t('wealth.marketValuation.providerOk')
           }}
         </p>
       </div>
@@ -401,21 +510,24 @@ onMounted(() => {
       {{
         t('wealth.marketValuation.ignoredCurrencies', {
           count: summary.ignoredCurrencyCount,
-          currency: summary.currency
+          currency: summary.currency,
         })
       }}
     </p>
 
     <p
-        v-if="errorMessage"
-        class="mt-3 rounded-2xl border border-amber-900/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
+      v-if="errorMessage"
+      class="mt-3 rounded-2xl border border-amber-900/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
     >
       {{ errorMessage }} {{ t('wealth.marketValuation.manualFallbacksRemain') }}
     </p>
 
-    <div v-if="sortedRows.length" class="mt-5 overflow-hidden rounded-2xl border border-slate-800">
+    <div
+      v-if="sortedRows.length"
+      class="mt-5 overflow-hidden rounded-2xl border border-slate-800"
+    >
       <div
-          class="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 border-b border-slate-800 bg-slate-900/70 px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+        class="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 border-b border-slate-800 bg-slate-900/70 px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
       >
         <span>{{ t('wealth.marketValuation.columns.asset') }}</span>
         <span>{{ t('wealth.marketValuation.columns.valueUsed') }}</span>
@@ -424,9 +536,9 @@ onMounted(() => {
       </div>
 
       <div
-          v-for="row in sortedRows"
-          :key="row.key"
-          class="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 border-b border-slate-800 px-4 py-4 text-sm last:border-b-0"
+        v-for="row in sortedRows"
+        :key="row.key"
+        class="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 border-b border-slate-800 px-4 py-4 text-sm last:border-b-0"
       >
         <div>
           <p class="font-semibold text-white">{{ row.label }}</p>
@@ -438,7 +550,9 @@ onMounted(() => {
         </div>
 
         <div>
-          <p class="font-semibold text-white">{{ formatMoney(row.valueUsed, row.displayCurrency) }}</p>
+          <p class="font-semibold text-white">
+            {{ formatMoney(row.valueUsed, row.displayCurrency) }}
+          </p>
 
           <p class="mt-1 text-xs text-slate-500">{{ sourceLabel(row) }}</p>
         </div>
@@ -446,21 +560,34 @@ onMounted(() => {
         <div>
           <p class="font-medium text-slate-200">
             <template v-if="row.unitPrice != null">
-              {{ formatMoney(row.unitPrice, row.quoteCurrency || row.displayCurrency) }} /
+              {{
+                formatMoney(
+                  row.unitPrice,
+                  row.quoteCurrency || row.displayCurrency,
+                )
+              }}
+              /
               {{ t('wealth.marketValuation.unit') }}
             </template>
 
-            <template v-else>{{ t('wealth.marketValuation.missingPrice') }}</template>
+            <template v-else>{{
+              t('wealth.marketValuation.missingPrice')
+            }}</template>
           </p>
 
           <p class="mt-1 text-xs text-slate-500">
             {{ formatDate(row.pricedAt) }}
 
-            <template v-if="row.quoteCurrency && row.quoteCurrency !== row.displayCurrency">
-              · {{
+            <template
+              v-if="
+                row.quoteCurrency && row.quoteCurrency !== row.displayCurrency
+              "
+            >
+              ·
+              {{
                 t('wealth.marketValuation.quoteDisplay', {
                   quoteCurrency: row.quoteCurrency,
-                  displayCurrency: row.displayCurrency
+                  displayCurrency: row.displayCurrency,
                 })
               }}
             </template>
@@ -469,20 +596,25 @@ onMounted(() => {
 
         <div>
           <span
-              class="inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
-              :class="statusClass(row.status)"
+            class="inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
+            :class="statusClass(row.status)"
           >
             {{ valuationStatusLabel(row.status) }}
           </span>
 
-          <p v-if="valuationErrorMessage(row)" class="mt-2 text-xs text-slate-500">{{ valuationErrorMessage(row) }}</p>
+          <p
+            v-if="valuationErrorMessage(row)"
+            class="mt-2 text-xs text-slate-500"
+          >
+            {{ valuationErrorMessage(row) }}
+          </p>
         </div>
       </div>
     </div>
 
     <div
-        v-else
-        class="mt-5 rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 px-4 py-6 text-sm text-slate-400"
+      v-else
+      class="mt-5 rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 px-4 py-6 text-sm text-slate-400"
     >
       {{ t('wealth.marketValuation.empty') }}
     </div>

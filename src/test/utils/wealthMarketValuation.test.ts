@@ -1,4 +1,4 @@
-import {describe, expect, it} from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   createHoldingLotMarketValuationRow,
   createPortfolioManualValuationRow,
@@ -7,9 +7,11 @@ import {
   type WealthAssetWithMarketInstrument,
   type WealthHoldingLotWithMarketInstrument,
 } from '../../utils/wealthMarketValuation'
-import type {WealthPortfolio} from '../../types/wealth'
+import type { WealthPortfolio } from '../../types/wealth'
 
-function asset(overrides: Partial<WealthAssetWithMarketInstrument> = {}): WealthAssetWithMarketInstrument {
+function asset(
+  overrides: Partial<WealthAssetWithMarketInstrument> = {},
+): WealthAssetWithMarketInstrument {
   return {
     id: 1,
     name: 'ETF Monde',
@@ -58,7 +60,9 @@ function portfolio(overrides: Partial<WealthPortfolio> = {}): WealthPortfolio {
   }
 }
 
-function holding(overrides: Partial<WealthHoldingLotWithMarketInstrument> = {}): WealthHoldingLotWithMarketInstrument {
+function holding(
+  overrides: Partial<WealthHoldingLotWithMarketInstrument> = {},
+): WealthHoldingLotWithMarketInstrument {
   return {
     id: 3,
     name: 'XEQT lot',
@@ -84,8 +88,13 @@ function holding(overrides: Partial<WealthHoldingLotWithMarketInstrument> = {}):
 describe('wealth market valuation display helpers', () => {
   it('uses the latest local market snapshot when an asset is linked to an instrument', () => {
     const row = createWealthAssetValuationRow({
-      asset: asset({marketInstrumentId: 7}),
-      instrument: {id: 7, symbol: 'XEQT', quoteCurrency: 'CAD', freshnessStatus: 'FRESH'},
+      asset: asset({ marketInstrumentId: 7 }),
+      instrument: {
+        id: 7,
+        symbol: 'XEQT',
+        quoteCurrency: 'CAD',
+        freshnessStatus: 'FRESH',
+      },
       snapshot: {
         id: 11,
         marketInstrumentId: 7,
@@ -107,7 +116,7 @@ describe('wealth market valuation display helpers', () => {
 
   it('marks stale local data explicitly without returning translated labels from the utility', () => {
     const row = createWealthAssetValuationRow({
-      asset: asset({marketInstrumentId: 7}),
+      asset: asset({ marketInstrumentId: 7 }),
       snapshot: {
         id: 12,
         marketInstrumentId: 7,
@@ -125,8 +134,12 @@ describe('wealth market valuation display helpers', () => {
 
   it('falls back to manual value when market data is absent', () => {
     const row = createWealthAssetValuationRow({
-      asset: asset({marketInstrumentId: 7, currentValue: 1000, ownershipPercent: 25}),
-      error: {code: 'NO_LOCAL_DATA', message: 'No local snapshot.'},
+      asset: asset({
+        marketInstrumentId: 7,
+        currentValue: 1000,
+        ownershipPercent: 25,
+      }),
+      error: { code: 'NO_LOCAL_DATA', message: 'No local snapshot.' },
     })
 
     expect(row.source).toBe('MANUAL_FALLBACK')
@@ -137,9 +150,14 @@ describe('wealth market valuation display helpers', () => {
 
   it('values a portfolio holding lot from a linked market instrument snapshot', () => {
     const row = createHoldingLotMarketValuationRow({
-      holding: holding({quantity: 10, marketInstrumentId: 7}),
-      portfolio: portfolio({ownershipPercent: 50}),
-      instrument: {id: 7, symbol: 'XEQT', quoteCurrency: 'CAD', freshnessStatus: 'FRESH'},
+      holding: holding({ quantity: 10, marketInstrumentId: 7 }),
+      portfolio: portfolio({ ownershipPercent: 50 }),
+      instrument: {
+        id: 7,
+        symbol: 'XEQT',
+        quoteCurrency: 'CAD',
+        freshnessStatus: 'FRESH',
+      },
       snapshot: {
         id: 14,
         marketInstrumentId: 7,
@@ -160,8 +178,8 @@ describe('wealth market valuation display helpers', () => {
 
   it('falls back to holding manual unit price when no snapshot exists', () => {
     const row = createHoldingLotMarketValuationRow({
-      holding: holding({quantity: 4, unitPrice: 20, marketValue: null}),
-      portfolio: portfolio({ownershipPercent: 50}),
+      holding: holding({ quantity: 4, unitPrice: 20, marketValue: null }),
+      portfolio: portfolio({ ownershipPercent: 50 }),
     })
 
     expect(row.source).toBe('MANUAL_FALLBACK')
@@ -170,7 +188,7 @@ describe('wealth market valuation display helpers', () => {
 
   it('does not break the summary when some rows are unavailable or provider errors exist', () => {
     const market = createWealthAssetValuationRow({
-      asset: asset({id: 1, marketInstrumentId: 7}),
+      asset: asset({ id: 1, marketInstrumentId: 7 }),
       snapshot: {
         id: 1,
         unitPrice: 100,
@@ -181,11 +199,14 @@ describe('wealth market valuation display helpers', () => {
     })
     const manual = createPortfolioManualValuationRow(portfolio())
     const unavailable = createWealthAssetValuationRow({
-      asset: asset({id: 3, name: 'Private shares', currentValue: 0}),
-      error: {code: 'PROVIDER_UNAVAILABLE', message: 'Provider down.'},
+      asset: asset({ id: 3, name: 'Private shares', currentValue: 0 }),
+      error: { code: 'PROVIDER_UNAVAILABLE', message: 'Provider down.' },
     })
 
-    const summary = summarizeWealthMarketValuations([market, manual, unavailable], 'CAD')
+    const summary = summarizeWealthMarketValuations(
+      [market, manual, unavailable],
+      'CAD',
+    )
 
     expect(summary.totalMarketValue).toBe(100)
     expect(summary.totalManualFallbackValue).toBe(1250)

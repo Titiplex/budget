@@ -1,7 +1,7 @@
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const {spawn, spawnSync} = require('node:child_process')
+const { spawn, spawnSync } = require('node:child_process')
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..')
 const electronPath = require('electron')
@@ -9,278 +9,352 @@ const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'budget-advanced-e2e-'))
 const testDbPath = path.join(tempRoot, 'data', 'advanced-e2e.db')
 const userDataDir = path.join(tempRoot, 'electron-user-data')
 const artifactsDir = path.join(tempRoot, 'artifacts')
-const importFixturePath = path.join(__dirname, 'fixtures', 'advanced-import.csv')
+const importFixturePath = path.join(
+  __dirname,
+  'fixtures',
+  'advanced-import.csv',
+)
 const importFixtureCsv = fs.readFileSync(importFixturePath, 'utf8')
-const remoteDebuggingPort = Number(process.env.BUDGET_E2E_ADVANCED_CDP_PORT || process.env.BUDGET_E2E_CDP_PORT || 9355)
+const remoteDebuggingPort = Number(
+  process.env.BUDGET_E2E_ADVANCED_CDP_PORT ||
+    process.env.BUDGET_E2E_CDP_PORT ||
+    9355,
+)
 
 function sqliteUrl(filePath) {
-    return `file:${filePath.replace(/\\/g, '/')}`
+  return `file:${filePath.replace(/\\/g, '/')}`
 }
 
 function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms))
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function runNodeScript(scriptPath, args, options = {}) {
-    const result = spawnSync(process.execPath, [scriptPath, ...args], {
-        cwd: repoRoot,
-        stdio: 'inherit',
-        shell: false,
-        windowsHide: true,
-        ...options,
-        env: {
-            ...process.env,
-            ...options.env,
-        },
-    })
+  const result = spawnSync(process.execPath, [scriptPath, ...args], {
+    cwd: repoRoot,
+    stdio: 'inherit',
+    shell: false,
+    windowsHide: true,
+    ...options,
+    env: {
+      ...process.env,
+      ...options.env,
+    },
+  })
 
-    if (result.error) {
-        throw new Error(`${path.basename(scriptPath)} ${args.join(' ')} failed to start: ${result.error.message}`)
-    }
+  if (result.error) {
+    throw new Error(
+      `${path.basename(scriptPath)} ${args.join(' ')} failed to start: ${result.error.message}`,
+    )
+  }
 
-    if (result.signal) {
-        throw new Error(`${path.basename(scriptPath)} ${args.join(' ')} was terminated by signal ${result.signal}`)
-    }
+  if (result.signal) {
+    throw new Error(
+      `${path.basename(scriptPath)} ${args.join(' ')} was terminated by signal ${result.signal}`,
+    )
+  }
 
-    if (result.status !== 0) {
-        throw new Error(`${path.basename(scriptPath)} ${args.join(' ')} failed with exit code ${result.status}`)
-    }
+  if (result.status !== 0) {
+    throw new Error(
+      `${path.basename(scriptPath)} ${args.join(' ')} failed with exit code ${result.status}`,
+    )
+  }
 }
 
 function findPrismaCliPath() {
-    const candidates = [
-        path.join(repoRoot, 'node_modules', 'prisma', 'build', 'index.js'),
-        path.join(repoRoot, 'node_modules', 'prisma', 'build', 'public', 'assets', 'index.js'),
-    ]
+  const candidates = [
+    path.join(repoRoot, 'node_modules', 'prisma', 'build', 'index.js'),
+    path.join(
+      repoRoot,
+      'node_modules',
+      'prisma',
+      'build',
+      'public',
+      'assets',
+      'index.js',
+    ),
+  ]
 
-    for (const candidate of candidates) {
-        if (fs.existsSync(candidate)) {
-            return candidate
-        }
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate
     }
+  }
 
-    throw new Error('Unable to find local Prisma CLI. Run npm install first.')
+  throw new Error('Unable to find local Prisma CLI. Run npm install first.')
 }
 
 function runPrismaDbPush(databasePath) {
-    const prismaCliPath = findPrismaCliPath()
-    const schemaPath = path.join(repoRoot, 'prisma', 'schema.prisma')
+  const prismaCliPath = findPrismaCliPath()
+  const schemaPath = path.join(repoRoot, 'prisma', 'schema.prisma')
 
-    runNodeScript(
-        prismaCliPath,
-        ['db', 'push', '--skip-generate', '--schema', schemaPath],
-        {
-            env: {
-                DATABASE_URL: sqliteUrl(databasePath),
-            },
-        },
-    )
+  runNodeScript(
+    prismaCliPath,
+    ['db', 'push', '--skip-generate', '--schema', schemaPath],
+    {
+      env: {
+        DATABASE_URL: sqliteUrl(databasePath),
+      },
+    },
+  )
 }
 
 function assert(condition, message) {
-    if (!condition) {
-        throw new Error(message)
-    }
+  if (!condition) {
+    throw new Error(message)
+  }
 }
 
-async function waitFor(fn, {timeoutMs = 30000, intervalMs = 250, message = 'Timed out'} = {}) {
-    const startedAt = Date.now()
-    let lastError = null
+async function waitFor(
+  fn,
+  { timeoutMs = 30000, intervalMs = 250, message = 'Timed out' } = {},
+) {
+  const startedAt = Date.now()
+  let lastError = null
 
-    while (Date.now() - startedAt < timeoutMs) {
-        try {
-            const value = await fn()
-            if (value) return value
-        } catch (error) {
-            lastError = error
-        }
-
-        await sleep(intervalMs)
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const value = await fn()
+      if (value) return value
+    } catch (error) {
+      lastError = error
     }
 
-    if (lastError) {
-        throw new Error(`${message}: ${lastError.message}`)
-    }
+    await sleep(intervalMs)
+  }
 
-    throw new Error(message)
+  if (lastError) {
+    throw new Error(`${message}: ${lastError.message}`)
+  }
+
+  throw new Error(message)
 }
 
 async function getJson(url) {
-    const response = await fetch(url)
-    if (!response.ok) {
-        throw new Error(`GET ${url} failed with ${response.status}`)
-    }
-    return response.json()
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`GET ${url} failed with ${response.status}`)
+  }
+  return response.json()
 }
 
 class CdpClient {
-    constructor(webSocketUrl) {
-        this.nextId = 1
-        this.pending = new Map()
-        this.socket = new WebSocket(webSocketUrl)
+  constructor(webSocketUrl) {
+    this.nextId = 1
+    this.pending = new Map()
+    this.socket = new WebSocket(webSocketUrl)
 
-        this.ready = new Promise((resolve, reject) => {
-            this.socket.addEventListener('open', resolve, {once: true})
-            this.socket.addEventListener('error', reject, {once: true})
-        })
+    this.ready = new Promise((resolve, reject) => {
+      this.socket.addEventListener('open', resolve, { once: true })
+      this.socket.addEventListener('error', reject, { once: true })
+    })
 
-        this.socket.addEventListener('message', (event) => {
-            const payload = JSON.parse(event.data)
-            if (!payload.id) return
+    this.socket.addEventListener('message', (event) => {
+      const payload = JSON.parse(event.data)
+      if (!payload.id) return
 
-            const pending = this.pending.get(payload.id)
-            if (!pending) return
+      const pending = this.pending.get(payload.id)
+      if (!pending) return
 
-            this.pending.delete(payload.id)
-            if (payload.error) {
-                pending.reject(new Error(payload.error.message || JSON.stringify(payload.error)))
-                return
-            }
+      this.pending.delete(payload.id)
+      if (payload.error) {
+        pending.reject(
+          new Error(payload.error.message || JSON.stringify(payload.error)),
+        )
+        return
+      }
 
-            pending.resolve(payload.result)
-        })
+      pending.resolve(payload.result)
+    })
+  }
+
+  async send(method, params = {}) {
+    await this.ready
+    const id = this.nextId++
+    const payload = { id, method, params }
+
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject })
+      this.socket.send(JSON.stringify(payload))
+    })
+  }
+
+  async evaluate(expression, { awaitPromise = false } = {}) {
+    const result = await this.send('Runtime.evaluate', {
+      expression,
+      awaitPromise,
+      returnByValue: true,
+    })
+
+    if (result.exceptionDetails) {
+      const details =
+        result.exceptionDetails.exception?.description ||
+        result.exceptionDetails.text ||
+        'Runtime evaluation failed'
+      throw new Error(details)
     }
 
-    async send(method, params = {}) {
-        await this.ready
-        const id = this.nextId++
-        const payload = {id, method, params}
+    return result.result.value
+  }
 
-        return new Promise((resolve, reject) => {
-            this.pending.set(id, {resolve, reject})
-            this.socket.send(JSON.stringify(payload))
-        })
-    }
+  async captureScreenshot(fileName) {
+    await this.send('Page.enable')
+    const result = await this.send('Page.captureScreenshot', {
+      format: 'png',
+      captureBeyondViewport: true,
+    })
+    fs.mkdirSync(artifactsDir, { recursive: true })
+    const filePath = path.join(artifactsDir, fileName)
+    fs.writeFileSync(filePath, Buffer.from(result.data, 'base64'))
+    return filePath
+  }
 
-    async evaluate(expression, {awaitPromise = false} = {}) {
-        const result = await this.send('Runtime.evaluate', {
-            expression,
-            awaitPromise,
-            returnByValue: true,
-        })
-
-        if (result.exceptionDetails) {
-            const details = result.exceptionDetails.exception?.description || result.exceptionDetails.text || 'Runtime evaluation failed'
-            throw new Error(details)
-        }
-
-        return result.result.value
-    }
-
-    async captureScreenshot(fileName) {
-        await this.send('Page.enable')
-        const result = await this.send('Page.captureScreenshot', {format: 'png', captureBeyondViewport: true})
-        fs.mkdirSync(artifactsDir, {recursive: true})
-        const filePath = path.join(artifactsDir, fileName)
-        fs.writeFileSync(filePath, Buffer.from(result.data, 'base64'))
-        return filePath
-    }
-
-    close() {
-        this.socket.close()
-    }
+  close() {
+    this.socket.close()
+  }
 }
 
 async function navigateTo(cdp, section, expectedText) {
-    const clicked = await cdp.evaluate(`(() => {
+  const clicked = await cdp.evaluate(`(() => {
         const button = Array.from(document.querySelectorAll('nav button')).find((entry) => entry.dataset.section === '${section}')
         if (!button) return false
         button.click()
         return true
     })()`)
 
-    assert(clicked, `Could not click navigation section ${section}`)
+  assert(clicked, `Could not click navigation section ${section}`)
 
-    await waitFor(async () => cdp.evaluate(`(() => {
+  await waitFor(
+    async () =>
+      cdp.evaluate(`(() => {
         const active = document.querySelector('nav button.nav-item-active')
         return Boolean(active && active.dataset.section === '${section}')
-    })()`), {
-        message: `Navigation did not activate section ${section}`,
-    })
+    })()`),
+    {
+      message: `Navigation did not activate section ${section}`,
+    },
+  )
 
-    if (expectedText) {
-        const expectedTexts = Array.isArray(expectedText) ? expectedText : [expectedText]
-        await waitFor(async () => cdp.evaluate(`(() => {
+  if (expectedText) {
+    const expectedTexts = Array.isArray(expectedText)
+      ? expectedText
+      : [expectedText]
+    await waitFor(
+      async () =>
+        cdp.evaluate(`(() => {
             const text = document.body.innerText
             return ${JSON.stringify(expectedTexts)}.some((entry) => text.includes(entry))
-        })()`), {
-            message: `Expected section text ${expectedTexts.join(' / ')} after clicking ${section}`,
-        })
-    }
+        })()`),
+      {
+        message: `Expected section text ${expectedTexts.join(' / ')} after clicking ${section}`,
+      },
+    )
+  }
 }
 
 async function refreshRendererData(cdp) {
-    await cdp.evaluate(`window.appShell?.sendMenuCommand?.('refresh-data')`)
+  await cdp.evaluate(`window.appShell?.sendMenuCommand?.('refresh-data')`)
 
-    await navigateTo(cdp, 'accounts')
-    await waitFor(async () => cdp.evaluate(`['E2E Advanced Main', 'E2E Advanced Savings']
-        .every(name => document.querySelector('main').innerText.includes(name))`), {
-        message: 'Refreshed accounts were not visible in the renderer',
-    })
+  await navigateTo(cdp, 'accounts')
+  await waitFor(
+    async () =>
+      cdp.evaluate(`['E2E Advanced Main', 'E2E Advanced Savings']
+        .every(name => document.querySelector('main').innerText.includes(name))`),
+    {
+      message: 'Refreshed accounts were not visible in the renderer',
+    },
+  )
 
-    await navigateTo(cdp, 'categories')
-    await waitFor(async () => cdp.evaluate(`['E2E Advanced Expense', 'E2E Advanced Income']
-        .every(name => document.querySelector('main').innerText.includes(name))`), {
-        message: 'Refreshed categories were not visible in the renderer',
-    })
+  await navigateTo(cdp, 'categories')
+  await waitFor(
+    async () =>
+      cdp.evaluate(`['E2E Advanced Expense', 'E2E Advanced Income']
+        .every(name => document.querySelector('main').innerText.includes(name))`),
+    {
+      message: 'Refreshed categories were not visible in the renderer',
+    },
+  )
 }
 
 async function runAdvancedFlows() {
-    fs.mkdirSync(path.dirname(testDbPath), {recursive: true})
-    fs.mkdirSync(userDataDir, {recursive: true})
-    fs.mkdirSync(artifactsDir, {recursive: true})
+  fs.mkdirSync(path.dirname(testDbPath), { recursive: true })
+  fs.mkdirSync(userDataDir, { recursive: true })
+  fs.mkdirSync(artifactsDir, { recursive: true })
 
-    runPrismaDbPush(testDbPath)
+  runPrismaDbPush(testDbPath)
 
-    const electron = spawn(electronPath, [
-        `--remote-debugging-port=${remoteDebuggingPort}`,
-        `--user-data-dir=${userDataDir}`,
-        '--no-sandbox',
-        repoRoot,
-    ], {
-        cwd: repoRoot,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: {
-            ...process.env,
-            BUDGET_DATABASE_PATH: testDbPath,
-            ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
-        },
+  const electron = spawn(
+    electronPath,
+    [
+      `--remote-debugging-port=${remoteDebuggingPort}`,
+      `--user-data-dir=${userDataDir}`,
+      '--no-sandbox',
+      repoRoot,
+    ],
+    {
+      cwd: repoRoot,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        BUDGET_DATABASE_PATH: testDbPath,
+        ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
+      },
+    },
+  )
+
+  const logs = []
+  electron.stdout.on('data', (chunk) => logs.push(chunk.toString()))
+  electron.stderr.on('data', (chunk) => logs.push(chunk.toString()))
+  electron.on('exit', (code, signal) => {
+    if (code !== 0 && signal !== 'SIGTERM') {
+      logs.push(`Electron exited with code ${code} signal ${signal}`)
+    }
+  })
+
+  let cdp = null
+  let screenshotPath = null
+
+  try {
+    const target = await waitFor(
+      async () => {
+        const targets = await getJson(
+          `http://127.0.0.1:${remoteDebuggingPort}/json/list`,
+        )
+        return targets.find(
+          (entry) => entry.type === 'page' && entry.webSocketDebuggerUrl,
+        )
+      },
+      { message: 'Electron renderer did not expose a CDP page target' },
+    )
+
+    cdp = new CdpClient(target.webSocketDebuggerUrl)
+    await cdp.send('Runtime.enable')
+    await cdp.send('Page.enable')
+
+    await waitFor(
+      async () => cdp.evaluate('document.readyState === "complete"'),
+      {
+        message: 'Renderer did not finish loading',
+      },
+    )
+
+    await waitFor(
+      async () =>
+        cdp.evaluate(
+          'Boolean(window.versions && window.db && window.wealth && window.goals && window.imports)',
+        ),
+      {
+        message: 'Advanced preload APIs were not exposed to the renderer',
+      },
+    )
+
+    const ping = await cdp.evaluate('window.versions.ping()', {
+      awaitPromise: true,
     })
+    assert(ping === 'pong', 'Expected IPC ping to return pong')
 
-    const logs = []
-    electron.stdout.on('data', (chunk) => logs.push(chunk.toString()))
-    electron.stderr.on('data', (chunk) => logs.push(chunk.toString()))
-    electron.on('exit', (code, signal) => {
-        if (code !== 0 && signal !== 'SIGTERM') {
-            logs.push(`Electron exited with code ${code} signal ${signal}`)
-        }
-    })
-
-    let cdp = null
-    let screenshotPath = null
-
-    try {
-        const target = await waitFor(async () => {
-            const targets = await getJson(`http://127.0.0.1:${remoteDebuggingPort}/json/list`)
-            return targets.find((entry) => entry.type === 'page' && entry.webSocketDebuggerUrl)
-        }, {message: 'Electron renderer did not expose a CDP page target'})
-
-        cdp = new CdpClient(target.webSocketDebuggerUrl)
-        await cdp.send('Runtime.enable')
-        await cdp.send('Page.enable')
-
-        await waitFor(async () => cdp.evaluate('document.readyState === "complete"'), {
-            message: 'Renderer did not finish loading',
-        })
-
-        await waitFor(async () => cdp.evaluate('Boolean(window.versions && window.db && window.wealth && window.goals && window.imports)'), {
-            message: 'Advanced preload APIs were not exposed to the renderer',
-        })
-
-        const ping = await cdp.evaluate('window.versions.ping()', {awaitPromise: true})
-        assert(ping === 'pong', 'Expected IPC ping to return pong')
-
-        const result = await cdp.evaluate(`
+    const result = await cdp.evaluate(
+      `
             (async () => {
                 const importCsv = ${JSON.stringify(importFixtureCsv)}
 
@@ -598,66 +672,95 @@ async function runAdvancedFlows() {
                     }
                 }
             })()
-        `, {awaitPromise: true})
+        `,
+      { awaitPromise: true },
+    )
 
-        assert(result && result.ok, `Advanced renderer/preload flow failed: ${result?.message}\n${result?.stack || ''}`)
+    assert(
+      result && result.ok,
+      `Advanced renderer/preload flow failed: ${result?.message}\n${result?.stack || ''}`,
+    )
 
-        await refreshRendererData(cdp)
+    await refreshRendererData(cdp)
 
-        await navigateTo(cdp, 'wealth', ['Patrimoine', 'Wealth'])
-        await waitFor(async () => cdp.evaluate(`document.body.innerText.includes('E2E Advanced Condo') || document.body.innerText.includes('90')`), {
-            message: 'Wealth UI did not show advanced scenario data',
-        })
+    await navigateTo(cdp, 'wealth', ['Patrimoine', 'Wealth'])
+    await waitFor(
+      async () =>
+        cdp.evaluate(
+          `document.body.innerText.includes('E2E Advanced Condo') || document.body.innerText.includes('90')`,
+        ),
+      {
+        message: 'Wealth UI did not show advanced scenario data',
+      },
+    )
 
-        await navigateTo(cdp, 'imports', ['Historique', 'Imports', 'Import history'])
-        await waitFor(async () => cdp.evaluate(`document.body.innerText.includes('advanced-import.csv') || document.body.innerText.includes('advanced-e2e') || document.body.innerText.includes('Import')`), {
-            message: 'Import history UI did not render advanced import data',
-        })
+    await navigateTo(cdp, 'imports', [
+      'Historique',
+      'Imports',
+      'Import history',
+    ])
+    await waitFor(
+      async () =>
+        cdp.evaluate(
+          `document.body.innerText.includes('advanced-import.csv') || document.body.innerText.includes('advanced-e2e') || document.body.innerText.includes('Import')`,
+        ),
+      {
+        message: 'Import history UI did not render advanced import data',
+      },
+    )
 
-        await navigateTo(cdp, 'reports', ['Rapports', 'Reports'])
-        await waitFor(async () => cdp.evaluate(`document.body.innerText.includes('E2E Advanced') || document.body.innerText.includes('Rapport') || document.body.innerText.includes('Reports')`), {
-            message: 'Reports UI did not render after advanced dataset creation',
-        })
+    await navigateTo(cdp, 'reports', ['Rapports', 'Reports'])
+    await waitFor(
+      async () =>
+        cdp.evaluate(
+          `document.body.innerText.includes('E2E Advanced') || document.body.innerText.includes('Rapport') || document.body.innerText.includes('Reports')`,
+        ),
+      {
+        message: 'Reports UI did not render after advanced dataset creation',
+      },
+    )
 
-        console.log([
-            'Advanced Electron E2E passed.',
-            `DB=${testDbPath}`,
-            `netWorth=${result.wealthNetWorth}`,
-            `snapshot=${result.snapshotId}`,
-            `goal=${result.goalId}`,
-            `scenario=${result.scenarioId}`,
-            `estimatedReachDate=${result.estimatedReachDate}`,
-            `importBatch=${result.importBatchId}`,
-            `duplicates=${result.importDuplicateCount}`,
-            `importErrors=${result.importErrorCount}`,
-        ].join(' '))
-    } catch (error) {
-        if (cdp) {
-            try {
-                screenshotPath = await cdp.captureScreenshot('advanced-e2e-failure.png')
-            } catch (screenshotError) {
-                logs.push(`Failed to capture screenshot: ${screenshotError.message}`)
-            }
-        }
-
-        console.error('\nElectron output before failure:\n')
-        console.error(logs.join('\n'))
-        if (screenshotPath) console.error(`Failure screenshot: ${screenshotPath}`)
-        throw error
-    } finally {
-        if (cdp) cdp.close()
-        electron.kill('SIGTERM')
-        await sleep(500)
-
-        if (process.env.BUDGET_E2E_KEEP_ARTIFACTS === '1') {
-            console.log(`Keeping advanced E2E artifacts at ${tempRoot}`)
-        } else {
-            fs.rmSync(tempRoot, {recursive: true, force: true})
-        }
+    console.log(
+      [
+        'Advanced Electron E2E passed.',
+        `DB=${testDbPath}`,
+        `netWorth=${result.wealthNetWorth}`,
+        `snapshot=${result.snapshotId}`,
+        `goal=${result.goalId}`,
+        `scenario=${result.scenarioId}`,
+        `estimatedReachDate=${result.estimatedReachDate}`,
+        `importBatch=${result.importBatchId}`,
+        `duplicates=${result.importDuplicateCount}`,
+        `importErrors=${result.importErrorCount}`,
+      ].join(' '),
+    )
+  } catch (error) {
+    if (cdp) {
+      try {
+        screenshotPath = await cdp.captureScreenshot('advanced-e2e-failure.png')
+      } catch (screenshotError) {
+        logs.push(`Failed to capture screenshot: ${screenshotError.message}`)
+      }
     }
+
+    console.error('\nElectron output before failure:\n')
+    console.error(logs.join('\n'))
+    if (screenshotPath) console.error(`Failure screenshot: ${screenshotPath}`)
+    throw error
+  } finally {
+    if (cdp) cdp.close()
+    electron.kill('SIGTERM')
+    await sleep(500)
+
+    if (process.env.BUDGET_E2E_KEEP_ARTIFACTS === '1') {
+      console.log(`Keeping advanced E2E artifacts at ${tempRoot}`)
+    } else {
+      fs.rmSync(tempRoot, { recursive: true, force: true })
+    }
+  }
 }
 
 runAdvancedFlows().catch((error) => {
-    console.error(error)
-    process.exit(1)
+  console.error(error)
+  process.exit(1)
 })

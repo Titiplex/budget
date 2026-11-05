@@ -1,26 +1,37 @@
 <script setup lang="ts">
-import {currentLocaleCode} from '../i18n'
-import {computed, onMounted, ref, watch} from 'vue'
-import {useI18n} from 'vue-i18n'
+import { currentLocaleCode } from '../i18n'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-import {buildMonthlyProjection, type MonthlyProjectionResult} from '../utils/monthlyProjectionEngine'
-import type {ProjectionScenarioKind} from '../types/goals'
+import {
+  buildMonthlyProjection,
+  type MonthlyProjectionResult,
+} from '../utils/monthlyProjectionEngine'
+import type { ProjectionScenarioKind } from '../types/goals'
 
 const props = withDefaults(
-    defineProps<{
-      currentNetWorth?: number | null
-      summaryCurrency?: string
-    }>(),
-    {
-      currentNetWorth: 0,
-      summaryCurrency: 'CAD',
-    },
+  defineProps<{
+    currentNetWorth?: number | null
+    summaryCurrency?: string
+  }>(),
+  {
+    currentNetWorth: 0,
+    summaryCurrency: 'CAD',
+  },
 )
 
-const {t} = useI18n()
+const { t } = useI18n()
 
 type GoalStatusDto = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED'
-type GoalTypeDto = 'SAVINGS' | 'EMERGENCY_FUND' | 'DEBT_PAYOFF' | 'PURCHASE' | 'INVESTMENT' | 'RETIREMENT' | 'NET_WORTH' | 'OTHER'
+type GoalTypeDto =
+  | 'SAVINGS'
+  | 'EMERGENCY_FUND'
+  | 'DEBT_PAYOFF'
+  | 'PURCHASE'
+  | 'INVESTMENT'
+  | 'RETIREMENT'
+  | 'NET_WORTH'
+  | 'OTHER'
 type ScenarioKindDto = 'PESSIMISTIC' | 'BASE' | 'OPTIMISTIC' | 'CUSTOM'
 
 type FinancialGoalRow = {
@@ -49,7 +60,11 @@ type ProjectionScenarioRow = {
 }
 
 type MonthlySurplusEstimate = {
-  source: 'automaticFromBudget' | 'automaticFromRecurring' | 'manualOverride' | 'unavailable'
+  source:
+    | 'automaticFromBudget'
+    | 'automaticFromRecurring'
+    | 'manualOverride'
+    | 'unavailable'
   currency: string
   monthlyContributionUsed: number
   estimatedMonthlySurplus: number
@@ -80,7 +95,10 @@ function normalizeCurrency(value: string | null | undefined) {
   return (value || props.summaryCurrency || 'CAD').trim().toUpperCase()
 }
 
-function formatMoney(amount: number | null | undefined, currency = props.summaryCurrency) {
+function formatMoney(
+  amount: number | null | undefined,
+  currency = props.summaryCurrency,
+) {
   if (amount == null || Number.isNaN(Number(amount))) return '—'
 
   return new Intl.NumberFormat(currentLocaleCode(), {
@@ -93,7 +111,9 @@ function formatMoney(amount: number | null | undefined, currency = props.summary
 function formatDate(value: string | null | undefined) {
   if (!value) return '—'
 
-  return new Intl.DateTimeFormat(currentLocaleCode(), {dateStyle: 'medium'}).format(new Date(value))
+  return new Intl.DateTimeFormat(currentLocaleCode(), {
+    dateStyle: 'medium',
+  }).format(new Date(value))
 }
 
 function formatPercent(value: number | null | undefined) {
@@ -114,12 +134,17 @@ function formatRate(value: number | null | undefined) {
   }).format(Number(value))
 }
 
-function unwrapResult<T>(result: {ok: boolean; data: T | null; error?: {message?: string} | null}, fallback: string): T {
+function unwrapResult<T>(
+  result: { ok: boolean; data: T | null; error?: { message?: string } | null },
+  fallback: string,
+): T {
   if (result.ok && result.data != null) return result.data
   throw new Error(result.error?.message || fallback)
 }
 
-function mapScenarioKind(kind: ScenarioKindDto | null | undefined): ProjectionScenarioKind {
+function mapScenarioKind(
+  kind: ScenarioKindDto | null | undefined,
+): ProjectionScenarioKind {
   if (kind === 'PESSIMISTIC') return 'pessimistic'
   if (kind === 'BASE') return 'base'
   if (kind === 'OPTIMISTIC') return 'optimistic'
@@ -127,7 +152,8 @@ function mapScenarioKind(kind: ScenarioKindDto | null | undefined): ProjectionSc
 }
 
 function currentValueForGoal(goal: FinancialGoalRow) {
-  if (goal.type === 'NET_WORTH') return Math.max(0, Number(props.currentNetWorth || 0))
+  if (goal.type === 'NET_WORTH')
+    return Math.max(0, Number(props.currentNetWorth || 0))
   return Math.max(0, Number(goal.startingAmount || 0))
 }
 
@@ -143,13 +169,24 @@ function isGoalOverdue(goal: FinancialGoalRow) {
   return goal.targetDate.slice(0, 10) < today
 }
 
-const activeGoals = computed(() => goals.value.filter((goal) => goal.status !== 'ARCHIVED'))
+const activeGoals = computed(() =>
+  goals.value.filter((goal) => goal.status !== 'ARCHIVED'),
+)
 const baseScenario = computed(() => {
-  return scenarios.value.find((scenario) => scenario.isActive !== false && scenario.kind === 'BASE')
-      || scenarios.value.find((scenario) => scenario.isActive !== false)
-      || null
+  return (
+    scenarios.value.find(
+      (scenario) => scenario.isActive !== false && scenario.kind === 'BASE',
+    ) ||
+    scenarios.value.find((scenario) => scenario.isActive !== false) ||
+    null
+  )
 })
-const contributionUsed = computed(() => surplusEstimate.value?.monthlyContributionUsed ?? baseScenario.value?.monthlySurplus ?? 0)
+const contributionUsed = computed(
+  () =>
+    surplusEstimate.value?.monthlyContributionUsed ??
+    baseScenario.value?.monthlySurplus ??
+    0,
+)
 
 const projectionRows = computed<GoalProjectionRow[]>(() => {
   const scenario = baseScenario.value
@@ -164,7 +201,13 @@ const projectionRows = computed<GoalProjectionRow[]>(() => {
         currentValueUsed,
         projectedValue: currentValueUsed,
         variation: 0,
-        progressPercent: Number(goal.targetAmount || 0) > 0 ? Math.min((currentValueUsed / Number(goal.targetAmount)) * 100, 100) : 0,
+        progressPercent:
+          Number(goal.targetAmount || 0) > 0
+            ? Math.min(
+                (currentValueUsed / Number(goal.targetAmount)) * 100,
+                100,
+              )
+            : 0,
         estimatedReachDate: null,
         error: t('wealthGoalsSummary.noActiveScenario'),
       }
@@ -193,7 +236,10 @@ const projectionRows = computed<GoalProjectionRow[]>(() => {
         variation: projectedValue - currentValueUsed,
         progressPercent: projection.progress.progressPercent,
         estimatedReachDate: projection.attainmentEstimate.estimatedReachDate,
-        error: projection.status === 'invalidInput' ? projection.errors.map((entry) => entry.message).join(' ') : null,
+        error:
+          projection.status === 'invalidInput'
+            ? projection.errors.map((entry) => entry.message).join(' ')
+            : null,
       }
     } catch (error) {
       return {
@@ -202,35 +248,65 @@ const projectionRows = computed<GoalProjectionRow[]>(() => {
         currentValueUsed,
         projectedValue: currentValueUsed,
         variation: 0,
-        progressPercent: Number(goal.targetAmount || 0) > 0 ? Math.min((currentValueUsed / Number(goal.targetAmount)) * 100, 100) : 0,
+        progressPercent:
+          Number(goal.targetAmount || 0) > 0
+            ? Math.min(
+                (currentValueUsed / Number(goal.targetAmount)) * 100,
+                100,
+              )
+            : 0,
         estimatedReachDate: null,
-        error: error instanceof Error ? error.message : t('wealthGoalsSummary.projectionUnavailable'),
+        error:
+          error instanceof Error
+            ? error.message
+            : t('wealthGoalsSummary.projectionUnavailable'),
       }
     }
   })
 })
 
 const nextReachDate = computed(() => {
-  return projectionRows.value
+  return (
+    projectionRows.value
       .map((row) => row.estimatedReachDate)
       .filter(Boolean)
-      .sort((left, right) => String(left).localeCompare(String(right)))[0] || null
+      .sort((left, right) => String(left).localeCompare(String(right)))[0] ||
+    null
+  )
 })
 
 const globalProgress = computed(() => {
-  const targetTotal = activeGoals.value.reduce((sum, goal) => sum + Math.max(0, Number(goal.targetAmount || 0)), 0)
+  const targetTotal = activeGoals.value.reduce(
+    (sum, goal) => sum + Math.max(0, Number(goal.targetAmount || 0)),
+    0,
+  )
   if (targetTotal <= 0) return 0
 
   const currentTotal = activeGoals.value.reduce((sum, goal) => {
-    return sum + Math.min(currentValueForGoal(goal), Math.max(0, Number(goal.targetAmount || 0)))
+    return (
+      sum +
+      Math.min(
+        currentValueForGoal(goal),
+        Math.max(0, Number(goal.targetAmount || 0)),
+      )
+    )
   }, 0)
 
   return Math.min((currentTotal / targetTotal) * 100, 100)
 })
 
-const reachedGoalCount = computed(() => activeGoals.value.filter(isGoalReached).length)
-const overdueGoalCount = computed(() => activeGoals.value.filter(isGoalOverdue).length)
-const selectedTrajectory = computed(() => projectionRows.value.find((row) => row.goal.type === 'NET_WORTH') || projectionRows.value[0] || null)
+const reachedGoalCount = computed(
+  () => activeGoals.value.filter(isGoalReached).length,
+)
+const overdueGoalCount = computed(
+  () => activeGoals.value.filter(isGoalOverdue).length,
+)
+const selectedTrajectory = computed(
+  () =>
+    projectionRows.value.find((row) => row.goal.type === 'NET_WORTH') ||
+    projectionRows.value[0] ||
+    null,
+)
 const hypothesisSummary = computed(() => ({
   scenarioName: baseScenario.value?.name || '—',
   horizonMonths: baseScenario.value?.horizonMonths || 0,
@@ -248,12 +324,12 @@ const selectedTrajectoryPoints = computed(() => {
   const total = Math.max(1, projection.months.length - 1)
 
   return projection.months
-      .map((month, index) => {
-        const x = 32 + index * (556 / total)
-        const y = 130 - Math.min(1, month.projectedValue / target) * 100
-        return `${x},${y}`
-      })
-      .join(' ')
+    .map((month, index) => {
+      const x = 32 + index * (556 / total)
+      const y = 130 - Math.min(1, month.projectedValue / target) * 100
+      return `${x},${y}`
+    })
+    .join(' ')
 })
 
 async function loadGoalSummary() {
@@ -269,19 +345,31 @@ async function loadGoalSummary() {
   try {
     await api.ensureDefaultProjectionScenarios()
     const [goalRows, scenarioRows, surplusRows] = await Promise.all([
-      api.listFinancialGoals({status: 'ALL'}),
-      api.listProjectionScenarios({isActive: true}),
+      api.listFinancialGoals({ status: 'ALL' }),
+      api.listProjectionScenarios({ isActive: true }),
       api.estimateMonthlySurplus({
         currency: props.summaryCurrency,
         referenceDate: new Date().toISOString().slice(0, 10),
       }),
     ])
 
-    goals.value = unwrapResult(goalRows, t('wealthGoalsSummary.goalsUnavailable')) as FinancialGoalRow[]
-    scenarios.value = unwrapResult(scenarioRows, t('wealthGoalsSummary.scenariosUnavailable')) as ProjectionScenarioRow[]
-    surplusEstimate.value = unwrapResult(surplusRows, t('wealthGoalsSummary.surplusUnavailable')) as MonthlySurplusEstimate
+    goals.value = unwrapResult(
+      goalRows,
+      t('wealthGoalsSummary.goalsUnavailable'),
+    ) as FinancialGoalRow[]
+    scenarios.value = unwrapResult(
+      scenarioRows,
+      t('wealthGoalsSummary.scenariosUnavailable'),
+    ) as ProjectionScenarioRow[]
+    surplusEstimate.value = unwrapResult(
+      surplusRows,
+      t('wealthGoalsSummary.surplusUnavailable'),
+    ) as MonthlySurplusEstimate
   } catch (error) {
-    warningMessage.value = error instanceof Error ? error.message : t('wealthGoalsSummary.summaryUnavailable')
+    warningMessage.value =
+      error instanceof Error
+        ? error.message
+        : t('wealthGoalsSummary.summaryUnavailable')
     goals.value = []
     scenarios.value = []
     surplusEstimate.value = null
@@ -291,14 +379,18 @@ async function loadGoalSummary() {
 }
 
 function openGoalDetails(goalId?: number) {
-  window.dispatchEvent(new CustomEvent('budget:open-goals', {detail: {goalId: goalId || selectedTrajectory.value?.goal.id || null}}))
+  window.dispatchEvent(
+    new CustomEvent('budget:open-goals', {
+      detail: { goalId: goalId || selectedTrajectory.value?.goal.id || null },
+    }),
+  )
 }
 
 watch(
-    () => [props.currentNetWorth, props.summaryCurrency],
-    () => {
-      void loadGoalSummary()
-    },
+  () => [props.currentNetWorth, props.summaryCurrency],
+  () => {
+    void loadGoalSummary()
+  },
 )
 
 onMounted(() => {
@@ -307,132 +399,347 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-sm">
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+  <section
+    class="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-sm"
+  >
+    <div
+      class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+    >
       <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-violet-300">{{ t('wealthGoalsSummary.eyebrow') }}</p>
-        <h3 class="mt-2 text-xl font-semibold text-white">{{ t('wealthGoalsSummary.title') }}</h3>
+        <p
+          class="text-xs font-semibold uppercase tracking-[0.24em] text-violet-300"
+        >
+          {{ t('wealthGoalsSummary.eyebrow') }}
+        </p>
+        <h3 class="mt-2 text-xl font-semibold text-white">
+          {{ t('wealthGoalsSummary.title') }}
+        </h3>
         <p class="mt-1 max-w-3xl text-sm leading-6 text-slate-400">
           {{ t('wealthGoalsSummary.description') }}
         </p>
       </div>
-      <button type="button" class="inline-flex items-center justify-center rounded-2xl border border-violet-700 bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500" @click="openGoalDetails()">
+      <button
+        type="button"
+        class="inline-flex items-center justify-center rounded-2xl border border-violet-700 bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500"
+        @click="openGoalDetails()"
+      >
         {{ t('wealthGoalsSummary.openDetail') }}
       </button>
     </div>
 
-    <div v-if="warningMessage" class="mt-4 rounded-2xl border border-amber-900/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
+    <div
+      v-if="warningMessage"
+      class="mt-4 rounded-2xl border border-amber-900/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
+    >
       {{ t('wealthGoalsSummary.unavailablePrefix') }} {{ warningMessage }}
     </div>
 
-    <div v-if="loading" class="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-5 text-sm text-slate-300">
+    <div
+      v-if="loading"
+      class="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-5 text-sm text-slate-300"
+    >
       {{ t('wealthGoalsSummary.loading') }}
     </div>
 
-    <div v-else-if="!warningMessage && activeGoals.length === 0" class="mt-4 rounded-2xl border border-dashed border-slate-700 bg-slate-900/50 px-4 py-8 text-center">
-      <p class="text-sm font-semibold text-white">{{ t('wealthGoalsSummary.emptyTitle') }}</p>
-      <p class="mt-1 text-sm text-slate-400">{{ t('wealthGoalsSummary.emptyDescription') }}</p>
+    <div
+      v-else-if="!warningMessage && activeGoals.length === 0"
+      class="mt-4 rounded-2xl border border-dashed border-slate-700 bg-slate-900/50 px-4 py-8 text-center"
+    >
+      <p class="text-sm font-semibold text-white">
+        {{ t('wealthGoalsSummary.emptyTitle') }}
+      </p>
+      <p class="mt-1 text-sm text-slate-400">
+        {{ t('wealthGoalsSummary.emptyDescription') }}
+      </p>
     </div>
 
     <div v-else-if="!warningMessage" class="mt-5 space-y-5">
       <div class="grid gap-3 md:grid-cols-5">
-        <article class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ t('wealthGoalsSummary.active') }}</p>
-          <p class="mt-2 text-2xl font-semibold text-white">{{ activeGoals.length }}</p>
+        <article
+          class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4"
+        >
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">
+            {{ t('wealthGoalsSummary.active') }}
+          </p>
+          <p class="mt-2 text-2xl font-semibold text-white">
+            {{ activeGoals.length }}
+          </p>
         </article>
-        <article class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ t('wealthGoalsSummary.reached') }}</p>
-          <p class="mt-2 text-2xl font-semibold text-white">{{ reachedGoalCount }}</p>
+        <article
+          class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4"
+        >
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">
+            {{ t('wealthGoalsSummary.reached') }}
+          </p>
+          <p class="mt-2 text-2xl font-semibold text-white">
+            {{ reachedGoalCount }}
+          </p>
         </article>
-        <article class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ t('wealthGoalsSummary.overdue') }}</p>
-          <p class="mt-2 text-2xl font-semibold text-white">{{ overdueGoalCount }}</p>
+        <article
+          class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4"
+        >
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">
+            {{ t('wealthGoalsSummary.overdue') }}
+          </p>
+          <p class="mt-2 text-2xl font-semibold text-white">
+            {{ overdueGoalCount }}
+          </p>
         </article>
-        <article class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ t('wealthGoalsSummary.nextReach') }}</p>
-          <p class="mt-2 text-lg font-semibold text-white">{{ formatDate(nextReachDate) }}</p>
+        <article
+          class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4"
+        >
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">
+            {{ t('wealthGoalsSummary.nextReach') }}
+          </p>
+          <p class="mt-2 text-lg font-semibold text-white">
+            {{ formatDate(nextReachDate) }}
+          </p>
         </article>
-        <article class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ t('wealthGoalsSummary.globalProgress') }}</p>
-          <p class="mt-2 text-2xl font-semibold text-white">{{ formatPercent(globalProgress) }}</p>
+        <article
+          class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4"
+        >
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-500">
+            {{ t('wealthGoalsSummary.globalProgress') }}
+          </p>
+          <p class="mt-2 text-2xl font-semibold text-white">
+            {{ formatPercent(globalProgress) }}
+          </p>
         </article>
       </div>
 
       <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <article class="rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-5">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <article
+          class="rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-5"
+        >
+          <div
+            class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+          >
             <div>
-              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">{{ t('wealthGoalsSummary.trajectoryMap') }}</p>
-              <h4 class="mt-2 text-lg font-semibold text-white">{{ selectedTrajectory?.goal.name || t('wealthGoalsSummary.trajectoryTitleFallback') }}</h4>
-              <p class="mt-1 text-sm text-slate-400">{{ t('wealthGoalsSummary.trajectoryDescription') }}</p>
+              <p
+                class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300"
+              >
+                {{ t('wealthGoalsSummary.trajectoryMap') }}
+              </p>
+              <h4 class="mt-2 text-lg font-semibold text-white">
+                {{
+                  selectedTrajectory?.goal.name ||
+                  t('wealthGoalsSummary.trajectoryTitleFallback')
+                }}
+              </h4>
+              <p class="mt-1 text-sm text-slate-400">
+                {{ t('wealthGoalsSummary.trajectoryDescription') }}
+              </p>
             </div>
-            <span class="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300">
+            <span
+              class="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300"
+            >
               {{ selectedTrajectory?.projection?.status || '—' }}
             </span>
           </div>
 
           <div class="mt-5 grid gap-3 md:grid-cols-3">
-            <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <p class="text-xs text-slate-500">{{ t('wealthGoalsSummary.currentValueUsed') }}</p>
-              <p class="mt-2 text-2xl font-semibold text-white">{{ formatMoney(selectedTrajectory?.currentValueUsed, selectedTrajectory?.goal.currency || props.summaryCurrency) }}</p>
+            <div
+              class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
+            >
+              <p class="text-xs text-slate-500">
+                {{ t('wealthGoalsSummary.currentValueUsed') }}
+              </p>
+              <p class="mt-2 text-2xl font-semibold text-white">
+                {{
+                  formatMoney(
+                    selectedTrajectory?.currentValueUsed,
+                    selectedTrajectory?.goal.currency || props.summaryCurrency,
+                  )
+                }}
+              </p>
             </div>
-            <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <p class="text-xs text-slate-500">{{ t('wealthGoalsSummary.projectedValue') }}</p>
-              <p class="mt-2 text-2xl font-semibold text-white">{{ formatMoney(selectedTrajectory?.projectedValue, selectedTrajectory?.goal.currency || props.summaryCurrency) }}</p>
+            <div
+              class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
+            >
+              <p class="text-xs text-slate-500">
+                {{ t('wealthGoalsSummary.projectedValue') }}
+              </p>
+              <p class="mt-2 text-2xl font-semibold text-white">
+                {{
+                  formatMoney(
+                    selectedTrajectory?.projectedValue,
+                    selectedTrajectory?.goal.currency || props.summaryCurrency,
+                  )
+                }}
+              </p>
             </div>
-            <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <p class="text-xs text-slate-500">{{ t('wealthGoalsSummary.projectedVariation') }}</p>
-              <p class="mt-2 text-2xl font-semibold text-white">{{ formatMoney(selectedTrajectory?.variation, selectedTrajectory?.goal.currency || props.summaryCurrency) }}</p>
+            <div
+              class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
+            >
+              <p class="text-xs text-slate-500">
+                {{ t('wealthGoalsSummary.projectedVariation') }}
+              </p>
+              <p class="mt-2 text-2xl font-semibold text-white">
+                {{
+                  formatMoney(
+                    selectedTrajectory?.variation,
+                    selectedTrajectory?.goal.currency || props.summaryCurrency,
+                  )
+                }}
+              </p>
             </div>
           </div>
 
-          <div v-if="selectedTrajectoryPoints" class="mt-5 overflow-hidden rounded-2xl border border-slate-800">
-            <svg viewBox="0 0 620 150" class="h-40 w-full bg-slate-950/70" role="img" :aria-label="t('wealthGoalsSummary.trajectoryMap')">
-              <polyline :points="selectedTrajectoryPoints" fill="none" stroke="#8b5cf6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-              <line x1="32" y1="30" x2="588" y2="30" stroke="#94a3b8" stroke-dasharray="6 6" />
-              <text x="38" y="24" fill="#cbd5e1" font-size="12">{{ t('wealthGoalsSummary.target') }}</text>
+          <div
+            v-if="selectedTrajectoryPoints"
+            class="mt-5 overflow-hidden rounded-2xl border border-slate-800"
+          >
+            <svg
+              viewBox="0 0 620 150"
+              class="h-40 w-full bg-slate-950/70"
+              role="img"
+              :aria-label="t('wealthGoalsSummary.trajectoryMap')"
+            >
+              <polyline
+                :points="selectedTrajectoryPoints"
+                fill="none"
+                stroke="#8b5cf6"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <line
+                x1="32"
+                y1="30"
+                x2="588"
+                y2="30"
+                stroke="#94a3b8"
+                stroke-dasharray="6 6"
+              />
+              <text x="38" y="24" fill="#cbd5e1" font-size="12">
+                {{ t('wealthGoalsSummary.target') }}
+              </text>
             </svg>
           </div>
         </article>
 
-        <article class="rounded-3xl border border-slate-800 bg-slate-900/60 p-5">
-          <h4 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">{{ t('wealthGoalsSummary.mainAssumptions') }}</h4>
+        <article
+          class="rounded-3xl border border-slate-800 bg-slate-900/60 p-5"
+        >
+          <h4
+            class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400"
+          >
+            {{ t('wealthGoalsSummary.mainAssumptions') }}
+          </h4>
           <dl class="mt-4 space-y-3 text-sm">
-            <div class="flex justify-between gap-3"><dt class="text-slate-500">{{ t('wealthGoalsSummary.scenario') }}</dt><dd class="font-semibold text-white">{{ hypothesisSummary.scenarioName }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="text-slate-500">{{ t('wealthGoalsSummary.monthlyContribution') }}</dt><dd class="font-semibold text-white">{{ formatMoney(hypothesisSummary.contribution, props.summaryCurrency) }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="text-slate-500">{{ t('wealthGoalsSummary.horizon') }}</dt><dd class="font-semibold text-white">{{ t('wealthGoalsSummary.horizonMonths', {count: hypothesisSummary.horizonMonths}) }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="text-slate-500">{{ t('wealthGoalsSummary.growth') }}</dt><dd class="font-semibold text-white">{{ formatRate(hypothesisSummary.annualGrowthRate) }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="text-slate-500">{{ t('wealthGoalsSummary.inflation') }}</dt><dd class="font-semibold text-white">{{ formatRate(hypothesisSummary.annualInflationRate) }}</dd></div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-slate-500">
+                {{ t('wealthGoalsSummary.scenario') }}
+              </dt>
+              <dd class="font-semibold text-white">
+                {{ hypothesisSummary.scenarioName }}
+              </dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-slate-500">
+                {{ t('wealthGoalsSummary.monthlyContribution') }}
+              </dt>
+              <dd class="font-semibold text-white">
+                {{
+                  formatMoney(
+                    hypothesisSummary.contribution,
+                    props.summaryCurrency,
+                  )
+                }}
+              </dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-slate-500">
+                {{ t('wealthGoalsSummary.horizon') }}
+              </dt>
+              <dd class="font-semibold text-white">
+                {{
+                  t('wealthGoalsSummary.horizonMonths', {
+                    count: hypothesisSummary.horizonMonths,
+                  })
+                }}
+              </dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-slate-500">
+                {{ t('wealthGoalsSummary.growth') }}
+              </dt>
+              <dd class="font-semibold text-white">
+                {{ formatRate(hypothesisSummary.annualGrowthRate) }}
+              </dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-slate-500">
+                {{ t('wealthGoalsSummary.inflation') }}
+              </dt>
+              <dd class="font-semibold text-white">
+                {{ formatRate(hypothesisSummary.annualInflationRate) }}
+              </dd>
+            </div>
           </dl>
         </article>
       </div>
 
       <div class="overflow-hidden rounded-2xl border border-slate-800">
         <table class="min-w-full divide-y divide-slate-800 text-sm">
-          <thead class="bg-slate-900 text-xs uppercase tracking-[0.16em] text-slate-500">
-          <tr>
-            <th class="px-4 py-3 text-left">{{ t('wealthGoalsSummary.goal') }}</th>
-            <th class="px-4 py-3 text-right">{{ t('wealthGoalsSummary.currentValueUsed') }}</th>
-            <th class="px-4 py-3 text-right">{{ t('wealthGoalsSummary.projection') }}</th>
-            <th class="px-4 py-3 text-right">{{ t('wealthGoalsSummary.estimatedReach') }}</th>
-            <th class="px-4 py-3 text-right">{{ t('wealthGoalsSummary.progress') }}</th>
-            <th class="px-4 py-3 text-right">{{ t('wealthGoalsSummary.action') }}</th>
-          </tr>
+          <thead
+            class="bg-slate-900 text-xs uppercase tracking-[0.16em] text-slate-500"
+          >
+            <tr>
+              <th class="px-4 py-3 text-left">
+                {{ t('wealthGoalsSummary.goal') }}
+              </th>
+              <th class="px-4 py-3 text-right">
+                {{ t('wealthGoalsSummary.currentValueUsed') }}
+              </th>
+              <th class="px-4 py-3 text-right">
+                {{ t('wealthGoalsSummary.projection') }}
+              </th>
+              <th class="px-4 py-3 text-right">
+                {{ t('wealthGoalsSummary.estimatedReach') }}
+              </th>
+              <th class="px-4 py-3 text-right">
+                {{ t('wealthGoalsSummary.progress') }}
+              </th>
+              <th class="px-4 py-3 text-right">
+                {{ t('wealthGoalsSummary.action') }}
+              </th>
+            </tr>
           </thead>
           <tbody class="divide-y divide-slate-800 bg-slate-950">
-          <tr v-for="row in projectionRows" :key="row.goal.id">
-            <td class="px-4 py-3 text-slate-200">
-              <div class="font-semibold text-white">{{ row.goal.name }}</div>
-              <div v-if="row.error" class="mt-1 text-xs text-amber-300">{{ t('wealthGoalsSummary.partialProjection', {error: row.error}) }}</div>
-            </td>
-            <td class="px-4 py-3 text-right text-slate-300">{{ formatMoney(row.currentValueUsed, row.goal.currency) }}</td>
-            <td class="px-4 py-3 text-right text-slate-300">{{ formatMoney(row.projectedValue, row.goal.currency) }}</td>
-            <td class="px-4 py-3 text-right text-slate-300">{{ formatDate(row.estimatedReachDate) }}</td>
-            <td class="px-4 py-3 text-right text-slate-300">{{ formatPercent(row.progressPercent) }}</td>
-            <td class="px-4 py-3 text-right">
-              <button type="button" class="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800" @click="openGoalDetails(row.goal.id)">{{ t('wealthGoalsSummary.detail') }}</button>
-            </td>
-          </tr>
+            <tr v-for="row in projectionRows" :key="row.goal.id">
+              <td class="px-4 py-3 text-slate-200">
+                <div class="font-semibold text-white">{{ row.goal.name }}</div>
+                <div v-if="row.error" class="mt-1 text-xs text-amber-300">
+                  {{
+                    t('wealthGoalsSummary.partialProjection', {
+                      error: row.error,
+                    })
+                  }}
+                </div>
+              </td>
+              <td class="px-4 py-3 text-right text-slate-300">
+                {{ formatMoney(row.currentValueUsed, row.goal.currency) }}
+              </td>
+              <td class="px-4 py-3 text-right text-slate-300">
+                {{ formatMoney(row.projectedValue, row.goal.currency) }}
+              </td>
+              <td class="px-4 py-3 text-right text-slate-300">
+                {{ formatDate(row.estimatedReachDate) }}
+              </td>
+              <td class="px-4 py-3 text-right text-slate-300">
+                {{ formatPercent(row.progressPercent) }}
+              </td>
+              <td class="px-4 py-3 text-right">
+                <button
+                  type="button"
+                  class="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                  @click="openGoalDetails(row.goal.id)"
+                >
+                  {{ t('wealthGoalsSummary.detail') }}
+                </button>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>

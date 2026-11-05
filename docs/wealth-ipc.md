@@ -8,7 +8,7 @@ Les handlers patrimoine suivent le même principe que le reste de l'application 
 Le preload expose `window.wealth` avec les méthodes suivantes :
 
 | Méthode renderer             | Canal IPC             | Payload                            |
-|------------------------------|-----------------------|------------------------------------|
+| ---------------------------- | --------------------- | ---------------------------------- |
 | `listAssets(filters?)`       | `db:asset:list`       | `WealthListFilters` optionnel      |
 | `createAsset(input)`         | `db:asset:create`     | `CreateWealthAssetInput`           |
 | `updateAsset(id, input)`     | `db:asset:update`     | `id`, `UpdateWealthAssetInput`     |
@@ -41,7 +41,7 @@ Les suppressions renvoient un objet stable :
 
 ```ts
 {
-    ok: true, 
+    ok: true,
         id: number,
         entityType
 :

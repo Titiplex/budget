@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import {useI18n} from 'vue-i18n'
-import type {AccountSummary} from '../types/budget'
-import {accountTypeLabel, formatMoney} from '../utils/budgetFormat'
+import { useI18n } from 'vue-i18n'
+import type { AccountSummary } from '../types/budget'
+import { accountTypeLabel, formatMoney } from '../utils/budgetFormat'
 
 defineProps<{
   accountSummaries: AccountSummary[]
@@ -13,7 +13,7 @@ const emit = defineEmits<{
   (e: 'delete-account', account: AccountSummary): void
 }>()
 
-const {t} = useI18n()
+const { t } = useI18n()
 </script>
 
 <template>
@@ -24,15 +24,20 @@ const {t} = useI18n()
       </button>
     </div>
 
-    <div v-if="accountSummaries.length" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div
+      v-if="accountSummaries.length"
+      class="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+    >
       <article
-          v-for="account in accountSummaries"
-          :key="account.id"
-          class="panel p-6"
+        v-for="account in accountSummaries"
+        :key="account.id"
+        class="panel p-6"
       >
         <div class="flex items-start justify-between gap-3">
           <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+            <p
+              class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500"
+            >
               {{ accountTypeLabel(account.type) }}
             </p>
             <h3 class="mt-2 text-xl font-bold text-slate-900 dark:text-white">
@@ -41,10 +46,16 @@ const {t} = useI18n()
           </div>
 
           <div class="card-toolbar">
-            <button class="mini-action-btn" @click="emit('edit-account', account)">
+            <button
+              class="mini-action-btn"
+              @click="emit('edit-account', account)"
+            >
               {{ t('common.update') }}
             </button>
-            <button class="mini-danger-btn" @click="emit('delete-account', account)">
+            <button
+              class="mini-danger-btn"
+              @click="emit('delete-account', account)"
+            >
               {{ t('common.delete') }}
             </button>
           </div>
@@ -80,8 +91,12 @@ const {t} = useI18n()
               <div>
                 <p class="mini-label">{{ t('accounts.net') }}</p>
                 <p
-                    class="mini-value"
-                    :class="account.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
+                  class="mini-value"
+                  :class="
+                    account.net >= 0
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-rose-600 dark:text-rose-400'
+                  "
                 >
                   {{ formatMoney(account.net, account.currency) }}
                 </p>

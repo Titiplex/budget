@@ -54,11 +54,11 @@ This is intentionally simple and auditable. It is designed to answer “what hap
 
 The default demo/test scenarios are:
 
-| Scenario | Monthly surplus | Growth | Inflation | Purpose |
-| --- | ---: | ---: | ---: | --- |
-| Pessimistic | Lower | Low | Higher | Stress a conservative path |
-| Base | Medium | Medium | Medium | Neutral baseline |
-| Optimistic | Higher | Higher | Medium | Show an upside path |
+| Scenario    | Monthly surplus | Growth | Inflation | Purpose                    |
+| ----------- | --------------: | -----: | --------: | -------------------------- |
+| Pessimistic |           Lower |    Low |    Higher | Stress a conservative path |
+| Base        |          Medium | Medium |    Medium | Neutral baseline           |
+| Optimistic  |          Higher | Higher |    Medium | Show an upside path        |
 
 Scenario names, rates and surplus values are assumptions. They are not recommendations.
 

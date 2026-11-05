@@ -6,16 +6,16 @@ Budget est local-first. Ces mécanismes réduisent les risques d’erreur, de co
 
 ## Couverture automatisée
 
-| Domaine | Vérification attendue | Tests concernés |
-| --- | --- | --- |
-| Secrets locaux | valeurs jamais exposées dans la metadata, fallback local identifié, coffre corrompu géré | `secretStore.test.js` |
-| Backups chiffrés | roundtrip, mauvais mot de passe, contenu modifié, version inconnue | `backupEncryption.test.js` |
-| Restore dry-run | backup valide, legacy, corrompu, erreurs bloquantes | `restoreDryRun.test.ts`, `securityTrustFixtures.test.js` |
-| Intégrité | références manquantes, montants invalides, transferts cassés, audit critique | `integrityCheckService.test.js` |
-| Audit log | événements lisibles, export, rétention, pas de secrets | tests audit/import existants |
-| Provenance/fraîcheur | fresh, stale, unknown, userProvided, unavailable | `provenance.test.ts`, `domainProvenance.test.ts` |
-| Snapshots | création locale, metadata, rétention, nettoyage des clés sensibles | `recoverySnapshotService.test.js` |
-| Paramètres sécurité | actions regroupées, check manuel, limites visibles | `securityRecoveryPanel.test.ts` |
+| Domaine              | Vérification attendue                                                                    | Tests concernés                                          |
+| -------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Secrets locaux       | valeurs jamais exposées dans la metadata, fallback local identifié, coffre corrompu géré | `secretStore.test.js`                                    |
+| Backups chiffrés     | roundtrip, mauvais mot de passe, contenu modifié, version inconnue                       | `backupEncryption.test.js`                               |
+| Restore dry-run      | backup valide, legacy, corrompu, erreurs bloquantes                                      | `restoreDryRun.test.ts`, `securityTrustFixtures.test.js` |
+| Intégrité            | références manquantes, montants invalides, transferts cassés, audit critique             | `integrityCheckService.test.js`                          |
+| Audit log            | événements lisibles, export, rétention, pas de secrets                                   | tests audit/import existants                             |
+| Provenance/fraîcheur | fresh, stale, unknown, userProvided, unavailable                                         | `provenance.test.ts`, `domainProvenance.test.ts`         |
+| Snapshots            | création locale, metadata, rétention, nettoyage des clés sensibles                       | `recoverySnapshotService.test.js`                        |
+| Paramètres sécurité  | actions regroupées, check manuel, limites visibles                                       | `securityRecoveryPanel.test.ts`                          |
 
 ## Fixtures
 

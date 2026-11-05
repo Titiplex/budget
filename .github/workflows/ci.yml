@@ -2,27 +2,27 @@ name: CI
 
 on:
   push:
-    branches: ["master", "main", "epic-8"]
+    branches: ['master', 'main', 'epic-8']
     paths-ignore:
-      - "docs/**"
-      - "**/*.md"
+      - 'docs/**'
+      - '**/*.md'
   pull_request:
-    branches: ["master", "main", "epic-8"]
+    branches: ['master', 'main', 'epic-8']
     paths-ignore:
-      - "docs/**"
-      - "**/*.md"
+      - 'docs/**'
+      - '**/*.md'
   workflow_dispatch:
     inputs:
       run_e2e:
-        description: "Run Electron desktop E2E jobs"
+        description: 'Run Electron desktop E2E jobs'
         required: false
-        default: "true"
+        default: 'true'
         type: choice
         options:
-          - "true"
-          - "false"
+          - 'true'
+          - 'false'
   schedule:
-    - cron: "17 4 * * 1"
+    - cron: '17 4 * * 1'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -58,7 +58,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
       - name: Configure Windows native build toolchain
         if: runner.os == 'Windows'

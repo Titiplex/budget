@@ -6,3 +6,6 @@ src/styles
 e2e-artifacts
 coverage
 dist
+src/test/fixtures/backup-restore/backup-invalid-corrupted.json
+src/test/fixtures/security/corrupted-backup.json
+dist-server

@@ -1,7 +1,7 @@
 name: Rapport de bug
 description: Signaler un problème reproductible dans Budget
-title: "[Bug]: "
-labels: ["bug", "triage"]
+title: '[Bug]: '
+labels: ['bug', 'triage']
 body:
   - type: markdown
     attributes:

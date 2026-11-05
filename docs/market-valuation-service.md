@@ -77,9 +77,9 @@ When FX is missing, the service preserves `nativeMarketValue`, sets `marketValue
 For a Prisma-backed Electron main service:
 
 ```js
-const {getPrisma} = require('../db')
-const {createMarketValuationService} = require('../marketData')
-const {getHistoricalQuote} = require('../ipc/registerFxHandlers')
+const { getPrisma } = require('../db')
+const { createMarketValuationService } = require('../marketData')
+const { getHistoricalQuote } = require('../ipc/registerFxHandlers')
 
 const valuationService = createMarketValuationService({
   prisma: getPrisma(),
@@ -94,7 +94,7 @@ const valuationService = createMarketValuationService({
   prisma,
   fxRates: {
     'USD:CAD': 1.35,
-    'EUR:CAD': {rate: 1.47, provider: 'manual-test'},
+    'EUR:CAD': { rate: 1.47, provider: 'manual-test' },
   },
 })
 ```

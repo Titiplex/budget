@@ -1,20 +1,23 @@
 <script setup lang="ts">
-import {useI18n} from 'vue-i18n'
-import {formatMoney} from '../utils/budgetFormat'
+import { useI18n } from 'vue-i18n'
+import { formatMoney } from '../utils/budgetFormat'
 
-withDefaults(defineProps<{
-  loading: boolean
-  summaryCurrency: string
-  netFlow: number
-  totalIncome: number
-  totalExpense: number
-  transactionCount: number
-  accountCount: number
-  categoryCount: number
-  compact?: boolean
-}>(), {
-  compact: false,
-})
+withDefaults(
+  defineProps<{
+    loading: boolean
+    summaryCurrency: string
+    netFlow: number
+    totalIncome: number
+    totalExpense: number
+    transactionCount: number
+    accountCount: number
+    categoryCount: number
+    compact?: boolean
+  }>(),
+  {
+    compact: false,
+  },
+)
 
 const emit = defineEmits<{
   (e: 'refresh'): void
@@ -23,22 +26,28 @@ const emit = defineEmits<{
   (e: 'create-category'): void
 }>()
 
-const {t} = useI18n()
+const { t } = useI18n()
 </script>
 
 <template>
   <section
-      class="panel overflow-hidden transition-colors duration-150 ease-out [contain:layout_paint]"
-      :class="compact ? 'p-4 shadow-2xl shadow-slate-950/20 dark:bg-slate-900/95' : 'mb-6 p-6'"
+    class="panel overflow-hidden transition-colors duration-150 ease-out [contain:layout_paint]"
+    :class="
+      compact
+        ? 'p-4 shadow-2xl shadow-slate-950/20 dark:bg-slate-900/95'
+        : 'mb-6 p-6'
+    "
   >
     <div
-        class="flex flex-col"
-        :class="compact ? 'gap-4' : 'gap-6 xl:flex-row xl:items-end xl:justify-between'"
+      class="flex flex-col"
+      :class="
+        compact ? 'gap-4' : 'gap-6 xl:flex-row xl:items-end xl:justify-between'
+      "
     >
       <div :class="compact ? 'max-w-none' : 'max-w-3xl'">
         <h2
-            class="mt-2 font-bold tracking-tight text-slate-900 dark:text-white"
-            :class="compact ? 'text-xl' : 'text-3xl'"
+          class="mt-2 font-bold tracking-tight text-slate-900 dark:text-white"
+          :class="compact ? 'text-xl' : 'text-3xl'"
         >
           {{ t('toolbar.title') }}
         </h2>
@@ -52,8 +61,12 @@ const {t} = useI18n()
     </div>
 
     <div
-        class="grid grid-cols-1"
-        :class="compact ? 'mt-4 gap-3 sm:grid-cols-2' : 'mt-6 gap-4 md:grid-cols-2 xl:grid-cols-4'"
+      class="grid grid-cols-1"
+      :class="
+        compact
+          ? 'mt-4 gap-3 sm:grid-cols-2'
+          : 'mt-6 gap-4 md:grid-cols-2 xl:grid-cols-4'
+      "
     >
       <div class="stat-card" :class="compact ? '!rounded-2xl !p-4' : ''">
         <p class="stat-label">{{ t('analytics.netFlow') }}</p>
@@ -79,24 +92,42 @@ const {t} = useI18n()
       <div class="stat-card" :class="compact ? '!rounded-2xl !p-4' : ''">
         <p class="stat-label">{{ t('analytics.volumes') }}</p>
         <p class="stat-value whitespace-normal !text-base">
-          {{ t('appShell.countsShort', { transactions: transactionCount, accounts: accountCount, categories: categoryCount }) }}
+          {{
+            t('appShell.countsShort', {
+              transactions: transactionCount,
+              accounts: accountCount,
+              categories: categoryCount,
+            })
+          }}
         </p>
       </div>
     </div>
 
     <div
-        class="grid items-center"
-        :class="compact ? 'mt-4 gap-2 sm:grid-cols-3' : 'mt-6 gap-2 sm:grid-cols-3'"
+      class="grid items-center"
+      :class="
+        compact ? 'mt-4 gap-2 sm:grid-cols-3' : 'mt-6 gap-2 sm:grid-cols-3'
+      "
     >
-      <button class="quick-panel-action" :class="compact ? '!rounded-2xl !py-2.5' : ''"
-              @click="emit('create-transaction')">
+      <button
+        class="quick-panel-action"
+        :class="compact ? '!rounded-2xl !py-2.5' : ''"
+        @click="emit('create-transaction')"
+      >
         {{ t('forms.titles.createTransaction') }}
       </button>
-      <button class="quick-panel-action" :class="compact ? '!rounded-2xl !py-2.5' : ''" @click="emit('create-account')">
+      <button
+        class="quick-panel-action"
+        :class="compact ? '!rounded-2xl !py-2.5' : ''"
+        @click="emit('create-account')"
+      >
         {{ t('forms.titles.createAccount') }}
       </button>
-      <button class="quick-panel-action" :class="compact ? '!rounded-2xl !py-2.5' : ''"
-              @click="emit('create-category')">
+      <button
+        class="quick-panel-action"
+        :class="compact ? '!rounded-2xl !py-2.5' : ''"
+        @click="emit('create-category')"
+      >
         {{ t('forms.titles.createCategory') }}
       </button>
     </div>

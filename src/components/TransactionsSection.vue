@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import {computed} from 'vue'
-import {useI18n} from 'vue-i18n'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import FreshnessBadge from './provenance/FreshnessBadge.vue'
 import ProvenanceBadge from './provenance/ProvenanceBadge.vue'
 import DataOriginTooltip from './provenance/DataOriginTooltip.vue'
-import type {Account, Category, Transaction, TransactionKind} from '../types/budget'
-import type {DataFreshnessStatus, DataProvenance} from '../types/provenance'
+import type {
+  Account,
+  Category,
+  Transaction,
+  TransactionKind,
+} from '../types/budget'
+import type { DataFreshnessStatus, DataProvenance } from '../types/provenance'
 import {
   amountClass,
   categoryDotStyle,
@@ -46,7 +51,7 @@ const emit = defineEmits<{
   (e: 'delete-transaction', transaction: Transaction): void
 }>()
 
-const {t} = useI18n()
+const { t } = useI18n()
 
 const displayTransactions = computed(() => props.filteredTransactions)
 
@@ -67,20 +72,28 @@ function hasProvenance(transaction: TransactionWithProvenance) {
         <div class="field-block xl:col-span-2">
           <label class="field-label">{{ t('common.search') }}</label>
           <input
-              :value="search"
-              type="text"
-              class="field-control"
-              :placeholder="t('transactions.searchPlaceholder')"
-              @input="emit('update:search', ($event.target as HTMLInputElement).value)"
-          >
+            :value="search"
+            type="text"
+            class="field-control"
+            :placeholder="t('transactions.searchPlaceholder')"
+            @input="
+              emit('update:search', ($event.target as HTMLInputElement).value)
+            "
+          />
         </div>
 
         <div class="field-block">
           <label class="field-label">{{ t('forms.fields.type') }}</label>
           <select
-              :value="kindFilter"
-              class="field-control"
-              @change="emit('update:kind-filter', ($event.target as HTMLSelectElement).value as 'ALL' | TransactionKind)"
+            :value="kindFilter"
+            class="field-control"
+            @change="
+              emit(
+                'update:kind-filter',
+                ($event.target as HTMLSelectElement).value as
+                  'ALL' | TransactionKind,
+              )
+            "
           >
             <option value="ALL">{{ t('common.all') }}</option>
             <option value="EXPENSE">{{ kindLabel('EXPENSE') }}</option>
@@ -92,15 +105,20 @@ function hasProvenance(transaction: TransactionWithProvenance) {
         <div class="field-block">
           <label class="field-label">{{ t('forms.fields.account') }}</label>
           <select
-              :value="accountFilter"
-              class="field-control"
-              @change="emit('update:account-filter', ($event.target as HTMLSelectElement).value)"
+            :value="accountFilter"
+            class="field-control"
+            @change="
+              emit(
+                'update:account-filter',
+                ($event.target as HTMLSelectElement).value,
+              )
+            "
           >
             <option value="ALL">{{ t('common.all') }}</option>
             <option
-                v-for="account in accounts"
-                :key="account.id"
-                :value="String(account.id)"
+              v-for="account in accounts"
+              :key="account.id"
+              :value="String(account.id)"
             >
               {{ account.name }}
             </option>
@@ -110,16 +128,21 @@ function hasProvenance(transaction: TransactionWithProvenance) {
         <div class="field-block">
           <label class="field-label">{{ t('forms.fields.category') }}</label>
           <select
-              :value="categoryFilter"
-              class="field-control"
-              @change="emit('update:category-filter', ($event.target as HTMLSelectElement).value)"
+            :value="categoryFilter"
+            class="field-control"
+            @change="
+              emit(
+                'update:category-filter',
+                ($event.target as HTMLSelectElement).value,
+              )
+            "
           >
             <option value="ALL">{{ t('common.allFeminine') }}</option>
             <option value="NONE">{{ t('common.none') }}</option>
             <option
-                v-for="category in categories"
-                :key="category.id"
-                :value="String(category.id)"
+              v-for="category in categories"
+              :key="category.id"
+              :value="String(category.id)"
             >
               {{ category.name }}
             </option>
@@ -132,12 +155,16 @@ function hasProvenance(transaction: TransactionWithProvenance) {
       <div class="panel-header">
         <div>
           <p class="panel-eyebrow">{{ t('transactions.fullHistory') }}</p>
-          <h3 class="panel-title">{{ t('transactions.filteredTransactions') }}</h3>
+          <h3 class="panel-title">
+            {{ t('transactions.filteredTransactions') }}
+          </h3>
         </div>
 
         <div class="flex items-center gap-2">
           <span class="soft-badge">
-            {{ t('transactions.lineCount', {count: displayTransactions.length}) }}
+            {{
+              t('transactions.lineCount', { count: displayTransactions.length })
+            }}
           </span>
           <button class="primary-btn" @click="emit('create-transaction')">
             {{ t('common.add') }}
@@ -148,128 +175,178 @@ function hasProvenance(transaction: TransactionWithProvenance) {
       <div v-if="displayTransactions.length" class="overflow-x-auto">
         <table class="w-full min-w-[1120px]">
           <thead>
-          <tr class="table-head">
-            <th class="table-cell-head text-left">{{ t('forms.fields.type') }}</th>
-            <th class="table-cell-head text-left">{{ t('forms.fields.label') }}</th>
-            <th class="table-cell-head text-left">{{ t('forms.fields.account') }}</th>
-            <th class="table-cell-head text-left">{{ t('forms.fields.category') }}</th>
-            <th class="table-cell-head text-left">{{ t('forms.fields.date') }}</th>
-            <th class="table-cell-head text-right">{{ t('forms.fields.amount') }}</th>
-            <th class="table-cell-head text-right">{{ t('overview.quickActions') }}</th>
-          </tr>
+            <tr class="table-head">
+              <th class="table-cell-head text-left">
+                {{ t('forms.fields.type') }}
+              </th>
+              <th class="table-cell-head text-left">
+                {{ t('forms.fields.label') }}
+              </th>
+              <th class="table-cell-head text-left">
+                {{ t('forms.fields.account') }}
+              </th>
+              <th class="table-cell-head text-left">
+                {{ t('forms.fields.category') }}
+              </th>
+              <th class="table-cell-head text-left">
+                {{ t('forms.fields.date') }}
+              </th>
+              <th class="table-cell-head text-right">
+                {{ t('forms.fields.amount') }}
+              </th>
+              <th class="table-cell-head text-right">
+                {{ t('overview.quickActions') }}
+              </th>
+            </tr>
           </thead>
 
           <tbody>
-          <tr
+            <tr
               v-for="transaction in displayTransactions"
               :key="transaction.id"
               class="table-row"
-          >
-            <td class="table-cell align-top">
-              <div class="flex flex-col items-start gap-2">
+            >
+              <td class="table-cell align-top">
+                <div class="flex flex-col items-start gap-2">
                   <span
-                      class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
-                      :class="kindPillClass(transaction.kind)"
+                    class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+                    :class="kindPillClass(transaction.kind)"
                   >
                     {{ kindLabel(transaction.kind) }}
                   </span>
 
-                <span
+                  <span
                     v-if="transaction.kind === 'TRANSFER'"
                     class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-300"
-                >
+                  >
                     {{ transferDirectionLabel(transaction) }}
                   </span>
-              </div>
-            </td>
-
-            <td class="table-cell align-top">
-              <div class="space-y-1">
-                <p class="font-semibold text-slate-800 dark:text-slate-100">
-                  {{ transaction.label }}
-                </p>
-
-                <div v-if="hasProvenance(transaction)" class="flex flex-wrap items-center gap-1.5">
-                  <ProvenanceBadge v-if="transaction.provenance" :provenance="transaction.provenance" compact />
-                  <FreshnessBadge v-if="transaction.freshnessStatus" :status="transaction.freshnessStatus" :provenance="transaction.provenance" compact />
-                  <DataOriginTooltip :provenance="transaction.provenance" :freshness-status="transaction.freshnessStatus" />
                 </div>
+              </td>
 
-                <p
-                    v-if="transaction.kind === 'TRANSFER' && transferRoute(transaction)"
+              <td class="table-cell align-top">
+                <div class="space-y-1">
+                  <p class="font-semibold text-slate-800 dark:text-slate-100">
+                    {{ transaction.label }}
+                  </p>
+
+                  <div
+                    v-if="hasProvenance(transaction)"
+                    class="flex flex-wrap items-center gap-1.5"
+                  >
+                    <ProvenanceBadge
+                      v-if="transaction.provenance"
+                      :provenance="transaction.provenance"
+                      compact
+                    />
+                    <FreshnessBadge
+                      v-if="transaction.freshnessStatus"
+                      :status="transaction.freshnessStatus"
+                      :provenance="transaction.provenance"
+                      compact
+                    />
+                    <DataOriginTooltip
+                      :provenance="transaction.provenance"
+                      :freshness-status="transaction.freshnessStatus"
+                    />
+                  </div>
+
+                  <p
+                    v-if="
+                      transaction.kind === 'TRANSFER' &&
+                      transferRoute(transaction)
+                    "
                     class="text-xs font-medium text-sky-600 dark:text-sky-300"
-                >
-                  {{ transferRoute(transaction) }}
-                </p>
+                  >
+                    {{ transferRoute(transaction) }}
+                  </p>
 
-                <p
+                  <p
                     v-if="transaction.note"
                     class="text-xs text-slate-500 dark:text-slate-400"
-                >
-                  {{ transaction.note }}
-                </p>
-              </div>
-            </td>
+                  >
+                    {{ transaction.note }}
+                  </p>
+                </div>
+              </td>
 
-            <td class="table-cell align-top">
-              <div class="space-y-1">
-                <p class="font-medium text-slate-800 dark:text-slate-100">
-                  {{ transaction.account?.name || '—' }}
-                </p>
+              <td class="table-cell align-top">
+                <div class="space-y-1">
+                  <p class="font-medium text-slate-800 dark:text-slate-100">
+                    {{ transaction.account?.name || '—' }}
+                  </p>
 
-                <p
+                  <p
                     v-if="transferAccountHint(transaction)"
                     class="text-xs text-slate-500 dark:text-slate-400"
-                >
-                  {{ transferAccountHint(transaction) }}
-                </p>
-              </div>
-            </td>
+                  >
+                    {{ transferAccountHint(transaction) }}
+                  </p>
+                </div>
+              </td>
 
-            <td class="table-cell align-top">
-              <div v-if="transaction.kind === 'TRANSFER'" class="space-y-1">
+              <td class="table-cell align-top">
+                <div v-if="transaction.kind === 'TRANSFER'" class="space-y-1">
                   <span
-                      class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-300">
+                    class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-300"
+                  >
                     {{ transferCategoryLabel(transaction) }}
                   </span>
-              </div>
+                </div>
 
-              <div v-else class="flex items-center gap-2">
-                <span class="h-2.5 w-2.5 rounded-full" :style="categoryDotStyle(transaction.category?.color)"/>
-                <span>{{ transferCategoryLabel(transaction) }}</span>
-              </div>
-            </td>
+                <div v-else class="flex items-center gap-2">
+                  <span
+                    class="h-2.5 w-2.5 rounded-full"
+                    :style="categoryDotStyle(transaction.category?.color)"
+                  />
+                  <span>{{ transferCategoryLabel(transaction) }}</span>
+                </div>
+              </td>
 
-            <td class="table-cell align-top">
-              {{ formatDate(transaction.date) }}
-            </td>
+              <td class="table-cell align-top">
+                {{ formatDate(transaction.date) }}
+              </td>
 
-            <td class="table-cell align-top text-right">
-              <div class="space-y-1">
-                <p class="font-semibold" :class="amountClass(transaction.kind)">
-                  {{ formatMoney(Math.abs(transaction.amount), transaction.account?.currency || 'CAD') }}
-                </p>
+              <td class="table-cell align-top text-right">
+                <div class="space-y-1">
+                  <p
+                    class="font-semibold"
+                    :class="amountClass(transaction.kind)"
+                  >
+                    {{
+                      formatMoney(
+                        Math.abs(transaction.amount),
+                        transaction.account?.currency || 'CAD',
+                      )
+                    }}
+                  </p>
 
-                <p
+                  <p
                     v-if="transferAmountHint(transaction)"
                     class="text-xs text-slate-500 dark:text-slate-400"
-                >
-                  {{ transferAmountHint(transaction) }}
-                </p>
-              </div>
-            </td>
+                  >
+                    {{ transferAmountHint(transaction) }}
+                  </p>
+                </div>
+              </td>
 
-            <td class="table-cell align-top">
-              <div class="row-actions">
-                <button class="mini-action-btn" @click="emit('edit-transaction', transaction)">
-                  {{ t('common.update') }}
-                </button>
-                <button class="mini-danger-btn" @click="emit('delete-transaction', transaction)">
-                  {{ t('common.delete') }}
-                </button>
-              </div>
-            </td>
-          </tr>
+              <td class="table-cell align-top">
+                <div class="row-actions">
+                  <button
+                    class="mini-action-btn"
+                    @click="emit('edit-transaction', transaction)"
+                  >
+                    {{ t('common.update') }}
+                  </button>
+                  <button
+                    class="mini-danger-btn"
+                    @click="emit('delete-transaction', transaction)"
+                  >
+                    {{ t('common.delete') }}
+                  </button>
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>

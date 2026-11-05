@@ -1,15 +1,15 @@
 const {
-    assert,
-    launchElectronE2e,
-    waitFor,
+  assert,
+  launchElectronE2e,
+  waitFor,
 } = require('./electronE2eHarness.cjs')
 
 function js(value) {
-    return JSON.stringify(value)
+  return JSON.stringify(value)
 }
 
 async function navigateTo(cdp, section) {
-    const clicked = await cdp.evaluate(`(() => {
+  const clicked = await cdp.evaluate(`(() => {
         const button = Array.from(document.querySelectorAll('nav button')).find((entry) =>
             entry.dataset.section === ${js(section)}
         )
@@ -18,37 +18,55 @@ async function navigateTo(cdp, section) {
         return true
     })()`)
 
-    assert(clicked, `Could not click navigation section ${section}`)
+  assert(clicked, `Could not click navigation section ${section}`)
 
-    await waitFor(async () => cdp.evaluate(`(() => {
+  await waitFor(
+    async () =>
+      cdp.evaluate(`(() => {
         const active = document.querySelector('nav button.nav-item-active')
         return Boolean(active && active.dataset.section === ${js(section)})
-    })()`), {
-        message: `Navigation did not activate section ${section}`,
-    })
+    })()`),
+    {
+      message: `Navigation did not activate section ${section}`,
+    },
+  )
 }
 
 async function assertText(cdp, text, label = text) {
-    await waitFor(async () => cdp.evaluate(`document.body.innerText.includes(${js(text)})`), {
-        message: `Expected renderer text not found: ${label}`,
-    })
+  await waitFor(
+    async () => cdp.evaluate(`document.body.innerText.includes(${js(text)})`),
+    {
+      message: `Expected renderer text not found: ${label}`,
+    },
+  )
 }
 
 async function reloadRenderer(cdp) {
-    await cdp.send('Page.reload', {ignoreCache: true})
-    await waitFor(async () => cdp.evaluate('document.readyState === "complete"'), {
-        message: 'Renderer did not reload after IPC data flow',
-    })
-    await waitFor(async () => cdp.evaluate('Boolean(window.versions && window.appShell && window.db)'), {
-        message: 'Preload APIs were not exposed after renderer reload',
-    })
-    await waitFor(async () => cdp.evaluate('document.body.innerText.includes("Budget")'), {
-        message: 'Budget shell did not render after renderer reload',
-    })
+  await cdp.send('Page.reload', { ignoreCache: true })
+  await waitFor(
+    async () => cdp.evaluate('document.readyState === "complete"'),
+    {
+      message: 'Renderer did not reload after IPC data flow',
+    },
+  )
+  await waitFor(
+    async () =>
+      cdp.evaluate('Boolean(window.versions && window.appShell && window.db)'),
+    {
+      message: 'Preload APIs were not exposed after renderer reload',
+    },
+  )
+  await waitFor(
+    async () => cdp.evaluate('document.body.innerText.includes("Budget")'),
+    {
+      message: 'Budget shell did not render after renderer reload',
+    },
+  )
 }
 
 async function runCoreDataFlow(cdp) {
-    const result = await cdp.evaluate(`(async () => {
+  const result = await cdp.evaluate(
+    `(async () => {
         const out = {steps: []}
 
         function assert(condition, message) {
@@ -192,39 +210,58 @@ async function runCoreDataFlow(cdp) {
                 steps: out.steps,
             }
         }
-    })()`, {awaitPromise: true})
+    })()`,
+    { awaitPromise: true },
+  )
 
-    assert(result && result.ok, `Core renderer/IPC data flow failed after ${result?.steps?.join(' > ') || 'no steps'}: ${result?.message}\n${result?.stack || ''}`)
-    return result
+  assert(
+    result && result.ok,
+    `Core renderer/IPC data flow failed after ${result?.steps?.join(' > ') || 'no steps'}: ${result?.message}\n${result?.stack || ''}`,
+  )
+  return result
 }
 
 async function verifyUiReflectsData(cdp) {
-    await navigateTo(cdp, 'accounts')
-    await assertText(cdp, 'E2E Chequing', 'created account')
+  await navigateTo(cdp, 'accounts')
+  await assertText(cdp, 'E2E Chequing', 'created account')
 
-    await navigateTo(cdp, 'categories')
-    await assertText(cdp, 'E2E Groceries', 'created category')
+  await navigateTo(cdp, 'categories')
+  await assertText(cdp, 'E2E Groceries', 'created category')
 
-    await navigateTo(cdp, 'budgets')
-    await assertText(cdp, 'E2E Monthly grocery budget', 'created budget')
+  await navigateTo(cdp, 'budgets')
+  await assertText(cdp, 'E2E Monthly grocery budget', 'created budget')
 
-    await navigateTo(cdp, 'recurring')
-    await assertText(cdp, 'E2E Weekly grocery recurring', 'created recurring template')
+  await navigateTo(cdp, 'recurring')
+  await assertText(
+    cdp,
+    'E2E Weekly grocery recurring',
+    'created recurring template',
+  )
 
-    await navigateTo(cdp, 'transactions')
-    await assertText(cdp, 'E2E Weekly grocery recurring', 'generated recurring transaction')
+  await navigateTo(cdp, 'transactions')
+  await assertText(
+    cdp,
+    'E2E Weekly grocery recurring',
+    'generated recurring transaction',
+  )
 
-    await navigateTo(cdp, 'reports')
-    // Fixtures are in May 2026; the UI intentionally defaults to the current month.
-    // Select the period through the UI so this check also works in later months/years.
-    await waitFor(async () => cdp.evaluate(`(() => {
+  await navigateTo(cdp, 'reports')
+  // Fixtures are in May 2026; the UI intentionally defaults to the current month.
+  // Select the period through the UI so this check also works in later months/years.
+  await waitFor(
+    async () =>
+      cdp.evaluate(`(() => {
         const button = document.querySelector('[data-testid="reports-section"] [data-report-preset="ALL"]')
         if (!button) return false
         button.click()
         return true
-    })()`), {message: 'Reports all-period preset button did not render'})
+    })()`),
+    { message: 'Reports all-period preset button did not render' },
+  )
 
-    await waitFor(async () => cdp.evaluate(`(() => {
+  await waitFor(
+    async () =>
+      cdp.evaluate(`(() => {
         const reports = document.querySelector('[data-testid="reports-section"]')
         const text = reports?.innerText || ''
         const allPeriod = reports?.querySelector('[data-report-preset="ALL"]')
@@ -234,11 +271,14 @@ async function verifyUiReflectsData(cdp) {
             && text.includes('E2E Chequing') && text.includes('E2E Groceries')
             && count !== null && count !== undefined && Number(count) === 3
             && expense !== null && expense !== undefined && Number(expense) === 99
-    })()`), {
-        message: 'All-period reports did not show the generated account/category, 3 transactions and expense total 99',
-    })
+    })()`),
+    {
+      message:
+        'All-period reports did not show the generated account/category, 3 transactions and expense total 99',
+    },
+  )
 
-    const reportStats = await cdp.evaluate(`(() => {
+  const reportStats = await cdp.evaluate(`(() => {
         const text = document.querySelector('[data-testid="reports-section"]').innerText
         return {
             hasTransactionsLabel: /transactions|opérations/i.test(text),
@@ -247,63 +287,110 @@ async function verifyUiReflectsData(cdp) {
         }
     })()`)
 
-    assert(reportStats.hasTransactionsLabel, 'Report summary should mention transactions')
-    assert(reportStats.hasExpenseLabel, 'Report summary should mention expenses')
-    assert(reportStats.hasGeneratedAmount, 'Report should include generated recurring total')
+  assert(
+    reportStats.hasTransactionsLabel,
+    'Report summary should mention transactions',
+  )
+  assert(reportStats.hasExpenseLabel, 'Report summary should mention expenses')
+  assert(
+    reportStats.hasGeneratedAmount,
+    'Report should include generated recurring total',
+  )
 }
 
 async function runSmokeTest() {
-    const harness = await launchElectronE2e({
-        prefix: 'budget-core-smoke-e2e',
-        dbFileName: 'core-smoke.db',
-        port: process.env.BUDGET_E2E_CDP_PORT || 9333,
+  const harness = await launchElectronE2e({
+    prefix: 'budget-core-smoke-e2e',
+    dbFileName: 'core-smoke.db',
+    port: process.env.BUDGET_E2E_CDP_PORT || 9333,
+  })
+
+  const { cdp, logs } = harness
+
+  try {
+    await waitFor(
+      async () =>
+        cdp.evaluate(
+          'Boolean(window.versions && window.appShell && window.db)',
+        ),
+      {
+        message: 'Preload APIs were not exposed to the renderer',
+      },
+    )
+
+    const ping = await cdp.evaluate('window.versions.ping()', {
+      awaitPromise: true,
     })
+    assert(ping === 'pong', 'Expected IPC ping to return pong')
 
-    const {cdp, logs} = harness
+    const version = await cdp.evaluate('window.appShell.getVersion()', {
+      awaitPromise: true,
+    })
+    assert(
+      typeof version === 'string' && version.length > 0,
+      'Expected app version to be readable',
+    )
 
-    try {
-        await waitFor(async () => cdp.evaluate('Boolean(window.versions && window.appShell && window.db)'), {
-            message: 'Preload APIs were not exposed to the renderer',
-        })
+    await waitFor(
+      async () => cdp.evaluate('document.body.innerText.includes("Budget")'),
+      {
+        message: 'Budget shell did not render',
+      },
+    )
 
-        const ping = await cdp.evaluate('window.versions.ping()', {awaitPromise: true})
-        assert(ping === 'pong', 'Expected IPC ping to return pong')
-
-        const version = await cdp.evaluate('window.appShell.getVersion()', {awaitPromise: true})
-        assert(typeof version === 'string' && version.length > 0, 'Expected app version to be readable')
-
-        await waitFor(async () => cdp.evaluate('document.body.innerText.includes("Budget")'), {
-            message: 'Budget shell did not render',
-        })
-
-        const navSections = await cdp.evaluate(`Array.from(document.querySelectorAll('nav button')).map((button) => button.dataset.section)`)
-        for (const section of ['overview', 'transactions', 'accounts', 'categories', 'budgets', 'recurring', 'reports', 'wealth', 'imports']) {
-            assert(navSections.includes(section), `Expected navigation section ${section} to be rendered`)
-        }
-
-        for (const section of ['transactions', 'accounts', 'categories', 'budgets', 'recurring', 'reports', 'overview']) {
-            await navigateTo(cdp, section)
-        }
-
-        const flow = await runCoreDataFlow(cdp)
-        await reloadRenderer(cdp)
-        await verifyUiReflectsData(cdp)
-
-        console.log(
-            `Desktop E2E smoke test passed against app version ${version}. Steps=${flow.steps.join(', ')}. Generated rows=${flow.generatedTransactionCount}`,
-        )
-    } catch (error) {
-        const artifacts = await harness.captureFailureArtifacts('electron-core-smoke-failure')
-        console.error('\nElectron output before failure:\n')
-        console.error(logs.join('\n'))
-        console.error(`\nE2E artifacts written to ${artifacts.artifactsDir}`)
-        throw error
-    } finally {
-        await harness.cleanup()
+    const navSections = await cdp.evaluate(
+      `Array.from(document.querySelectorAll('nav button')).map((button) => button.dataset.section)`,
+    )
+    for (const section of [
+      'overview',
+      'transactions',
+      'accounts',
+      'categories',
+      'budgets',
+      'recurring',
+      'reports',
+      'wealth',
+      'imports',
+    ]) {
+      assert(
+        navSections.includes(section),
+        `Expected navigation section ${section} to be rendered`,
+      )
     }
+
+    for (const section of [
+      'transactions',
+      'accounts',
+      'categories',
+      'budgets',
+      'recurring',
+      'reports',
+      'overview',
+    ]) {
+      await navigateTo(cdp, section)
+    }
+
+    const flow = await runCoreDataFlow(cdp)
+    await reloadRenderer(cdp)
+    await verifyUiReflectsData(cdp)
+
+    console.log(
+      `Desktop E2E smoke test passed against app version ${version}. Steps=${flow.steps.join(', ')}. Generated rows=${flow.generatedTransactionCount}`,
+    )
+  } catch (error) {
+    const artifacts = await harness.captureFailureArtifacts(
+      'electron-core-smoke-failure',
+    )
+    console.error('\nElectron output before failure:\n')
+    console.error(logs.join('\n'))
+    console.error(`\nE2E artifacts written to ${artifacts.artifactsDir}`)
+    throw error
+  } finally {
+    await harness.cleanup()
+  }
 }
 
 runSmokeTest().catch((error) => {
-    console.error(error)
-    process.exit(1)
+  console.error(error)
+  process.exit(1)
 })

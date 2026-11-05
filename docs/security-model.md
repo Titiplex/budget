@@ -62,18 +62,18 @@ Risques principaux : fuite indirecte d’informations personnelles, mauvais diag
 
 ## Menaces réalistes
 
-| Menace | Impact | Protection attendue |
-| --- | --- | --- |
-| Fuite d’un backup JSON non chiffré | Exposition complète des finances exportées | signaler clairement le caractère non chiffré, proposer un export chiffré, éviter d’y inclure des secrets |
-| Corruption de backup | Restauration impossible ou incohérente | validation stricte du format, versionnement, erreurs lisibles, vérification d’intégrité pour les backups chiffrés |
-| Suppression accidentelle | Perte de données locales | préférer confirmation, backup avant opérations risquées, restauration vérifiable |
-| Import incorrect | Transactions fausses ou mal classées | preview dry-run, validation, warnings, décisions de réconciliation, application explicite |
-| Import dupliqué | Soldes, rapports et patrimoine faussés | détection de doublons exacts, probables et intra-batch ; audit des décisions |
-| Secret stocké en clair | Compromission des backups ou connecteurs futurs | ne jamais écrire les secrets dans la base ou les backups en clair ; privilégier le stockage OS quand disponible |
-| Modification locale inattendue | Données incohérentes ou perte de confiance | audit compréhensible, timestamps, provenance, validations côté main process |
-| Migration cassée | Données inutilisables après mise à jour | migrations testées, erreurs explicites, stratégie de backup avant migration sensible |
-| Restauration d’un backup obsolète | Retour arrière involontaire ou écrasement | afficher date, version, source, contenu résumé et effets avant restauration |
-| Logs trop bavards | Exposition de données financières ou secrets | limiter les logs aux diagnostics nécessaires, masquer secrets et contenus financiers bruts |
+| Menace                             | Impact                                          | Protection attendue                                                                                               |
+| ---------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Fuite d’un backup JSON non chiffré | Exposition complète des finances exportées      | signaler clairement le caractère non chiffré, proposer un export chiffré, éviter d’y inclure des secrets          |
+| Corruption de backup               | Restauration impossible ou incohérente          | validation stricte du format, versionnement, erreurs lisibles, vérification d’intégrité pour les backups chiffrés |
+| Suppression accidentelle           | Perte de données locales                        | préférer confirmation, backup avant opérations risquées, restauration vérifiable                                  |
+| Import incorrect                   | Transactions fausses ou mal classées            | preview dry-run, validation, warnings, décisions de réconciliation, application explicite                         |
+| Import dupliqué                    | Soldes, rapports et patrimoine faussés          | détection de doublons exacts, probables et intra-batch ; audit des décisions                                      |
+| Secret stocké en clair             | Compromission des backups ou connecteurs futurs | ne jamais écrire les secrets dans la base ou les backups en clair ; privilégier le stockage OS quand disponible   |
+| Modification locale inattendue     | Données incohérentes ou perte de confiance      | audit compréhensible, timestamps, provenance, validations côté main process                                       |
+| Migration cassée                   | Données inutilisables après mise à jour         | migrations testées, erreurs explicites, stratégie de backup avant migration sensible                              |
+| Restauration d’un backup obsolète  | Retour arrière involontaire ou écrasement       | afficher date, version, source, contenu résumé et effets avant restauration                                       |
+| Logs trop bavards                  | Exposition de données financières ou secrets    | limiter les logs aux diagnostics nécessaires, masquer secrets et contenus financiers bruts                        |
 
 ## Menaces hors périmètre
 
@@ -126,14 +126,14 @@ Les backups, logs, audits et exports ne doivent pas contenir plus de données qu
 
 ## Frontières de confiance
 
-| Zone | Niveau de confiance | Règle |
-| --- | --- | --- |
-| Electron main process | élevé | accès base, migrations, fichiers et IPC sensibles |
-| Renderer Vue | limité | pas d’accès direct Prisma ou filesystem sensible |
-| Fichiers importés | non fiables | parsing défensif, validation, preview, erreurs lisibles |
-| Backups fournis par l’utilisateur | non fiables jusqu’à validation | valider version, schéma, cohérence et effets avant restauration |
-| Secrets locaux | très sensibles | ne pas logger, ne pas exporter en clair, limiter l’exposition en mémoire |
-| Services externes futurs | non fiables par défaut | lecture explicite, pas d’écriture automatique dans le MVP local-first |
+| Zone                              | Niveau de confiance            | Règle                                                                    |
+| --------------------------------- | ------------------------------ | ------------------------------------------------------------------------ |
+| Electron main process             | élevé                          | accès base, migrations, fichiers et IPC sensibles                        |
+| Renderer Vue                      | limité                         | pas d’accès direct Prisma ou filesystem sensible                         |
+| Fichiers importés                 | non fiables                    | parsing défensif, validation, preview, erreurs lisibles                  |
+| Backups fournis par l’utilisateur | non fiables jusqu’à validation | valider version, schéma, cohérence et effets avant restauration          |
+| Secrets locaux                    | très sensibles                 | ne pas logger, ne pas exporter en clair, limiter l’exposition en mémoire |
+| Services externes futurs          | non fiables par défaut         | lecture explicite, pas d’écriture automatique dans le MVP local-first    |
 
 ## Protections attendues par domaine
 
