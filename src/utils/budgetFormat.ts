@@ -8,7 +8,7 @@ import { currentLocaleCode, i18n, tr } from '../i18n'
 import { toUtcDate } from './date'
 
 export function formatMoney(amount: number, currency = 'CAD') {
-  i18n.global.locale.value
+  void i18n.global.locale.value
 
   try {
     return new Intl.NumberFormat(currentLocaleCode(), {
@@ -26,7 +26,7 @@ export function formatMoney(amount: number, currency = 'CAD') {
 }
 
 export function formatDate(value: string) {
-  i18n.global.locale.value
+  void i18n.global.locale.value
   return new Intl.DateTimeFormat(currentLocaleCode(), {
     dateStyle: 'medium',
     timeZone: 'UTC',
@@ -34,22 +34,22 @@ export function formatDate(value: string) {
 }
 
 export function kindLabel(kind: TransactionKind) {
-  i18n.global.locale.value
+  void i18n.global.locale.value
   return tr(`budget.kind.${kind}`)
 }
 
 export function accountTypeLabel(type: AccountType) {
-  i18n.global.locale.value
+  void i18n.global.locale.value
   return tr(`budget.accountType.${type}`)
 }
 
 export function entityLabel(type: EntityType) {
-  i18n.global.locale.value
+  void i18n.global.locale.value
   return tr(`entities.singular.${type}`)
 }
 
 export function entityCollectionLabel(type: EntityType) {
-  i18n.global.locale.value
+  void i18n.global.locale.value
   return tr(`entities.plural.${type}`)
 }
 

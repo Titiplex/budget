@@ -342,7 +342,7 @@ async function buildTransactionPayload(
   let bookedAmount = sourceAmount
   let exchangeRate = 1
   let exchangeProvider = 'ACCOUNT'
-  let exchangeDate = requireDate(data?.exchangeDate || data?.date)
+  const exchangeDate = requireDate(data?.exchangeDate || data?.date)
 
   if (sourceCurrency !== accountCurrency) {
     bookedAmount = requirePositiveNumber(

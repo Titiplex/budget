@@ -30,6 +30,8 @@ import {
   type BudgetBackupWithImportDataSnapshot,
 } from '../utils/importJsonBackup'
 import { restoreGoalsBackupSnapshot } from '../utils/goalsBackupRestore'
+import type { ImportMappingTemplate } from '../types/imports'
+import type { ImportBatchDetail, ImportHistoryItem } from '../types/imports-api'
 
 interface UseJsonBackupOptions {
   accounts: Ref<Account[]>
@@ -184,7 +186,9 @@ function parseBlockedRestorePreviewSnapshot(
   } as unknown as BudgetBackupWithImportDataSnapshot
 }
 
-function normalizeGoalForBackup(goal: any): BudgetBackupFinancialGoal {
+function normalizeGoalForBackup(
+  goal: FinancialGoalDto,
+): BudgetBackupFinancialGoal {
   return {
     id: Number(goal.id),
     name: String(goal.name || '').trim(),
@@ -205,7 +209,7 @@ function normalizeGoalForBackup(goal: any): BudgetBackupFinancialGoal {
 }
 
 function normalizeScenarioForBackup(
-  scenario: any,
+  scenario: ProjectionScenarioDto,
 ): BudgetBackupProjectionScenario {
   return {
     id: Number(scenario.id),
@@ -260,11 +264,11 @@ async function readGoalsBackupData(accounts: Account[]) {
     api.listFinancialGoals({ status: 'ALL' }),
     api.listProjectionScenarios({ isActive: 'ALL' }),
   ])
-  const financialGoals = unwrapIpcResult<any[]>(
+  const financialGoals = unwrapIpcResult<FinancialGoalDto[]>(
     goalRows,
     tr('encryptedBackup.readGoals'),
   ).map(normalizeGoalForBackup)
-  const projectionScenarios = unwrapIpcResult<any[]>(
+  const projectionScenarios = unwrapIpcResult<ProjectionScenarioDto[]>(
     scenarioRows,
     tr('encryptedBackup.readScenarios'),
   ).map(normalizeScenarioForBackup)
@@ -289,7 +293,7 @@ async function readImportBackupData(): Promise<
     api.listSources?.() ?? { ok: true, data: [] },
     api.listHistory?.({}) ?? { ok: true, data: [] },
   ])
-  const mappingTemplates = unwrapIpcResult<any[]>(
+  const mappingTemplates = unwrapIpcResult<ImportMappingTemplate[]>(
     templatesResult,
     tr('encryptedBackup.readMappings'),
   ).filter((template) => template && template.isSystem !== true)
@@ -297,28 +301,34 @@ async function readImportBackupData(): Promise<
     sourcesResult,
     tr('encryptedBackup.readSources'),
   )
-  const historyItems = unwrapIpcResult<any[]>(
+  const historyItems = unwrapIpcResult<ImportHistoryItem[]>(
     historyResult,
     tr('encryptedBackup.readHistory'),
   )
-  const importHistory = [] as any[]
+  const importHistory: BudgetBackupImportData['importHistory'] = []
+
   for (const item of historyItems) {
     const detail = await api.getDetail?.(item.id)
-    if (detail)
-      importHistory.push(
-        unwrapIpcResult<any>(
-          detail,
-          tr('encryptedBackup.readBatch', { id: item.id }),
-        ),
+
+    if (detail) {
+      const batch = unwrapIpcResult<ImportBatchDetail>(
+        detail,
+        tr('encryptedBackup.readBatch', { id: item.id }),
       )
+
+      importHistory.push({
+        ...batch,
+        warnings: batch.warnings ?? [],
+      })
+    }
   }
   return { mappingTemplates, importSources, importHistory }
 }
 
 async function restoreImportBackupData(importBackup: BudgetBackupImportData) {
-  const api = window.imports as any
+  const api = window.imports
   if (!api) return
-  const existingTemplates = unwrapIpcResult<any[]>(
+  const existingTemplates = unwrapIpcResult<ImportMappingTemplate[]>(
     await api.mappingTemplate.list({ userOnly: true, includeInactive: true }),
     tr('encryptedBackup.readTemplates'),
   )
@@ -426,7 +436,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
       const password = requestEncryptedExportPassword()
       if (!password) return
       const backupJson = await createCanonicalBackupContent()
-      const api = (window as any).backupEncryption
+      const api = window.backupEncryption
       if (!api?.encrypt)
         throw new Error(tr('encryptedBackup.encryptUnavailable'))
       const encrypted = await api.encrypt({
@@ -518,7 +528,7 @@ export function useJsonBackup(options: UseJsonBackupOptions) {
     const password = requestEncryptedRestorePassword()
     if (!password) return
     try {
-      const api = (window as any).backupEncryption
+      const api = window.backupEncryption
       if (!api?.decrypt)
         throw new Error(tr('encryptedBackup.decryptUnavailable'))
       const decrypted = await api.decrypt({ content: result.content, password })

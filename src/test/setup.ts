@@ -21,8 +21,7 @@ type TestPlugin = Plugin | [Plugin, ...unknown[]]
 if (!(Module as any).__budgetVitestCjsShimInstalled) {
   ;(Module as any)._load = function patchedLoad(
     request: string,
-    parent: unknown,
-    isMain: boolean,
+    ...args: unknown[]
   ) {
     if (request === 'vitest') {
       return {
@@ -37,7 +36,7 @@ if (!(Module as any).__budgetVitestCjsShimInstalled) {
       }
     }
 
-    return originalLoad.apply(this, arguments as any)
+    return originalLoad.apply(this, [request, ...args])
   }
   ;(Module as any).__budgetVitestCjsShimInstalled = true
 }

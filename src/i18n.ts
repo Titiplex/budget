@@ -121,6 +121,6 @@ export function currentLocaleCode() {
 }
 
 export function tr(key: string, values?: Record<string, unknown>) {
-  i18n.global.locale.value
+  void i18n.global.locale.value
   return i18n.global.t(key, values ?? {}) as string
 }

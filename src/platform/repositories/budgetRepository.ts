@@ -14,7 +14,7 @@ export interface CreateAccountInput {
   description?: string | null
 }
 
-export interface UpdateAccountInput extends CreateAccountInput {}
+export type UpdateAccountInput = CreateAccountInput
 
 export interface CreateCategoryInput {
   name: string
@@ -23,7 +23,7 @@ export interface CreateCategoryInput {
   description?: string | null
 }
 
-export interface UpdateCategoryInput extends CreateCategoryInput {}
+export type UpdateCategoryInput = CreateCategoryInput
 
 export interface CreateTransactionInput {
   label: string
@@ -42,7 +42,7 @@ export interface CreateTransactionInput {
   transferTargetAccountId?: number | null
 }
 
-export interface UpdateTransactionInput extends CreateTransactionInput {}
+export type UpdateTransactionInput = CreateTransactionInput
 
 export interface FxQuoteInput {
   from: string
