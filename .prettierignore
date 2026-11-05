@@ -1,0 +1,8 @@
+node_modules
+.idea
+package-lock.json
+LICENSE
+src/styles
+e2e-artifacts
+coverage
+dist

@@ -52,7 +52,10 @@
     "mobile:run:android": "npm run mobile:sync:android && npx cap run android",
     "mobile:run:ios": "npm run mobile:sync:ios && npx cap run ios",
     "mobile:build:android:debug": "npm run mobile:sync:android && cd android && ./gradlew assembleDebug",
-    "mobile:android:watch": "node scripts/mobile-sync-watch.mjs android"
+    "mobile:android:watch": "node scripts/mobile-sync-watch.mjs android",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "format:write": "prettier --write ."
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^7.0.0",
@@ -86,15 +89,20 @@
     "@electron-forge/publisher-github": "^7.11.1",
     "@electron/fuses": "^1.8.0",
     "@electron/rebuild": "^4.0.3",
+    "@eslint/js": "^10.0.1",
+    "globals": "^17.14.0",
     "@types/electron": "^1.4.38",
     "@types/node": "^25.6.0",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vitest/coverage-v8": "3.2.4",
     "@vue/test-utils": "^2.4.6",
     "electron": "^41.2.1",
+    "eslint": "^10.14.0",
     "jsdom": "^26.1.0",
+    "prettier": "^3.9.10",
     "prisma": "^6.7.0",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
     "vitest": "3.2.4",
     "vue-tsc": "^3.2.6"
   },
