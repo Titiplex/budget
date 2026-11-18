@@ -10,7 +10,7 @@ const {
 
 // Exercise real SQL on a unique database, never the application singleton or .env URL.
 describe('AuditEvent persistence on an isolated SQLite database', () => {
-  it('applies the audit migration and persists import and secret events', async () => {
+  it('applies the audit migration and returns the correct events for concurrent writes', async () => {
     const directory = fs.mkdtempSync(
       path.join(os.tmpdir(), 'budget-audit-test-'),
     )
@@ -37,21 +37,27 @@ describe('AuditEvent persistence on an isolated SQLite database', () => {
       const audit = createAuditLogService({ prisma, logger })
       await expect(audit.listAuditEvents()).resolves.toEqual([])
 
-      const imported = await audit.logImportApplied({
-        batchId: 12,
-        rowCount: 2,
-        appliedCount: 1,
-      })
+      const [imported, secret] = await Promise.all([
+        audit.logImportApplied(
+          { batchId: 12, rowCount: 2, appliedCount: 1 },
+          { strict: true },
+        ),
+        audit.logSecretChange(
+          { action: 'create', source: 'secret:save' },
+          { strict: true },
+        ),
+      ])
       expect(imported).toMatchObject({
         eventType: 'importApplied',
         domain: 'import',
         status: 'SUCCESS',
       })
-      const secret = await audit.logSecretChange({
-        action: 'create',
+      expect(secret).toMatchObject({
+        eventType: 'secretCreated',
+        domain: 'secret',
         source: 'secret:save',
       })
-      expect(secret).toMatchObject({ domain: 'secret', source: 'secret:save' })
+      expect(secret.id).not.toBe(imported.id)
 
       const persisted = await audit.listAuditEvents({ domain: 'import' })
       expect(persisted).toHaveLength(1)
@@ -61,7 +67,9 @@ describe('AuditEvent persistence on an isolated SQLite database', () => {
         entityIds: [{ type: 'importBatch', id: 12 }],
         metadata: { rowCount: 2, appliedCount: 1 },
       })
-      await expect(audit.listAuditEvents()).resolves.toHaveLength(2)
+      const all = await audit.listAuditEvents()
+      expect(all).toHaveLength(2)
+      expect(all).toEqual(expect.arrayContaining([imported, secret]))
       expect(logger.warn).not.toHaveBeenCalled()
     } finally {
       try {

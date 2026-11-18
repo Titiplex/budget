@@ -115,23 +115,25 @@ describe('audit event model helpers', () => {
     const { createAuditEventRepository } = loadAuditEventModel()
     const rows = []
     const prisma = {
-      $executeRawUnsafe: vi.fn(async (_sql, ...params) => {
-        rows.push({
-          id: rows.length + 1,
-          eventType: params[0],
-          timestamp: params[1],
-          domain: params[2],
-          action: params[3],
-          severity: params[4],
-          summary: params[5],
-          entityIdsJson: params[6],
-          metadataJson: params[7],
-          source: params[8],
-          status: params[9],
-        })
-      }),
       $queryRawUnsafe: vi.fn(async (sql, ...params) => {
-        if (sql.includes('last_insert_rowid')) return [rows[rows.length - 1]]
+        if (sql.startsWith('INSERT INTO "AuditEvent"')) {
+          expect(sql).toContain('RETURNING "id"')
+          const row = {
+            id: rows.length + 1,
+            eventType: params[0],
+            timestamp: params[1],
+            domain: params[2],
+            action: params[3],
+            severity: params[4],
+            summary: params[5],
+            entityIdsJson: params[6],
+            metadataJson: params[7],
+            source: params[8],
+            status: params[9],
+          }
+          rows.push(row)
+          return [row]
+        }
         expect(sql).toContain('FROM "AuditEvent"')
         expect(sql).toContain('ORDER BY "timestamp" DESC, "id" DESC')
         expect(params).toEqual(['backupExported', 10])
@@ -166,7 +168,6 @@ describe('audit event model helpers', () => {
 
     const listed = await repo.list({ eventType: 'backupExported', limit: 10 })
 
-    expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(2)
     expect(prisma.$queryRawUnsafe).toHaveBeenCalledTimes(3)
     expect(listed).toEqual([
       expect.objectContaining({

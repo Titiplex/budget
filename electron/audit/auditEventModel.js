@@ -266,8 +266,11 @@ function createAuditEventRepository(prisma) {
   return {
     async create(input) {
       const data = normalizeCreateAuditEventInput(input)
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO "AuditEvent" ("eventType", "timestamp", "domain", "action", "severity", "summary", "entityIdsJson", "metadataJson", "source", "status") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      // Return the inserted row without relying on connection-local insert state.
+      const [row] = await prisma.$queryRawUnsafe(
+        `INSERT INTO "AuditEvent" ("eventType", "timestamp", "domain", "action", "severity", "summary", "entityIdsJson", "metadataJson", "source", "status")
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         RETURNING "id", "eventType", "timestamp", "domain", "action", "severity", "summary", "entityIdsJson", "metadataJson", "source", "status"`,
         data.eventType,
         toSqliteTimestamp(data.timestamp),
         data.domain,
@@ -279,10 +282,7 @@ function createAuditEventRepository(prisma) {
         data.source,
         data.status,
       )
-      const rows = await prisma.$queryRawUnsafe(
-        `SELECT "id", "eventType", "timestamp", "domain", "action", "severity", "summary", "entityIdsJson", "metadataJson", "source", "status" FROM "AuditEvent" WHERE "id" = last_insert_rowid() LIMIT 1`,
-      )
-      return toAuditEventRecord(rows[0])
+      return toAuditEventRecord(row)
     },
     async list(filters = {}) {
       const where = []
