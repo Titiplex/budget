@@ -4,10 +4,10 @@
 
 Le projet évolue rapidement. Sauf indication contraire, seule la dernière version publiée et la branche principale de développement sont considérées comme supportées pour les correctifs de sécurité.
 
-| Version | Support sécurité |
-| --- | --- |
-| Dernière release | Oui |
-| Branche principale | Oui, au cas par cas |
+| Version            | Support sécurité             |
+| ------------------ | ---------------------------- |
+| Dernière release   | Oui                          |
+| Branche principale | Oui, au cas par cas          |
 | Anciennes releases | Non, sauf décision explicite |
 
 ## Signaler une vulnérabilité

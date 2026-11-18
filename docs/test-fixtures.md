@@ -52,7 +52,7 @@ La clock fixture est fixée à :
 Utiliser :
 
 ```ts
-import {fixtureClock, stableFixtureDate} from './fixtures/demoData'
+import { fixtureClock, stableFixtureDate } from './fixtures/demoData'
 
 const now = fixtureClock.now()
 const monthStart = stableFixtureDate('2026-04-01T00:00:00.000Z')
@@ -83,10 +83,10 @@ Chaque factory accepte des overrides :
 
 ```ts
 const transaction = makeTransaction({
-    key: 'transaction-custom-test-case',
-    label: 'Custom deterministic expense',
-    amount: 42,
-    date: stableFixtureDate('2026-04-10T00:00:00.000Z'),
+  key: 'transaction-custom-test-case',
+  label: 'Custom deterministic expense',
+  amount: 42,
+  date: stableFixtureDate('2026-04-10T00:00:00.000Z'),
 })
 ```
 
@@ -95,12 +95,15 @@ Les relations utilisent des clés stables (`accountKey`, `categoryKey`, etc.) pl
 ## Créer une DB de test propre
 
 ```ts
-import {createAdvancedWealthProfile} from './fixtures/demoData'
-import {createCleanTestDatabase} from './fixtures/testDatabase'
+import { createAdvancedWealthProfile } from './fixtures/demoData'
+import { createCleanTestDatabase } from './fixtures/testDatabase'
 
-const {prisma, seeded} = await createCleanTestDatabase(createAdvancedWealthProfile(), {
+const { prisma, seeded } = await createCleanTestDatabase(
+  createAdvancedWealthProfile(),
+  {
     databaseUrl: 'file:./tmp/advanced-fixture.db',
-})
+  },
+)
 
 const mainAccount = seeded.accounts.get('account-main-chequing')
 ```

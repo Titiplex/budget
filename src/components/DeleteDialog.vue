@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import {computed} from 'vue'
-import {useI18n} from 'vue-i18n'
-import type {EntityType} from '../types/budget'
-import {entityLabel} from '../utils/budgetFormat'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import type { EntityType } from '../types/budget'
+import { entityLabel } from '../utils/budgetFormat'
 
 const props = defineProps<{
   open: boolean
@@ -18,7 +18,7 @@ const emit = defineEmits<{
   (e: 'confirm'): void
 }>()
 
-const {t} = useI18n()
+const { t } = useI18n()
 
 const resolvedHeading = computed(() => {
   if (props.heading?.trim()) return props.heading
@@ -35,17 +35,13 @@ const toneClass = computed(() => {
 
 const toneLabel = computed(() => {
   return props.type === 'transaction'
-      ? t('deleteDialog.sensitiveAction')
-      : t('deleteDialog.permanentDeletion')
+    ? t('deleteDialog.sensitiveAction')
+    : t('deleteDialog.permanentDeletion')
 })
 </script>
 
 <template>
-  <div
-      v-if="open"
-      class="dialog-backdrop"
-      @click.self="emit('close')"
-  >
+  <div v-if="open" class="dialog-backdrop" @click.self="emit('close')">
     <div class="dialog-card">
       <div class="flex items-start justify-between gap-4">
         <div>
@@ -57,18 +53,25 @@ const toneLabel = computed(() => {
           </h3>
         </div>
 
-        <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold"
-              :class="toneClass">
+        <span
+          class="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+          :class="toneClass"
+        >
           {{ toneLabel }}
         </span>
       </div>
 
       <div
-          class="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+        class="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40"
+      >
+        <p
+          class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400"
+        >
           {{ t('deleteDialog.affectedItem') }}
         </p>
-        <p class="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+        <p
+          class="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100"
+        >
           {{ label }}
         </p>
       </div>

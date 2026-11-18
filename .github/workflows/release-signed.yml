@@ -3,7 +3,7 @@ name: Release Signed
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -11,12 +11,12 @@ jobs:
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     env:
-      DATABASE_URL: "file:./prisma/release.db"
+      DATABASE_URL: 'file:./prisma/release.db'
 
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [windows-2022, macos-latest, ubuntu-latest]
 
     steps:
       - name: Checkout
@@ -27,6 +27,20 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      - name: Setup Python for Windows native modules
+        if: runner.os == 'Windows'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Configure Windows native build toolchain
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          echo "GYP_MSVS_VERSION=2022" >> $env:GITHUB_ENV
+          echo "PYTHON=$env:pythonLocation\python.exe" >> $env:GITHUB_ENV
+          echo "npm_config_python=$env:pythonLocation\python.exe" >> $env:GITHUB_ENV
 
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'

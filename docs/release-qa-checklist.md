@@ -12,14 +12,14 @@ Cette checklist complète `docs/release-flow.md`. Elle sert à valider manuellem
 
 ## Informations release
 
-| Champ | Valeur |
-| --- | --- |
-| Version testée |  |
-| Branche / commit |  |
-| Date |  |
-| OS principal |  |
-| Testeur |  |
-| Build signé ? | Oui / Non / N/A |
+| Champ                | Valeur          |
+| -------------------- | --------------- |
+| Version testée       |                 |
+| Branche / commit     |                 |
+| Date                 |                 |
+| OS principal         |                 |
+| Testeur              |                 |
+| Build signé ?        | Oui / Non / N/A |
 | Notarisation macOS ? | Oui / Non / N/A |
 
 ## 1. Préparation propre
@@ -128,11 +128,11 @@ Effectuer ces étapes dans l’app packagée, pas en mode dev.
 
 Emplacements usuels :
 
-| OS | Chemin usuel |
-| --- | --- |
-| Windows | `%APPDATA%/Budget/data/app.db` |
-| macOS | `~/Library/Application Support/Budget/data/app.db` |
-| Linux | `~/.config/Budget/data/app.db` |
+| OS      | Chemin usuel                                       |
+| ------- | -------------------------------------------------- |
+| Windows | `%APPDATA%/Budget/data/app.db`                     |
+| macOS   | `~/Library/Application Support/Budget/data/app.db` |
+| Linux   | `~/.config/Budget/data/app.db`                     |
 
 - [ ] Vérifier que l’app n’utilise pas directement `assets/database/app.db` comme DB utilisateur.
 - [ ] Fermer complètement l’app.
@@ -314,11 +314,11 @@ Pour un hotfix urgent, ne pas faire moins que :
 
 ## Plateformes validées
 
-| OS | Version | Artefact | Signature/notarisation | Statut |
-| --- | --- | --- | --- | --- |
-| Windows |  |  |  |  |
-| macOS |  |  |  |  |
-| Linux |  |  |  |  |
+| OS      | Version | Artefact | Signature/notarisation | Statut |
+| ------- | ------- | -------- | ---------------------- | ------ |
+| Windows |         |          |                        |        |
+| macOS   |         |          |                        |        |
+| Linux   |         |          |                        |        |
 
 ## QA effectuée
 
@@ -343,6 +343,6 @@ Pour un hotfix urgent, ne pas faire moins que :
 
 ## 16. Résultat QA
 
-| Décision | Responsable | Date | Commentaire |
-| --- | --- | --- | --- |
-| Go / No-Go |  |  |  |
+| Décision   | Responsable | Date | Commentaire |
+| ---------- | ----------- | ---- | ----------- |
+| Go / No-Go |             |      |             |

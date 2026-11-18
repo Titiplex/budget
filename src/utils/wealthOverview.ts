@@ -1,4 +1,3 @@
-
 export type WealthRecordStatus = 'ACTIVE' | 'ARCHIVED'
 
 export interface WealthValuableRecord {
@@ -73,7 +72,10 @@ function ownershipMultiplier(record: WealthValuableRecord) {
   return Math.max(0, Math.min(100, percent)) / 100
 }
 
-function valueOf(record: WealthValuableRecord, field: 'currentValue' | 'currentBalance') {
+function valueOf(
+  record: WealthValuableRecord,
+  field: 'currentValue' | 'currentBalance',
+) {
   const value = Number(record[field] ?? 0)
   if (!Number.isFinite(value)) return 0
   return value * ownershipMultiplier(record)
@@ -89,7 +91,9 @@ function emptyCurrencyBucket(): WealthCurrencyTotals {
   }
 }
 
-export function buildWealthOverview(input: WealthOverviewInput): WealthOverviewResult {
+export function buildWealthOverview(
+  input: WealthOverviewInput,
+): WealthOverviewResult {
   const assets = input.assets.filter(isIncluded)
   const portfolios = input.portfolios.filter(isIncluded)
   const liabilities = input.liabilities.filter(isIncluded)
@@ -193,14 +197,17 @@ export function buildWealthOverview(input: WealthOverviewInput): WealthOverviewR
     row.percentOfTotal = denominator ? row.amount / denominator : null
   }
 
-  const consolidated = totalsByCurrency[displayCurrency] || emptyCurrencyBucket()
+  const consolidated =
+    totalsByCurrency[displayCurrency] || emptyCurrencyBucket()
 
   return {
     currency: canConsolidate ? displayCurrency : null,
     currencies,
     canConsolidate,
     totals: {
-      totalStandaloneAssets: canConsolidate ? consolidated.totalStandaloneAssets : null,
+      totalStandaloneAssets: canConsolidate
+        ? consolidated.totalStandaloneAssets
+        : null,
       totalPortfolios: canConsolidate ? consolidated.totalPortfolios : null,
       totalAssets: canConsolidate ? consolidated.totalAssets : null,
       totalLiabilities: canConsolidate ? consolidated.totalLiabilities : null,

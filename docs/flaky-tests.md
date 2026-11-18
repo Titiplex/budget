@@ -78,7 +78,10 @@ button.click()
 À privilégier :
 
 ```js
-await stableRendererEval(cdp, 'Boolean(window.db && document.readyState === "complete")')
+await stableRendererEval(
+  cdp,
+  'Boolean(window.db && document.readyState === "complete")',
+)
 ```
 
 ### Dépendance à l’ordre des tests
@@ -112,13 +115,16 @@ Stabilisation :
 Helpers disponibles :
 
 ```ts
-import {createIsolatedSqliteDatabase, withTempDir} from './dateTestHelpers'
+import { createIsolatedSqliteDatabase, withTempDir } from './dateTestHelpers'
 ```
 
 ou, pour E2E Electron :
 
 ```js
-const {createE2eRunContext, assertTempDatabasePath} = require('./flakyE2eGuards.cjs')
+const {
+  createE2eRunContext,
+  assertTempDatabasePath,
+} = require('./flakyE2eGuards.cjs')
 ```
 
 ### Date réelle et timezone

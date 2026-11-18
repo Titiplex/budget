@@ -9,13 +9,13 @@ const priceSnapshotRepository = require('./priceSnapshotRepository')
 const valuationService = require('./valuationService')
 
 module.exports = {
-    ...providerErrors,
-    ...quoteNormalizer,
-    ...providerRegistry,
-    ...mockProvider,
-    ...marketDataService,
-    ...valuationErrors,
-    ...fxConversion,
-    ...priceSnapshotRepository,
-    ...valuationService,
+  ...providerErrors,
+  ...quoteNormalizer,
+  ...providerRegistry,
+  ...mockProvider,
+  ...marketDataService,
+  ...valuationErrors,
+  ...fxConversion,
+  ...priceSnapshotRepository,
+  ...valuationService,
 }

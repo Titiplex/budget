@@ -18,28 +18,28 @@ Cette page décrit la pipeline d’import locale de l’epic 6. Elle couvre les 
 
 Transactions bancaires :
 
-| Champ | Colonnes fréquentes |
-| --- | --- |
-| `date` | `Date`, `Transaction Date`, `Operation Date` |
-| `label` | `Description`, `Label`, `Details`, `Libellé` |
-| `amount` | `Amount`, `Montant`, `Total`, `Value` |
-| `currency` | `Currency`, `Devise`, `CCY` |
-| `accountName` | `Account`, `Compte` |
+| Champ         | Colonnes fréquentes                          |
+| ------------- | -------------------------------------------- |
+| `date`        | `Date`, `Transaction Date`, `Operation Date` |
+| `label`       | `Description`, `Label`, `Details`, `Libellé` |
+| `amount`      | `Amount`, `Montant`, `Total`, `Value`        |
+| `currency`    | `Currency`, `Devise`, `CCY`                  |
+| `accountName` | `Account`, `Compte`                          |
 
 Broker/exchange :
 
-| Champ | Usage |
-| --- | --- |
+| Champ           | Usage                                              |
+| --------------- | -------------------------------------------------- |
 | `operationType` | BUY, SELL, DIVIDEND, INTEREST, DEPOSIT, WITHDRAWAL |
-| `symbol` | Ticker ou crypto asset |
-| `isin` | Identifiant titre si disponible |
-| `quantity` | Parts ou unités |
-| `unitPrice` | Prix unitaire |
-| `grossAmount` | Montant brut |
-| `cashAmount` | Flux cash net |
-| `fees` | Frais |
-| `taxes` | Retenue, taxe ou frais réseau selon le fichier |
-| `externalRef` | ID broker, trade ID ou transaction hash |
+| `symbol`        | Ticker ou crypto asset                             |
+| `isin`          | Identifiant titre si disponible                    |
+| `quantity`      | Parts ou unités                                    |
+| `unitPrice`     | Prix unitaire                                      |
+| `grossAmount`   | Montant brut                                       |
+| `cashAmount`    | Flux cash net                                      |
+| `fees`          | Frais                                              |
+| `taxes`         | Retenue, taxe ou frais réseau selon le fichier     |
+| `externalRef`   | ID broker, trade ID ou transaction hash            |
 
 ## Templates
 

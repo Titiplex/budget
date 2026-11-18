@@ -137,13 +137,8 @@
           "Templates de mapping utilisateur",
           "Historique import audit-only"
         ],
-        "excluded": [
-          "Connecteurs externes",
-          "Secrets"
-        ],
-        "notes": [
-          "Fixture déterministe"
-        ]
+        "excluded": ["Connecteurs externes", "Secrets"],
+        "notes": ["Fixture déterministe"]
       },
       "mappingTemplates": [
         {
@@ -166,9 +161,7 @@
           "isPreset": false
         }
       ],
-      "importSources": [
-        "fixture-bank"
-      ],
+      "importSources": ["fixture-bank"],
       "importHistory": [
         {
           "id": "batch-fixture-1",

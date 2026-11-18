@@ -13,15 +13,15 @@ Budget est une application desktop local-first. Les tests doivent donc protéger
 
 ## Pyramide de tests
 
-| Niveau | Cible | Risques protégés | Exemples de vérifications attendues |
-| --- | --- | --- | --- |
-| Unitaires domaine | Fonctions pures métier et calculs financiers | erreurs de montants, périodes, arrondis, statuts ou agrégations | budgets, patrimoine, projections, rapports, récurrences, règles de catégories |
-| Unitaires utils/composables | Helpers TypeScript, formatters, validateurs, composables Vue | régressions de parsing, normalisation, formatage ou état dérivé | dates, devises, CSV, JSON backup, provenance, préférences UI |
-| Services Electron main | Services qui lisent/écrivent la DB ou le disque | corruption locale, mauvaise gestion des erreurs, secrets exposés, chemins invalides | backups, restore dry-run, snapshots, intégrité, imports, packaged DB |
-| IPC | Contrats entre renderer/preload/main | payloads invalides, exposition excessive, erreurs non propagées | canaux étroits, validation d'entrée, mapping d'erreur, absence d'accès Prisma côté Vue |
-| Composants Vue | Interfaces qui orchestrent les actions utilisateur | mauvais état affiché, action critique déclenchée sans garde-fou, régression d'accessibilité basique | panneaux sécurité/récupération, imports, budgets, projections, patrimoine |
-| E2E Electron | Parcours desktop dans une app buildée | rupture d'intégration entre Vite, Electron, preload, DB et UI | smoke test, flux patrimoine, création/lecture de données locales, persistance simple |
-| Packaging/release | Préparation des artefacts desktop | build incomplet, assets manquants, DB packagée invalide, risque d'écraser une DB utilisateur | assets Electron, template SQLite, release check, package local lançable |
+| Niveau                      | Cible                                                        | Risques protégés                                                                                    | Exemples de vérifications attendues                                                    |
+| --------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Unitaires domaine           | Fonctions pures métier et calculs financiers                 | erreurs de montants, périodes, arrondis, statuts ou agrégations                                     | budgets, patrimoine, projections, rapports, récurrences, règles de catégories          |
+| Unitaires utils/composables | Helpers TypeScript, formatters, validateurs, composables Vue | régressions de parsing, normalisation, formatage ou état dérivé                                     | dates, devises, CSV, JSON backup, provenance, préférences UI                           |
+| Services Electron main      | Services qui lisent/écrivent la DB ou le disque              | corruption locale, mauvaise gestion des erreurs, secrets exposés, chemins invalides                 | backups, restore dry-run, snapshots, intégrité, imports, packaged DB                   |
+| IPC                         | Contrats entre renderer/preload/main                         | payloads invalides, exposition excessive, erreurs non propagées                                     | canaux étroits, validation d'entrée, mapping d'erreur, absence d'accès Prisma côté Vue |
+| Composants Vue              | Interfaces qui orchestrent les actions utilisateur           | mauvais état affiché, action critique déclenchée sans garde-fou, régression d'accessibilité basique | panneaux sécurité/récupération, imports, budgets, projections, patrimoine              |
+| E2E Electron                | Parcours desktop dans une app buildée                        | rupture d'intégration entre Vite, Electron, preload, DB et UI                                       | smoke test, flux patrimoine, création/lecture de données locales, persistance simple   |
+| Packaging/release           | Préparation des artefacts desktop                            | build incomplet, assets manquants, DB packagée invalide, risque d'écraser une DB utilisateur        | assets Electron, template SQLite, release check, package local lançable                |
 
 ## Commandes de validation
 
@@ -279,17 +279,17 @@ Quand une intégration externe future sera ajoutée, elle devra être testée co
 
 ## Matrice de décision rapide
 
-| Changement | Validation minimale | Validation renforcée |
-| --- | --- | --- |
-| Texte/doc uniquement | relecture | aucun test automatisé requis sauf lien ou exemple exécutable |
-| Style Vue isolé | `npm run typecheck` si fichier Vue modifié | test composant si action critique visible |
-| Composable/helper | `npm run typecheck`, `npm run test:run` ciblé | `npm run test:coverage` si logique sensible |
-| Calcul financier | `npm run typecheck`, `npm run test:run` | cas limites + coverage |
-| Service Electron main | `npm run typecheck`, `npm run test:run` ciblé | E2E si impact démarrage/persistance |
-| IPC/preload | `npm run typecheck`, tests IPC | `npm run test:e2e` |
-| Import/backup/restore | `npm run test:run`, fixtures dédiées | coverage + E2E si flux UI touché |
-| Prisma/migration | `npm run typecheck`, tests services | `npm run release:check`, package local |
-| Packaging/assets | `npm run release:check` | package local lancé manuellement |
+| Changement            | Validation minimale                           | Validation renforcée                                         |
+| --------------------- | --------------------------------------------- | ------------------------------------------------------------ |
+| Texte/doc uniquement  | relecture                                     | aucun test automatisé requis sauf lien ou exemple exécutable |
+| Style Vue isolé       | `npm run typecheck` si fichier Vue modifié    | test composant si action critique visible                    |
+| Composable/helper     | `npm run typecheck`, `npm run test:run` ciblé | `npm run test:coverage` si logique sensible                  |
+| Calcul financier      | `npm run typecheck`, `npm run test:run`       | cas limites + coverage                                       |
+| Service Electron main | `npm run typecheck`, `npm run test:run` ciblé | E2E si impact démarrage/persistance                          |
+| IPC/preload           | `npm run typecheck`, tests IPC                | `npm run test:e2e`                                           |
+| Import/backup/restore | `npm run test:run`, fixtures dédiées          | coverage + E2E si flux UI touché                             |
+| Prisma/migration      | `npm run typecheck`, tests services           | `npm run release:check`, package local                       |
+| Packaging/assets      | `npm run release:check`                       | package local lancé manuellement                             |
 
 ## Définition de fini
 

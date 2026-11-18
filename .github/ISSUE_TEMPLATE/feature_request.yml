@@ -1,7 +1,7 @@
 name: Demande de fonctionnalité
 description: Proposer une amélioration ou une nouvelle fonctionnalité
-title: "[Feature]: "
-labels: ["enhancement", "triage"]
+title: '[Feature]: '
+labels: ['enhancement', 'triage']
 body:
   - type: markdown
     attributes:

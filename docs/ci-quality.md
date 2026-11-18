@@ -16,12 +16,12 @@ Branches surveillées :
 
 ## Jobs
 
-| Job | Quand | But |
-| --- | --- | --- |
-| `fast-checks` | PR, push, manuel, schedule | Installation, génération Prisma, typecheck et tests unitaires sur Ubuntu et Windows. |
-| `coverage` | Après `fast-checks` | Produit un rapport coverage exploitable en HTML/LCOV/JSON summary sans imposer de seuil global arbitraire. |
-| `release-readiness` | Push, manuel, schedule | Exécute `npm run release:check`, donc les checks de release ne restent pas une étape oubliée. |
-| `desktop-e2e` | Push, manuel avec `run_e2e=true`, schedule | Lance les smoke tests Electron sous `xvfb` avec diagnostics uploadés en artefacts. |
+| Job                 | Quand                                      | But                                                                                                        |
+| ------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `fast-checks`       | PR, push, manuel, schedule                 | Installation, génération Prisma, typecheck et tests unitaires sur Ubuntu et Windows.                       |
+| `coverage`          | Après `fast-checks`                        | Produit un rapport coverage exploitable en HTML/LCOV/JSON summary sans imposer de seuil global arbitraire. |
+| `release-readiness` | Push, manuel, schedule                     | Exécute `npm run release:check`, donc les checks de release ne restent pas une étape oubliée.              |
+| `desktop-e2e`       | Push, manuel avec `run_e2e=true`, schedule | Lance les smoke tests Electron sous `xvfb` avec diagnostics uploadés en artefacts.                         |
 
 ## Commandes locales équivalentes
 

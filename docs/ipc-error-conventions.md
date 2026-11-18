@@ -23,15 +23,15 @@ Pour les nouveaux handlers IPC métier, préférer une enveloppe stable :
 
 ```ts
 interface IpcSuccess<T> {
-    ok: true
-    data: T
-    error: null
+  ok: true
+  data: T
+  error: null
 }
 
 interface IpcFailure {
-    ok: false
-    data: null
-    error: IpcError
+  ok: false
+  data: null
+  error: IpcError
 }
 ```
 
@@ -43,11 +43,11 @@ Une erreur IPC exploitable doit rester sérialisable et minimale :
 
 ```ts
 interface IpcError {
-    code: string
-    message: string
-    field: string | null
-    recoverable: boolean
-    details?: unknown | null
+  code: string
+  message: string
+  field: string | null
+  recoverable: boolean
+  details?: unknown | null
 }
 ```
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
-import {useI18n} from 'vue-i18n'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AccountsSection from './components/AccountsSection.vue'
 import AnalyticsToolbar from './components/AnalyticsToolbar.vue'
 import BudgetsSection from './components/BudgetsSection.vue'
@@ -17,15 +17,15 @@ import WealthSection from './components/WealthSection.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
 import TaxReportPanel from './components/TaxReportPanel.vue'
 import TransactionsSection from './components/TransactionsSection.vue'
-import {useBudgetData} from './composables/useBudgetData'
-import {useBudgetTargets} from './composables/useBudgetTargets'
-import {useCsvImportExport} from './composables/useCsvImportExport'
-import {useJsonBackup} from './composables/useJsonBackup'
-import {useRecurringTemplates} from './composables/useRecurringTemplates'
-import {useReports} from './composables/useReports'
-import {useSettings} from './composables/useSettings'
-import {formatMoney} from './utils/budgetFormat'
-import type {CreateTabKey, ReportPreset, SectionKey, TaxProfile} from './types/budget'
+import { useBudgetData } from './composables/useBudgetData'
+import { useBudgetTargets } from './composables/useBudgetTargets'
+import { useCsvImportExport } from './composables/useCsvImportExport'
+import { useJsonBackup } from './composables/useJsonBackup'
+import { useRecurringTemplates } from './composables/useRecurringTemplates'
+import { useReports } from './composables/useReports'
+import { useSettings } from './composables/useSettings'
+import { formatMoney } from './utils/budgetFormat'
+import type { CreateTabKey, ReportPreset, TaxProfile } from './types/budget'
 
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 const appVersion = ref('')
@@ -33,10 +33,10 @@ const taxProfiles = ref<TaxProfile[]>([])
 const analyticsPanelOpen = ref(false)
 const analyticsChromeReady = ref(false)
 const importWizardOpen = ref(false)
-const importHistorySectionKey = 'imports' as SectionKey
+const importHistorySectionKey = 'imports'
 
 function showNotice(type: 'success' | 'error', text: string) {
-  notice.value = {type, text}
+  notice.value = { type, text }
   window.setTimeout(() => {
     if (notice.value?.text === text) {
       notice.value = null
@@ -51,9 +51,9 @@ function normalizeError(error: unknown) {
   return t('notices.unknownError')
 }
 
-const {t} = useI18n()
+const { t } = useI18n()
 const settings = useSettings()
-const budget = useBudgetData(showNotice)
+const budget = useBudgetData(showNotice, settings.defaultTransactionCurrency)
 
 const budgetTargets = useBudgetTargets({
   categories: budget.categories,
@@ -110,7 +110,7 @@ function openImportWizard() {
 async function handleImportWizardApplied() {
   await refreshEverything()
   budget.selectSection(importHistorySectionKey)
-  showNotice('success', 'Import terminé. Les données et l’historique ont été rafraîchis.')
+  showNotice('success', t('appShell.importCompletedNotice'))
 }
 
 const jsonBackup = useJsonBackup({
@@ -124,48 +124,61 @@ const jsonBackup = useJsonBackup({
   showNotice,
 })
 
-const navigation = computed(() => [
-  {key: 'overview' as SectionKey, label: t('nav.overview'), marker: 'OV'},
-  {key: 'transactions' as SectionKey, label: t('nav.transactions'), marker: 'TX'},
-  {key: 'accounts' as SectionKey, label: t('nav.accounts'), marker: 'AC'},
-  {key: 'categories' as SectionKey, label: t('nav.categories'), marker: 'CA'},
-  {key: 'budgets' as SectionKey, label: t('nav.budgets'), marker: 'BG'},
-  {key: 'recurring' as SectionKey, label: t('nav.recurring'), marker: 'RC'},
-  {key: 'reports' as SectionKey, label: t('nav.reports'), marker: 'RP'},
-  {key: 'wealth' as SectionKey, label: t('wealth.section.title'), marker: 'WL'},
-  {key: importHistorySectionKey, label: 'Imports', marker: 'IM'},
-])
+const navigation = computed(
+  () =>
+    [
+      {
+        label: t('appShell.daily'),
+        items: [
+          { key: 'overview', label: t('nav.overview') },
+          { key: 'transactions', label: t('nav.transactions') },
+          { key: 'accounts', label: t('nav.accounts') },
+          { key: 'categories', label: t('nav.categories') },
+        ],
+      },
+      {
+        label: t('appShell.planning'),
+        items: [
+          { key: 'budgets', label: t('nav.budgets') },
+          { key: 'recurring', label: t('nav.recurring') },
+        ],
+      },
+      {
+        label: t('appShell.analysis'),
+        items: [
+          { key: 'wealth', label: t('wealth.section.title') },
+          { key: 'reports', label: t('nav.reports') },
+          { key: 'imports', label: t('appShell.imports') },
+        ],
+      },
+    ] as const,
+)
 
-const sectionMeta = computed<Record<SectionKey, { title: string; description: string }>>(() => ({
-  overview: {title: t('sections.overview.title'), description: t('sections.overview.description')},
-  transactions: {title: t('sections.transactions.title'), description: t('sections.transactions.description')},
-  accounts: {title: t('sections.accounts.title'), description: t('sections.accounts.description')},
-  categories: {title: t('sections.categories.title'), description: t('sections.categories.description')},
-  budgets: {title: t('sections.budgets.title'), description: t('sections.budgets.description')},
-  recurring: {title: t('sections.recurring.title'), description: t('sections.recurring.description')},
-  reports: {title: t('sections.reports.title'), description: t('sections.reports.description')},
-  wealth: {title: t('wealth.section.title'), description: t('wealth.section.description')},
-  [importHistorySectionKey]: {
-    title: 'Historique d’import',
-    description: 'Audit trail des imports CSV, décisions de réconciliation, erreurs et exports de rapport.',
-  },
-}))
-
-const viewTitle = computed(() => sectionMeta.value[budget.activeSection.value].title)
-const viewDescription = computed(() => sectionMeta.value[budget.activeSection.value].description)
-const showExpandedAnalytics = computed(() => budget.activeSection.value === 'overview')
-const showCollapsedAnalytics = computed(() => budget.activeSection.value !== 'overview')
-const compactAnalyticsSummary = computed(() => formatMoney(budget.netFlow.value, budget.summaryCurrency.value))
+const viewTitle = computed(
+  () =>
+    navigation.value
+      .flatMap((group) => [...group.items])
+      .find((item) => item.key === budget.activeSection.value)?.label,
+)
+const showExpandedAnalytics = computed(
+  () => budget.activeSection.value === 'overview',
+)
+const showCollapsedAnalytics = computed(
+  () => budget.activeSection.value !== 'overview',
+)
+const compactAnalyticsSummary = computed(() =>
+  formatMoney(budget.netFlow.value, budget.summaryCurrency.value),
+)
 
 const csvPreviewLines = computed(() => {
   const summary = csv.importPreviewSummary.value
   if (!summary) return []
 
   return [
-    t('importReview.file', {value: csv.pendingImportPath.value || '—'}),
-    t('importReview.totalRows', {value: summary.totalRows}),
-    t('importReview.validRows', {value: summary.validRows}),
-    t('importReview.invalidRows', {value: summary.invalidRows}),
+    t('importReview.file', { value: csv.pendingImportPath.value || '—' }),
+    t('importReview.totalRows', { value: summary.totalRows }),
+    t('importReview.validRows', { value: summary.validRows }),
+    t('importReview.invalidRows', { value: summary.invalidRows }),
   ]
 })
 
@@ -174,12 +187,16 @@ const restorePreviewLines = computed(() => {
   if (!validation) return []
 
   return [
-    t('importReview.file', {value: jsonBackup.restorePreviewPath.value || '—'}),
-    t('importReview.accounts', {value: validation.counts.accounts}),
-    t('importReview.categories', {value: validation.counts.categories}),
-    t('importReview.budgets', {value: validation.counts.budgetTargets}),
-    t('importReview.recurring', {value: validation.counts.recurringTemplates}),
-    t('importReview.transactions', {value: validation.counts.transactions}),
+    t('importReview.file', {
+      value: jsonBackup.restorePreviewPath.value || '—',
+    }),
+    t('importReview.accounts', { value: validation.counts.accounts }),
+    t('importReview.categories', { value: validation.counts.categories }),
+    t('importReview.budgets', { value: validation.counts.budgetTargets }),
+    t('importReview.recurring', {
+      value: validation.counts.recurringTemplates,
+    }),
+    t('importReview.transactions', { value: validation.counts.transactions }),
   ]
 })
 
@@ -187,7 +204,8 @@ function setCreateTab(tab: CreateTabKey) {
   budget.createTab.value = tab
 }
 
-function closeCompactAnalyticsAfterAction() {
+function createFromCompactAnalytics(tab: CreateTabKey) {
+  budget.openCreatePanel(tab)
   analyticsPanelOpen.value = false
 }
 
@@ -271,9 +289,12 @@ function handleMenuCommand(rawCommand: unknown) {
   }
 }
 
-watch(() => budget.activeSection.value, () => {
-  analyticsPanelOpen.value = false
-})
+watch(
+  () => budget.activeSection.value,
+  () => {
+    analyticsPanelOpen.value = false
+  },
+)
 
 onMounted(async () => {
   settings.initSettings()
@@ -295,155 +316,146 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-100 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
+  <div
+    class="min-h-screen bg-slate-100 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100"
+  >
     <div class="flex min-h-screen">
       <div
-          v-if="budget.sidebarOpen.value"
-          class="fixed inset-0 z-30 bg-slate-950/50 backdrop-blur-sm lg:hidden"
-          @click="budget.sidebarOpen.value = false"
+        v-if="budget.sidebarOpen.value"
+        class="fixed inset-0 z-30 bg-slate-950/50 backdrop-blur-sm lg:hidden"
+        @click="budget.sidebarOpen.value = false"
       />
 
       <aside
-          class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-white px-3 py-4 shadow-xl transition-transform dark:border-slate-800 dark:bg-slate-900 lg:static lg:translate-x-0 lg:shadow-none"
-          :class="budget.sidebarOpen.value ? 'translate-x-0' : '-translate-x-full'"
+        id="section-navigation"
+        class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-white px-3 py-4 shadow-xl transition-transform dark:border-slate-800 dark:bg-slate-900 overflow-y-auto lg:sticky lg:top-0 lg:h-screen lg:shrink-0 lg:visible lg:translate-x-0 lg:shadow-none"
+        :class="
+          budget.sidebarOpen.value
+            ? 'translate-x-0'
+            : 'invisible -translate-x-full'
+        "
       >
         <div class="mb-6 flex items-center justify-between">
-          <div>
-            <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-500">
-              {{ t('app.brand') }}
-            </p>
-            <h2 class="mt-1 text-lg font-bold text-slate-900 dark:text-white">
-              {{ t('app.cockpit') }}
-            </h2>
-          </div>
+          <span class="px-2 text-lg font-bold">{{ t('app.brand') }}</span>
 
           <button
-              class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white lg:hidden"
-              @click="budget.sidebarOpen.value = false"
+            class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white lg:hidden"
+            :aria-label="t('common.close')"
+            @click="budget.sidebarOpen.value = false"
           >
             ✕
           </button>
         </div>
 
-        <div class="panel px-3 py-3">
-          <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
-            {{ t('app.status') }}
-          </p>
-          <p class="mt-2 text-sm font-medium text-slate-800 dark:text-slate-100">
-            {{ budget.lastSyncLabel.value }}
-          </p>
-          <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
-            {{ budget.transactions.value.length }} tx · {{ budget.accounts.value.length }} cpt ·
-            {{ budget.categories.value.length }} cat
-          </p>
-        </div>
-
-        <nav class="mt-5 space-y-1.5">
-          <button
-              v-for="item in navigation"
+        <nav class="space-y-4" :aria-label="t('appShell.navigation')">
+          <div v-for="group in navigation" :key="group.label">
+            <p
+              class="px-2 pb-1 text-xs font-semibold text-slate-500 dark:text-slate-400"
+            >
+              {{ group.label }}
+            </p>
+            <button
+              v-for="item in group.items"
+              :aria-current="
+                budget.activeSection.value === item.key ? 'page' : undefined
+              "
               :key="item.key"
+              :data-section="item.key"
               class="nav-item !gap-2.5 !rounded-xl !px-2.5 !py-2.5"
-              :class="{ 'nav-item-active': budget.activeSection.value === item.key }"
+              :class="{
+                'nav-item-active': budget.activeSection.value === item.key,
+              }"
               @click="budget.selectSection(item.key)"
-          >
-            <span class="nav-marker !h-9 !w-9 !rounded-xl">
-              {{ item.marker }}
-            </span>
-
-            <span class="min-w-0 flex-1 text-left">
-              <span class="block truncate text-sm font-semibold">
-                {{ item.label }}
-              </span>
-            </span>
-          </button>
+            >
+              <span class="truncate text-sm font-semibold">{{
+                item.label
+              }}</span>
+            </button>
+          </div>
         </nav>
 
         <div class="mt-5 space-y-2">
-          <button class="quick-create-btn !py-2.5 text-sm" @click="budget.openCreatePanel('transaction')">
-            + {{ t('entities.singular.transaction') }}
-          </button>
-          <button class="quick-create-btn-secondary !py-2.5 text-sm" @click="budget.openCreatePanel('account')">
-            + {{ t('entities.singular.account') }}
-          </button>
-          <button class="quick-create-btn-secondary !py-2.5 text-sm" @click="budget.openCreatePanel('category')">
-            + {{ t('entities.singular.category') }}
-          </button>
-          <button class="quick-create-btn-secondary !py-2.5 text-sm" @click="openImportWizard">
-            Import guidé CSV
-          </button>
-          <button class="quick-create-btn-secondary !py-2.5 text-sm" @click="budget.selectSection(importHistorySectionKey)">
-            Historique imports
+          <button
+            class="quick-create-btn-secondary text-sm"
+            @click="openImportWizard"
+          >
+            {{ t('appShell.guidedCsvImport') }}
           </button>
         </div>
-        <div class="mt-auto px-2 pt-6">
-          <div
-              class="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">
-            <p class="font-semibold text-slate-700 dark:text-slate-200">
-              Budget
-            </p>
-            <p class="mt-1">
-              v{{ appVersion || '0.9.0' }}
-            </p>
-          </div>
+        <div
+          class="mt-auto px-2 pt-6 text-xs text-slate-500 dark:text-slate-400"
+        >
+          {{ budget.lastSyncLabel.value
+          }}<span v-if="appVersion"> · v{{ appVersion }}</span>
         </div>
       </aside>
 
       <div class="flex min-w-0 flex-1 flex-col">
         <header
-            class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
+          class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90"
+        >
           <div
-              class="relative mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+            class="relative mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 sm:flex-nowrap sm:gap-4 px-4 py-3 sm:px-6 lg:px-8"
+          >
             <div class="flex min-w-0 items-center gap-3">
               <button
-                  class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white lg:hidden"
-                  @click="budget.sidebarOpen.value = true"
+                class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white lg:hidden"
+                :aria-label="t('appShell.navigation')"
+                aria-controls="section-navigation"
+                :aria-expanded="budget.sidebarOpen.value"
+                @click="budget.sidebarOpen.value = true"
               >
                 ☰
               </button>
 
               <div class="min-w-0">
                 <div class="flex min-w-0 items-center gap-3">
-                  <p class="hidden text-xs font-semibold uppercase tracking-[0.22em] text-violet-500 sm:block">
-                    {{ t('app.localFinance') }}
-                  </p>
-                  <h1 class="truncate text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
+                  <h1
+                    class="truncate text-xl font-bold text-slate-900 dark:text-white sm:text-2xl"
+                  >
                     {{ viewTitle }}
                   </h1>
                 </div>
-                <p class="mt-1 hidden truncate text-sm text-slate-500 dark:text-slate-400 lg:block">
-                  {{ viewDescription }}
-                </p>
               </div>
             </div>
 
-            <div class="flex shrink-0 items-center gap-2">
+            <div
+              class="flex max-w-full flex-wrap items-center gap-2 sm:shrink-0"
+            >
               <Transition
-                  :css="analyticsChromeReady"
-                  enter-active-class="transition duration-150 ease-out motion-reduce:transition-none"
-                  enter-from-class="translate-x-1 opacity-0"
-                  enter-to-class="translate-x-0 opacity-100"
-                  leave-active-class="transition-opacity duration-75 ease-out motion-reduce:transition-none"
-                  leave-from-class="opacity-100"
-                  leave-to-class="opacity-0"
+                :css="analyticsChromeReady"
+                enter-active-class="transition duration-150 ease-out motion-reduce:transition-none"
+                enter-from-class="translate-x-1 opacity-0"
+                enter-to-class="translate-x-0 opacity-100"
+                leave-active-class="transition-opacity duration-75 ease-out motion-reduce:transition-none"
+                leave-from-class="opacity-100"
+                leave-to-class="opacity-0"
               >
                 <button
-                    v-if="showCollapsedAnalytics"
-                    class="group inline-flex will-change-transform items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 text-left text-sm font-semibold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/45 dark:text-violet-200 dark:hover:border-violet-800 dark:hover:bg-violet-950/70"
-                    :aria-expanded="analyticsPanelOpen"
-                    @click="analyticsPanelOpen = !analyticsPanelOpen"
+                  v-if="showCollapsedAnalytics"
+                  class="group inline-flex will-change-transform items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 text-left text-sm font-semibold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/45 dark:text-violet-200 dark:hover:border-violet-800 dark:hover:bg-violet-950/70"
+                  :aria-label="t('nav.overview')"
+                  :aria-expanded="analyticsPanelOpen"
+                  @click="analyticsPanelOpen = !analyticsPanelOpen"
                 >
+                  <svg
+                    class="h-5 w-5 sm:hidden"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 3v18h18M7 16v-4m5 4V7m5 9v-6" />
+                  </svg>
+                  <span class="hidden sm:inline">{{ t('nav.overview') }}</span>
+                  <span class="hidden text-xs sm:inline">{{
+                    compactAnalyticsSummary
+                  }}</span>
                   <span
-                      class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-violet-600 text-xs font-bold text-white shadow-sm shadow-violet-950/30">
-                    OV
-                  </span>
-                  <span class="hidden min-w-0 flex-col leading-tight sm:flex">
-                    <span>{{ t('nav.overview') }}</span>
-                    <span class="text-xs font-medium text-violet-500 dark:text-violet-300/80">
-                      {{ compactAnalyticsSummary }} · {{ budget.transactions.value.length }} tx
-                    </span>
-                  </span>
-                  <span class="text-lg transition-transform duration-200"
-                        :class="analyticsPanelOpen ? 'rotate-180' : ''">
+                    class="text-lg transition-transform duration-200"
+                    :class="analyticsPanelOpen ? 'rotate-180' : ''"
+                  >
                     ⌄
                   </span>
                 </button>
@@ -452,62 +464,28 @@ onMounted(async () => {
               <button class="ghost-btn" @click="settings.openSettings">
                 {{ t('common.settings') }}
               </button>
-              <button class="primary-btn" @click="budget.openCreatePanel('transaction')">
+              <button
+                class="primary-btn"
+                @click="budget.openCreatePanel('transaction')"
+              >
                 {{ t('common.add') }}
               </button>
             </div>
 
             <Transition
-                enter-active-class="transition duration-200 ease-out"
-                enter-from-class="translate-y-2 opacity-0 scale-95"
-                enter-to-class="translate-y-0 opacity-100 scale-100"
-                leave-active-class="transition duration-150 ease-in"
-                leave-from-class="translate-y-0 opacity-100 scale-100"
-                leave-to-class="translate-y-2 opacity-0 scale-95"
+              enter-active-class="transition duration-200 ease-out"
+              enter-from-class="translate-y-2 opacity-0 scale-95"
+              enter-to-class="translate-y-0 opacity-100 scale-100"
+              leave-active-class="transition duration-150 ease-in"
+              leave-from-class="translate-y-0 opacity-100 scale-100"
+              leave-to-class="translate-y-2 opacity-0 scale-95"
             >
               <div
-                  v-if="showCollapsedAnalytics && analyticsPanelOpen"
-                  class="absolute right-4 top-[calc(100%+0.75rem)] z-50 w-[min(44rem,calc(100vw-2rem))] origin-top-right sm:right-6 lg:right-8"
+                v-if="showCollapsedAnalytics && analyticsPanelOpen"
+                class="absolute right-4 top-[calc(100%+0.75rem)] z-50 w-[min(44rem,calc(100vw-2rem))] origin-top-right sm:right-6 lg:right-8"
               >
                 <AnalyticsToolbar
-                    compact
-                    :loading="budget.loading.value"
-                    :summary-currency="budget.summaryCurrency.value"
-                    :net-flow="budget.netFlow.value"
-                    :total-income="budget.totalIncome.value"
-                    :total-expense="budget.totalExpense.value"
-                    :transaction-count="budget.transactions.value.length"
-                    :account-count="budget.accounts.value.length"
-                    :category-count="budget.categories.value.length"
-                    :current-csv-entity="csv.currentCsvEntity.value"
-                    @refresh="refreshEverything"
-                    @create-transaction="budget.openCreatePanel('transaction'); closeCompactAnalyticsAfterAction()"
-                    @create-account="budget.openCreatePanel('account'); closeCompactAnalyticsAfterAction()"
-                    @create-category="budget.openCreatePanel('category'); closeCompactAnalyticsAfterAction()"
-                />
-              </div>
-            </Transition>
-          </div>
-        </header>
-
-        <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6 lg:px-8">
-          <div v-if="notice" class="mb-6">
-            <div class="notice" :class="notice.type === 'success' ? 'notice-success' : 'notice-error'">
-              {{ notice.text }}
-            </div>
-          </div>
-
-          <Transition
-              :css="analyticsChromeReady"
-              enter-active-class="transition duration-150 ease-out motion-reduce:transition-none"
-              enter-from-class="-translate-y-1 opacity-0"
-              enter-to-class="translate-y-0 opacity-100"
-              leave-active-class="transition-opacity duration-75 ease-out motion-reduce:transition-none"
-              leave-from-class="opacity-100"
-              leave-to-class="pointer-events-none opacity-0"
-          >
-            <div v-if="showExpandedAnalytics" class="origin-top-right transform-gpu">
-              <AnalyticsToolbar
+                  compact
                   :loading="budget.loading.value"
                   :summary-currency="budget.summaryCurrency.value"
                   :net-flow="budget.netFlow.value"
@@ -516,235 +494,309 @@ onMounted(async () => {
                   :transaction-count="budget.transactions.value.length"
                   :account-count="budget.accounts.value.length"
                   :category-count="budget.categories.value.length"
-                  :current-csv-entity="csv.currentCsvEntity.value"
                   @refresh="refreshEverything"
-                  @create-transaction="budget.openCreatePanel('transaction')"
-                  @create-account="budget.openCreatePanel('account')"
-                  @create-category="budget.openCreatePanel('category')"
+                  @create-transaction="
+                    createFromCompactAnalytics('transaction')
+                  "
+                  @create-account="createFromCompactAnalytics('account')"
+                  @create-category="createFromCompactAnalytics('category')"
+                />
+              </div>
+            </Transition>
+          </div>
+        </header>
+
+        <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6 lg:px-8">
+          <div v-if="notice" class="mb-6">
+            <div
+              class="notice"
+              :role="notice.type === 'error' ? 'alert' : 'status'"
+              :class="
+                notice.type === 'success' ? 'notice-success' : 'notice-error'
+              "
+            >
+              {{ notice.text }}
+            </div>
+          </div>
+
+          <Transition
+            :css="analyticsChromeReady"
+            enter-active-class="transition duration-150 ease-out motion-reduce:transition-none"
+            enter-from-class="-translate-y-1 opacity-0"
+            enter-to-class="translate-y-0 opacity-100"
+            leave-active-class="transition-opacity duration-75 ease-out motion-reduce:transition-none"
+            leave-from-class="opacity-100"
+            leave-to-class="pointer-events-none opacity-0"
+          >
+            <div
+              v-if="showExpandedAnalytics"
+              class="origin-top-right transform-gpu"
+            >
+              <AnalyticsToolbar
+                :loading="budget.loading.value"
+                :summary-currency="budget.summaryCurrency.value"
+                :net-flow="budget.netFlow.value"
+                :total-income="budget.totalIncome.value"
+                :total-expense="budget.totalExpense.value"
+                :transaction-count="budget.transactions.value.length"
+                :account-count="budget.accounts.value.length"
+                :category-count="budget.categories.value.length"
+                @refresh="refreshEverything"
+                @create-transaction="budget.openCreatePanel('transaction')"
+                @create-account="budget.openCreatePanel('account')"
+                @create-category="budget.openCreatePanel('category')"
               />
             </div>
           </Transition>
 
           <OverviewSection
-              v-if="budget.activeSection.value === 'overview'"
-              :recent-transactions="budget.recentTransactions.value"
-              :monthly-trend="budget.monthlyTrend.value"
-              :expense-breakdown="budget.expenseCategoryBreakdown.value"
-              :total-expense="budget.totalExpense.value"
-              :summary-currency="budget.summaryCurrency.value"
-              :recurring-preview="recurring.recurringUpcomingPreview.value"
-              :recurring-projection="recurring.recurringInsights.value"
-              @open-transactions="budget.selectSection('transactions')"
-              @edit-transaction="budget.openEditTransaction"
-              @delete-transaction="budget.openDeleteDialog('transaction', $event)"
-              @create-transaction="budget.openCreatePanel('transaction')"
-              @create-account="budget.openCreatePanel('account')"
-              @create-category="budget.openCreatePanel('category')"
+            v-if="budget.activeSection.value === 'overview'"
+            :recent-transactions="budget.recentTransactions.value"
+            :monthly-trend="budget.monthlyTrend.value"
+            :expense-breakdown="budget.expenseCategoryBreakdown.value"
+            :total-expense="budget.totalExpense.value"
+            :summary-currency="budget.summaryCurrency.value"
+            :recurring-preview="recurring.recurringUpcomingPreview.value"
+            :recurring-projection="recurring.recurringInsights.value"
+            @open-transactions="budget.selectSection('transactions')"
+            @edit-transaction="budget.openEditTransaction"
+            @delete-transaction="budget.openDeleteDialog('transaction', $event)"
+            @create-transaction="budget.openCreatePanel('transaction')"
+            @create-account="budget.openCreatePanel('account')"
+            @create-category="budget.openCreatePanel('category')"
           />
 
           <TransactionsSection
-              v-else-if="budget.activeSection.value === 'transactions'"
-              :accounts="budget.accounts.value"
-              :categories="budget.categories.value"
-              :filtered-transactions="budget.filteredTransactions.value"
-              :search="budget.transactionSearch.value"
-              :kind-filter="budget.transactionKindFilter.value"
-              :account-filter="budget.transactionAccountFilter.value"
-              :category-filter="budget.transactionCategoryFilter.value"
-              @update:search="budget.transactionSearch.value = $event"
-              @update:kind-filter="budget.transactionKindFilter.value = $event"
-              @update:account-filter="budget.transactionAccountFilter.value = $event"
-              @update:category-filter="budget.transactionCategoryFilter.value = $event"
-              @create-transaction="budget.openCreatePanel('transaction')"
-              @edit-transaction="budget.openEditTransaction"
-              @delete-transaction="budget.openDeleteDialog('transaction', $event)"
+            v-else-if="budget.activeSection.value === 'transactions'"
+            :accounts="budget.accounts.value"
+            :categories="budget.categories.value"
+            :filtered-transactions="budget.filteredTransactions.value"
+            :search="budget.transactionSearch.value"
+            :kind-filter="budget.transactionKindFilter.value"
+            :account-filter="budget.transactionAccountFilter.value"
+            :category-filter="budget.transactionCategoryFilter.value"
+            @update:search="budget.transactionSearch.value = $event"
+            @update:kind-filter="budget.transactionKindFilter.value = $event"
+            @update:account-filter="
+              budget.transactionAccountFilter.value = $event
+            "
+            @update:category-filter="
+              budget.transactionCategoryFilter.value = $event
+            "
+            @create-transaction="budget.openCreatePanel('transaction')"
+            @edit-transaction="budget.openEditTransaction"
+            @delete-transaction="budget.openDeleteDialog('transaction', $event)"
           />
 
           <AccountsSection
-              v-else-if="budget.activeSection.value === 'accounts'"
-              :account-summaries="budget.accountSummaries.value"
-              @create-account="budget.openCreatePanel('account')"
-              @edit-account="budget.openEditAccount"
-              @delete-account="budget.openDeleteDialog('account', $event)"
+            v-else-if="budget.activeSection.value === 'accounts'"
+            :account-summaries="budget.accountSummaries.value"
+            @create-account="budget.openCreatePanel('account')"
+            @edit-account="budget.openEditAccount"
+            @delete-account="budget.openDeleteDialog('account', $event)"
           />
 
           <CategoriesSection
-              v-else-if="budget.activeSection.value === 'categories'"
-              :category-summaries="budget.categorySummaries.value"
-              :summary-currency="budget.summaryCurrency.value"
-              @create-category="budget.openCreatePanel('category')"
-              @edit-category="budget.openEditCategory"
-              @delete-category="budget.openDeleteDialog('category', $event)"
+            v-else-if="budget.activeSection.value === 'categories'"
+            :category-summaries="budget.categorySummaries.value"
+            :summary-currency="budget.summaryCurrency.value"
+            @create-category="budget.openCreatePanel('category')"
+            @edit-category="budget.openEditCategory"
+            @delete-category="budget.openDeleteDialog('category', $event)"
           />
 
           <BudgetsSection
-              v-else-if="budget.activeSection.value === 'budgets'"
-              :categories="budget.categories.value"
-              :rows="budgetTargets.budgetProgressRows.value"
-              :summary="budgetTargets.budgetGlobalSummary.value"
-              :loading="budgetTargets.budgetLoading.value"
-              :saving="budgetTargets.budgetSaving.value"
-              :dialog-open="budgetTargets.budgetDialogOpen.value"
-              :editing-budget-id="budgetTargets.editingBudgetId.value"
-              :budget-form="budgetTargets.budgetForm"
-              @open-create="budgetTargets.openCreateBudget($event)"
-              @open-edit="(row) => budgetTargets.openEditBudget(budgetTargets.budgets.value.find((entry) => entry.id === row.budgetId)!)"
-              @delete-budget="budgetTargets.deleteBudget"
-              @close-dialog="budgetTargets.closeBudgetDialog"
-              @submit-budget="budgetTargets.submitBudget"
+            v-else-if="budget.activeSection.value === 'budgets'"
+            :categories="budget.categories.value"
+            :rows="budgetTargets.budgetProgressRows.value"
+            :summary="budgetTargets.budgetGlobalSummary.value"
+            :loading="budgetTargets.budgetLoading.value"
+            :saving="budgetTargets.budgetSaving.value"
+            :dialog-open="budgetTargets.budgetDialogOpen.value"
+            :editing-budget-id="budgetTargets.editingBudgetId.value"
+            :budget-form="budgetTargets.budgetForm"
+            @open-create="budgetTargets.openCreateBudget($event)"
+            @open-edit="
+              (row) =>
+                budgetTargets.openEditBudget(
+                  budgetTargets.budgets.value.find(
+                    (entry) => entry.id === row.budgetId,
+                  )!,
+                )
+            "
+            @delete-budget="budgetTargets.deleteBudget"
+            @close-dialog="budgetTargets.closeBudgetDialog"
+            @submit-budget="budgetTargets.submitBudget"
           />
 
           <RecurringSection
-              v-else-if="budget.activeSection.value === 'recurring'"
-              :accounts="budget.accounts.value"
-              :categories="budget.categories.value"
-              :rows="recurring.recurringRows.value"
-              :summary="recurring.recurringSummary.value"
-              :insights="recurring.recurringInsights.value"
-              :upcoming="recurring.recurringUpcomingPreview.value"
-              :loading="recurring.recurringLoading.value"
-              :saving="recurring.recurringSaving.value"
-              :generating="recurring.recurringGenerating.value"
-              :dialog-open="recurring.recurringDialogOpen.value"
-              :editing-recurring-id="recurring.editingRecurringId.value"
-              :recurring-form="recurring.recurringForm"
-              @open-create="recurring.openCreateRecurring"
-              @open-edit="(row) => recurring.openEditRecurring(recurring.recurringTemplates.value.find((entry) => entry.id === row.templateId)!)"
-              @delete-template="recurring.deleteRecurring"
-              @generate-template="recurring.generateDueRecurring"
-              @generate-all="recurring.generateDueRecurring()"
-              @close-dialog="recurring.closeRecurringDialog"
-              @submit-template="recurring.submitRecurring"
+            v-else-if="budget.activeSection.value === 'recurring'"
+            :accounts="budget.accounts.value"
+            :categories="budget.categories.value"
+            :rows="recurring.recurringRows.value"
+            :summary="recurring.recurringSummary.value"
+            :insights="recurring.recurringInsights.value"
+            :upcoming="recurring.recurringUpcomingPreview.value"
+            :loading="recurring.recurringLoading.value"
+            :saving="recurring.recurringSaving.value"
+            :generating="recurring.recurringGenerating.value"
+            :dialog-open="recurring.recurringDialogOpen.value"
+            :editing-recurring-id="recurring.editingRecurringId.value"
+            :recurring-form="recurring.recurringForm"
+            @open-create="recurring.openCreateRecurring"
+            @open-edit="
+              (row) =>
+                recurring.openEditRecurring(
+                  recurring.recurringTemplates.value.find(
+                    (entry) => entry.id === row.templateId,
+                  )!,
+                )
+            "
+            @delete-template="recurring.deleteRecurring"
+            @generate-template="recurring.generateDueRecurring"
+            @generate-all="recurring.generateDueRecurring()"
+            @close-dialog="recurring.closeRecurringDialog"
+            @submit-template="recurring.submitRecurring"
           />
 
           <WealthSection
-              v-else-if="budget.activeSection.value === 'wealth'"
-              :summary-currency="budget.summaryCurrency.value"
+            v-else-if="budget.activeSection.value === 'wealth'"
+            :summary-currency="budget.summaryCurrency.value"
           />
 
           <ImportHistorySection
-              v-else-if="budget.activeSection.value === importHistorySectionKey"
-              @notice="showNotice"
+            v-else-if="budget.activeSection.value === importHistorySectionKey"
+            @notice="showNotice"
           />
 
           <template v-else>
             <ReportsSection
-                :preset="reports.reportPreset.value"
-                :start-date="reports.reportStartDate.value"
-                :end-date="reports.reportEndDate.value"
-                :summary="reports.reportSummary.value"
-                :comparison="reports.reportComparison.value"
-                :account-type-rows="reports.accountTypeRows.value"
-                :account-rows="reports.accountRows.value"
-                :category-rows="reports.categoryRows.value"
-                :foreign-currency-rows="reports.foreignCurrencyRows.value"
-                :weekday-rows="reports.weekdayRows.value"
-                :insights="reports.insights.value"
-                @set-preset="reports.applyPreset($event as ReportPreset)"
-                @update:start-date="reports.reportStartDate.value = $event"
-                @update:end-date="reports.reportEndDate.value = $event"
-                @export-report="reports.exportPeriodReport"
+              :preset="reports.reportPreset.value"
+              :start-date="reports.reportStartDate.value"
+              :end-date="reports.reportEndDate.value"
+              :summary="reports.reportSummary.value"
+              :comparison="reports.reportComparison.value"
+              :account-type-rows="reports.accountTypeRows.value"
+              :account-rows="reports.accountRows.value"
+              :category-rows="reports.categoryRows.value"
+              :income-category-rows="reports.incomeCategoryRows.value"
+              :expense-category-rows="reports.expenseCategoryRows.value"
+              :foreign-currency-rows="reports.foreignCurrencyRows.value"
+              :weekday-rows="reports.weekdayRows.value"
+              :insights="reports.insights.value"
+              @set-preset="reports.applyPreset($event as ReportPreset)"
+              @update:start-date="reports.reportStartDate.value = $event"
+              @update:end-date="reports.reportEndDate.value = $event"
+              @export-report="reports.exportPeriodReport"
             />
 
-            <div class="mt-6">
+            <details class="panel mt-6 p-4">
+              <summary class="cursor-pointer font-semibold">
+                {{ t('appShell.taxReport') }}
+              </summary>
               <TaxReportPanel
-                  :accounts="budget.accounts.value"
-                  :transactions="budget.transactions.value"
-                  :tax-profiles="taxProfiles"
-                  @refresh-tax-profiles="refreshTaxProfiles"
-                  @refresh-data="budget.refreshData"
+                class="mt-4"
+                :accounts="budget.accounts.value"
+                :transactions="budget.transactions.value"
+                :tax-profiles="taxProfiles"
+                @refresh-tax-profiles="refreshTaxProfiles"
+                @refresh-data="budget.refreshData"
               />
-            </div>
+            </details>
           </template>
         </main>
       </div>
     </div>
 
     <button
-        v-if="analyticsPanelOpen"
-        class="fixed inset-0 z-10 cursor-default bg-transparent"
-        aria-label="Close overview summary"
-        @click="analyticsPanelOpen = false"
+      v-if="analyticsPanelOpen"
+      class="fixed inset-0 z-10 cursor-default bg-transparent"
+      :aria-label="t('interfaceText.app.closeOverviewSummary')"
+      @click="analyticsPanelOpen = false"
     />
 
     <EntityDrawer
-        :open="budget.createPanelOpen.value"
-        :mode="budget.panelMode.value"
-        :current-tab="budget.createTab.value"
-        :editing-target="budget.editingTarget.value"
-        :saving="budget.saving.value"
-        :fx-busy="budget.fxBusy.value"
-        :fx-preview="budget.fxPreview.value"
-        :panel-title="budget.panelTitle.value"
-        :panel-description="budget.panelDescription.value"
-        :panel-submit-label="budget.panelSubmitLabel.value"
-        :account-type-options="budget.accountTypeOptions"
-        :transaction-kind-options="budget.transactionKindOptions"
-        :accounts="budget.accounts.value"
-        :categories="budget.categories.value"
-        :transaction-form-categories="budget.transactionFormCategories.value"
-        :account-form="budget.accountForm"
-        :category-form="budget.categoryForm"
-        :transaction-form="budget.transactionForm"
-        @close="budget.closeCreatePanel"
-        @set-tab="setCreateTab"
-        @submit-transaction="budget.submitTransaction"
-        @submit-account="budget.submitAccount"
-        @submit-category="budget.submitCategory"
-        @reset-transaction="budget.resetTransactionForm"
-        @reset-account="budget.resetAccountForm"
-        @reset-category="budget.resetCategoryForm"
-        @request-delete="budget.requestDeleteCurrentForm"
-        @quote-transaction-fx="budget.quoteTransactionFx"
+      :open="budget.createPanelOpen.value"
+      :mode="budget.panelMode.value"
+      :current-tab="budget.createTab.value"
+      :editing-target="budget.editingTarget.value"
+      :saving="budget.saving.value"
+      :fx-busy="budget.fxBusy.value"
+      :fx-preview="budget.fxPreview.value"
+      :panel-title="budget.panelTitle.value"
+      :panel-description="budget.panelDescription.value"
+      :panel-submit-label="budget.panelSubmitLabel.value"
+      :account-type-options="budget.accountTypeOptions"
+      :transaction-kind-options="budget.transactionKindOptions"
+      :accounts="budget.accounts.value"
+      :categories="budget.categories.value"
+      :transaction-form-categories="budget.transactionFormCategories.value"
+      :account-form="budget.accountForm"
+      :category-form="budget.categoryForm"
+      :transaction-form="budget.transactionForm"
+      @close="budget.closeCreatePanel"
+      @set-tab="setCreateTab"
+      @submit-transaction="budget.submitTransaction"
+      @submit-account="budget.submitAccount"
+      @submit-category="budget.submitCategory"
+      @reset-transaction="budget.resetTransactionForm"
+      @reset-account="budget.resetAccountForm"
+      @reset-category="budget.resetCategoryForm"
+      @request-delete="budget.requestDeleteCurrentForm"
+      @quote-transaction-fx="budget.quoteTransactionFx"
     />
 
     <DeleteDialog
-        :open="budget.deleteDialog.open"
-        :busy="budget.deleteDialog.busy"
-        :type="budget.deleteDialog.type"
-        :label="budget.deleteDialog.label"
-        :heading="budget.deleteDialog.heading"
-        :message="budget.deleteDialog.message"
-        @close="budget.closeDeleteDialog"
-        @confirm="budget.confirmDelete"
+      :open="budget.deleteDialog.open"
+      :busy="budget.deleteDialog.busy"
+      :type="budget.deleteDialog.type"
+      :label="budget.deleteDialog.label"
+      :heading="budget.deleteDialog.heading"
+      :message="budget.deleteDialog.message"
+      @close="budget.closeDeleteDialog"
+      @confirm="budget.confirmDelete"
     />
 
     <SettingsDialog
-        :open="settings.settingsOpen.value"
-        :current-locale="settings.locale.value"
-        :current-theme="settings.themeMode.value"
-        @close="settings.closeSettings"
-        @update-locale="settings.setLocale"
-        @update-theme="settings.setTheme"
+      :open="settings.settingsOpen.value"
+      :current-locale="settings.locale.value"
+      :current-theme="settings.themeMode.value"
+      :default-transaction-currency="settings.defaultTransactionCurrency.value"
+      @close="settings.closeSettings"
+      @update-locale="settings.setLocale"
+      @update-theme="settings.setTheme"
+      @update-default-transaction-currency="
+        settings.setDefaultTransactionCurrency
+      "
     />
 
     <ImportWizardDialog
-        :open="importWizardOpen"
-        :accounts="budget.accounts.value"
-        @close="importWizardOpen = false"
-        @applied="handleImportWizardApplied"
+      :open="importWizardOpen"
+      :accounts="budget.accounts.value"
+      @close="importWizardOpen = false"
+      @applied="handleImportWizardApplied"
     />
 
     <ImportReviewDialog
-        :open="csv.importPreviewOpen.value"
-        :title="t('importReview.csvTitle')"
-        :subtitle="t('importReview.csvSubtitle')"
-        :lines="csvPreviewLines"
-        :warnings="csv.importPreviewSummary.value?.warnings || []"
-        :confirm-label="t('importReview.importNow')"
-        @close="csv.closeImportPreview"
-        @confirm="csv.confirmImportCurrentCsv"
+      :open="csv.importPreviewOpen.value"
+      :title="t('importReview.csvTitle')"
+      :subtitle="t('importReview.csvSubtitle')"
+      :lines="csvPreviewLines"
+      :warnings="csv.importPreviewSummary.value?.warnings || []"
+      :confirm-label="t('importReview.importNow')"
+      @close="csv.closeImportPreview"
+      @confirm="csv.confirmImportCurrentCsv"
     />
 
     <ImportReviewDialog
-        :open="jsonBackup.restorePreviewOpen.value"
-        :title="t('importReview.jsonTitle')"
-        :subtitle="t('importReview.jsonSubtitle')"
-        :lines="restorePreviewLines"
-        :warnings="jsonBackup.restorePreviewValidation.value?.warnings || []"
-        :confirm-label="t('importReview.restoreNow')"
-        @close="jsonBackup.closeRestorePreview"
-        @confirm="jsonBackup.confirmRestoreBackupJson"
+      :open="jsonBackup.restorePreviewOpen.value"
+      :title="t('importReview.jsonTitle')"
+      :subtitle="t('importReview.jsonSubtitle')"
+      :lines="restorePreviewLines"
+      :warnings="jsonBackup.restorePreviewValidation.value?.warnings || []"
+      :confirm-label="t('importReview.restoreNow')"
+      @close="jsonBackup.closeRestorePreview"
+      @confirm="jsonBackup.confirmRestoreBackupJson"
     />
   </div>
 </template>
